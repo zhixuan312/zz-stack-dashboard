@@ -10,7 +10,7 @@ The standard this section follows is `data-layers.md`: the four layers between a
 backend answers, the seven direct reads, and the ordered path a project with its own tables follows to reach them. Read
 it before you replace a collection's `rows` with a real query.
 
-`optional:src/data/` is the product's own seam: pages and views import data from it and nowhere else. Write `src/data/<product>.ts`. The template's
+`optional:src/data/` is the product's own seam: server pages or logic modules read through it and pass records or computed values into views. Views take only types or the five vocabulary modules allowed by `data-layers.md` from that seam; they never import data-reading modules. Write `src/data/<product>.ts`. The template's
 sample, ZZ Meridian's own dashboard, lives in `optional:src/system/fixtures/`; your pages never import it, but
 `optional:src/data/collections.ts` does, so it stays until each collection's `rows` come from your data (see "The assistant").
 
@@ -23,17 +23,18 @@ sample, ZZ Meridian's own dashboard, lives in `optional:src/system/fixtures/`; y
 - **Daily series** for anything a Metric tile or chart shows over time: the Meridian cursor reads one value per date it holds.
 - **Freshness** from when data arrived (`DEMO_UPDATED_AT`), never from now.
 - **null for "not measured"**: the formatters in `src/lib/format.ts` render it as a dash. A quantity Meridian has no
-  formatter for (weight, distance) gets one in a file of the product's own (`example:src/data/format.ts`), passed as a
+  formatter for (weight, distance) gets one in a file of the product's own (`example:src/lib/format-product.ts`), passed as a
   tile's or table's `format`, never written inline; `src/lib/format.ts` is Meridian's, and an edit there becomes a
   merge at the next update. Money follows `app.currency`.
-- **Helpers a server page calls** (summaries, derived sentences) go in `optional:src/data/` or `src/lib/`, never in a
-  `'use client'` view file: a server component cannot call a function exported from a client module.
+- **Helpers a server page calls** follow the same layers: product summaries, figures and derived sentences go in
+  `optional:src/logic/`, shared formatters in `src/lib/`, and record reads in `optional:src/data/`. Never put server-called
+  helpers in a `'use client'` view file: a server component cannot call a function exported from a client module.
 - **Read on the server when you can**: a server component that awaits its data sends a page with the numbers in it.
   If a page must fetch in the browser (a client hook against an existing API), its reads start only after the
   JavaScript has loaded and run, about 2.5 s on a mid-range phone, which puts LCP past the limit. Call
   `preload(url, { as: 'fetch', crossOrigin: 'anonymous' })` from `react-dom` inside the read hook: the server render
   writes a preload into the HTML, and the read starts with the page (ZZ Console measured about 170 ms instead).
-  `pnpm verify --timed` measures LCP on that phone profile (`scripts/vitals.ts`).
+  `node scripts/vitals.ts` measures LCP on that phone profile.
 - **The access seam**: who may do what lives in `optional:src/data/`, and a page never answers it on its own. Three files
   hold the rules and one holds the member boundary.
   - `optional:src/data/roles.ts` is the role table. `MAIN_ROLES`, `ADD_ONS` and `GRANTS`; `effective(role, addOns)` unions a
@@ -103,7 +104,7 @@ exactly what an address that names nothing draws: the console's missing page in 
 tab and the address walked back past every page the person may not open, so nothing names the page, a role or who to ask.
 Every gated route's loading state then names no page for anyone (`gatedLoading`), and the standalone missing page walks
 an address below a refused page back past it too.
-`pnpm verify --as` expects whichever the product chose on every route a persona may not open
+`node scripts/rail.ts --as` expects whichever the product chose on every route a persona may not open
 (`scripts/verify.config.ts` reads it from here), and a view tool's refusal is the same under both.
 
 A project made by `create` (or a clone) starts with the sample's three workspaces: `workspaces` in `src/app.config.ts` (Main,
@@ -120,7 +121,7 @@ navigation, `workspaceOf` says which workspace an address belongs to) and `optio
 (`WorkspaceRail` and `WorkspacePalette`). The address alone decides the workspace; nothing is stored, and a workspace
 chooses what the rail lists, never what a person may open. Keep a workspace with the key `main`: the adapter and the
 refusal page fall back to it for an address no entry owns. The sample's browser journeys (`optional:journeys/workspaces.ts`)
-also name `business` and `engineering`, so `verify --full` fails on a renamed workspace until the journeys are changed
+also name `business` and `engineering`, so `node scripts/rail.ts --as` fails on a renamed workspace until the journeys are changed
 with it or removed, and the gate fails on the tests that hold the sample's three until you rewrite them for yours:
 `optional:tests/workspaces.test.ts`, `optional:tests/workspace-access.test.ts`, `optional:tests/workspace-chrome.test.tsx`,
 `optional:tests/workspace-menu-access.test.tsx` and `optional:tests/no-access.test.tsx`. `optional:docs/product-workspaces.md` is the sample's own guide
@@ -330,7 +331,9 @@ orders is the sample's, not the product's.
   The address is worked out on the server: a record that keeps another's name, as a request keeps its customer's, is
   joined to it by name when it is read (`customerIds` in `optional:src/data/requests.ts`), and a name nothing holds
   stays text. A link in a table's cell is followed as itself and does not also open the row. Where the whole row is one
-  control (the Requests embed's list) or a link would navigate a host's frame (an embed's table), the name stays text.
+  control (the Requests embed's inline list), the nested name stays text. In the fullscreen embed table, a known
+  customer's name is a separate button that asks `Surface.openLink` to open that customer through the host; it never
+  navigates the frame or also opens the request.
 - **An incident names its ticket.** An incident's record names the ticket its work is tracked in by id, and the
   Incident card takes a title and an address: `readIncidents()` in `optional:src/data/metrics.ts` reads the tickets the
   incidents name, by their ids, and joins each to its title and the address your tickets page finds it at. A ticket
@@ -382,8 +385,8 @@ orders is the sample's, not the product's.
   workspaces as an Owner and as a Viewer, the `navigationChecks`, `detailRoutes`, `browserChecks` and `personas` in
   `scripts/verify.config.ts` that name the sample's routes and people, and the shipped tests that hold the sample (the
   next item). Give each rail page of your own its `navigationChecks`
-  entry (`pnpm verify --full` fails a rail route without one) and take the sample's out with its pages.
-  `optional:journeys/workspaces.ts` expects of a refused destination what your `refusal` chooses, as `pnpm verify --as`
+  entry (`node scripts/navigate.ts` fails a rail route without one) and take the sample's out with its pages.
+  `optional:journeys/workspaces.ts` expects of a refused destination what your `refusal` chooses, as `node scripts/rail.ts --as`
   does, and gates each step on the destinations it walks.
 - **The shipped tests that hold the sample**: a test under `optional:tests/` holds the sample when it imports a sample
   page, view or fixture, and also when it reads the sample through a module you keep (`optional:src/data/collections.ts`,
@@ -605,9 +608,11 @@ then stays off without them). Then fix what still points at the sample:
 - `optional:app/sign-in/page.tsx`: the headline and lead describe the sample product, and the root layout's
   `description` (`optional:app/layout.tsx`) does too.
 - `optional:src/data/README.md`: it describes the sample's collections; describe your own.
-- What only a deleted page read: `node scripts/check.ts` fails an export of `optional:src/data/` that nothing but a test
-  imports, so with Members gone the page side of `optional:src/data/member-mutations.ts` (`memberAccess`,
-  `invitableRoles`, `assignMemberRole`) and `GRANTS` in `optional:src/data/roles.ts` go, or stop being exported.
+- What only a deleted page read: trace every remaining production caller before removing page-only exports such as
+  `memberAccess`, `invitableRoles` or `assignMemberRole` in `optional:src/data/member-mutations.ts`; `node scripts/check.ts`
+  reports exports read only by tests. `GRANTS` in `optional:src/data/roles.ts` is not page-only: `effective` and `whoCan`
+  still use its table for authorization and refusal explanations. Keep that policy while those callers remain; remove
+  only its `export` when no other module imports the table.
 - `example:src/system/content.ts`: `PAGES` names a sample request id route.
 - Each page `README.md`: its States rows must describe what your view renders; `check.ts` only checks that the section
   exists.
@@ -619,7 +624,7 @@ grep -rn "/services\|/requests\|/customers\|/keys\|/settings\|/members\|/usage\|
   app src/views src/components src/logic src/data --include=*.tsx --include=*.ts | grep -v preview.tsx
 ```
 
-Then `pnpm verify --full --timed`, after `node scripts/registry.ts` in a clone that keeps the Atlas (a created project
+Then `pnpm test:release` and the browser diagnostics, after `node scripts/registry.ts` in a clone that keeps the Atlas (a created project
 has no cards' previews, and there it writes a registry of none).
 
 ## Renaming a thing

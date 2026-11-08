@@ -217,20 +217,25 @@ records and policy only. The six layer rules run in `scripts/check.ts` with `fou
 
 ## How it is checked
 
-`pnpm verify` runs the gate (tokens, specifications, the console's own rules, contrast, lint, types, tests), builds the
-app against a fake gateway (`scripts/fake-gateway`), serves it, and runs the route policy, size and navigation checks it
-is configured for. The fake gateway exists because the presses approve, revoke and archive whatever a page offers, so
-they must never reach the real deployment. Its records are synthetic; nobody in them is a real person.
+Three commands, no arguments: `pnpm test:t1` runs the Tier 1 tests affected by changes since the
+last green run, `pnpm test:t2` the affected Tier 2 tests plus the affected Tier 1 tests, and
+`pnpm test:release` every Tier 1 and Tier 2 test with lint and the type check, once before a
+release. The runner picks the tests; a person never chooses a subset by hand.
 
-The tiers are those of ZZ Meridian 0.18.0's testing standard. `pnpm gate` is the quick tier and `pnpm verify` the
-change tier; `pnpm verify --full` is the complete tier, every rail route, the audit, the presses, the keyboard walk, the
-assistant and the console's `browserChecks`, and judges no time; `pnpm verify --timed` is the timed tier, the budgets,
-the live data, the console's `timedChecks` and Web Vitals on the phone of benchmark index 800, alone and last.
-`pnpm verify --full --timed` is the whole standard and the run before a release, at the release commit on a quiet
-machine. The persona walk, `pnpm verify --full --as <person>` for each person `scripts/verify.config.ts` declares, is a
-run of its own, refused beside `--timed`. `pnpm verify --perf`, 20 samples per route, device and condition, runs only
-in CI, split with `--shard <i>/<n>` over six runners every week. CI runs the complete tier with the persona walk and
-the timed tier on every push, each as its own job. What a run did not exercise, its coverage line says.
+`test:t1` runs the static checks (tokens, specifications, the console's own rules, contrast) and
+then Vitest's related selection over the files changed since `out/last-green` (gitignored). Tier 1
+is every test under `tests/` except `*.perf.test.*`; a changed test file runs itself, a docs-only
+change runs no test, and a code path that reaches no test runs the whole tier. Tier 2 is the
+`<name>.perf.test.*` convention, which `test:t2` includes. `test:release` adds `next typegen`, the
+type check, `eslint .`, every test, `next build`, the route policy and the first-load and HTML
+size checks. The browser audits and walks (`scripts/audit.ts`, `scripts/interactions.ts`,
+`scripts/keyboard.ts`, `scripts/vitals.ts`) are diagnostics run directly, not
+tiers. The fake gateway (`scripts/fake-gateway`) exists because the presses approve, revoke and
+archive whatever a page offers, so they must never reach the real deployment. Its records are
+synthetic; nobody in them is a real person.
+
+CI runs `pnpm test:release` on every push to master, and `pnpm test:t2` as the scheduled job every
+week. What a run did not exercise, its coverage line says.
 
 ## Staying in step with Meridian
 
@@ -275,11 +280,11 @@ What stays the console's own, and why:
   page's first read became the console's server's, because the preload then answered the first browser read a change
   hint asked for with the snapshot the page already held.
 - `scripts/fake-gateway/`, `scripts/approve-banners.ts` and `scripts/live-check.ts`: the fixture and two of the product's own
-  `browserChecks`, which `verify --full` runs. The live check drives a change through the fake gateway's own hooks, which wear the path
+  `browserChecks`, which `test:release` runs. The live check drives a change through the fake gateway's own hooks, which wear the path
   the app proxies (`/api/console/__hint`) so a check never has to know the gateway's address.
 - `scripts/explore-probe.ts`: every view tool and the page's prepared query asked as one person through ZZ Meridian's
-  runner on a real gateway, none of another team's words in any answer; zz-stack's walking skeleton runs it, `verify`
+  runner on a real gateway, none of another team's words in any answer; zz-stack's walking skeleton runs it, `test:release`
   does not.
 
-What `verify` cannot say is how the pages look against production data. The fixtures cover the states a page draws,
+What `test:release` cannot say is how the pages look against production data. The fixtures cover the states a page draws,
 and real data has more.

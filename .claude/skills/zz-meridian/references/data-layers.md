@@ -71,11 +71,14 @@ a seam, not a storage design: it describes the shape of an answer, and never a t
 `{ rows, total, revision?, observedAt }`: the page of rows the question keeps, how many rows it keeps in all, the state
 the caller read, and when the read ran. `readAll()` answers every row with the same marker and the same moment, and
 `aggregate()` answers a figure over every row the same way.
+`readAll()` normalizes its filters and order once, ignores caller pagination and traverses internal pages of at most
+500 rows. Its internal offsets may exceed 100000; public `read()` offsets remain bounded from 0 to 100000.
 
 **Authorization happens before any cache** — a copy kept to save work, correct only while nothing it was made from has
 changed. A read asks whether the scope holds the grant before any cached code runs; a scope without it is refused, and
-nothing is read or served from a cache on its way out. The cache is keyed by tenant and collection, so it can never
-answer a person who could not have asked.
+nothing is read or served from a cache on its way out. Cache identity includes the whole authorization scope (tenant,
+subject and authorization identity), the collection and the normalized query. Tenant plus collection is an invalidation
+tag, not a cache key: it retires every authorized variant for that tenant's collection without sharing their answers.
 
 **A write is validated and names the reads it invalidates.** A write parses its input against the collection's fields —
 a derived field is not writable — authorizes the operation, commits, and then drops the answers its change makes wrong:
@@ -86,6 +89,9 @@ Rows, totals and aggregates are all retired by the same name.
 
 **Absent evidence is `null`, never zero.** A quantity nothing measured is `null`, and the formatters render it as a dash.
 Zero means zero was measured; the two are never the same answer.
+An optional read that failed leaves its dependent part unavailable, not empty. Independent successful reads still
+stand: losing day history must not discard a known current-period total, and losing the period must not discard known
+historical windows. A whole-view empty state requires successful evidence that the relevant sources hold nothing.
 
 **An answer declares whether it is a record or a derived answer — an answer computed from records, not stored as one.**
 A record is returned as it was written. A derived answer carries, in its own payload, the moment it was built and the
@@ -118,10 +124,12 @@ derived answer is a materialized view, a rollup table, a cached query or a cron 
 never implies a preferred store.
 
 The in-process collection store in `src/lib/collection.ts` is the **reference implementation** of this contract: rows, a
-total, a change marker and a derived field, all in one process's memory, with the read surface above it adding the
-moment, the authorization, the cache and the invalidation. It is what you can delete once your own client answers the
-same questions. `optional:src/data/` is the only place your backend is touched: a page, a view, a logic module and the assistant
-never see a client, a connection or a query string.
+total, a change marker and a derived field, with the read surface above it adding the moment, authorization, cache and
+invalidation. Replace its in-memory adapter when your client answers the same questions, but do not delete the shared
+module while callers still import its `Collection`, `Query` or `Grant` types or its query normalizers. Retire the memory
+implementation only after tracing its remaining users, and the whole module only after every consumer has migrated.
+`optional:src/data/` is the only place your backend is touched: a page, a view, a logic module and the assistant never see a
+client, a connection or a query string.
 
 ## Records and derived answers
 
@@ -156,11 +164,13 @@ is computed at read time. A page never builds either: it reads the answer, or th
 
 `optional:src/data/uptime.ts` builds each service's uptime from the days that service's own record keeps, through
 `derivedAnswer()` in `optional:src/data/derived.ts`, rather than reading an uptime stored beside them. Its source is the services
-collection, read through `readAllInScope(scope, 'services', …)` on the scope the answer is keyed by — the answer is held
-per tenant, so one tenant's rows are never served from another's build — and the revision that read answers is what makes
-an unchanged source recognisable without building again. `optional:app/(dashboard)/services/page.tsx` reads the answer's payload —
-its data and its `builtAt` — instead of computing an uptime at render, and a write to any other collection never re-stamps
-it.
+collection, read through `readAllInScope(scope, 'services', …)` on the scope the answer is keyed by: tenant, subject and
+authorization identity, as well as the answer's name. No answer is reused across those scopes. Every caller checks its
+own authorized source before reusing an answer or joining a build. An unchanged revision keeps the answer's build
+moment; concurrent authorized reads share a build even if their observed revisions differ, and a later read can rebuild
+for a changed revision. A source check that overlaps a successfully published build does not replace that answer.
+`optional:app/(dashboard)/services/page.tsx` reads the answer's payload — its data and its `builtAt` — instead of computing an
+uptime at render, and a write to any other collection never re-stamps it.
 
 ## Where this sits among the content layers
 

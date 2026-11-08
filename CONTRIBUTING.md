@@ -12,25 +12,23 @@ pnpm dev                  # against a gateway you can reach
 ```
 
 ```bash
-pnpm typecheck            # tsc --noEmit
-pnpm lint                 # eslint
-pnpm test                 # vitest
-pnpm gate                 # the quick tier: tokens, specifications, contrast, types, tests; before every commit
-pnpm verify               # the change tier: adds a build against the fake gateway and a three-route navigation; before finishing a change
-pnpm verify --full        # the complete tier: every route audited, every control pressed, browserChecks; before handing a change over
-pnpm verify --full --as superadmin,member   # the persona walk, as each person; after a change to who may see or do what
-pnpm verify --full --timed   # the whole standard; before a release, at the release commit, on a quiet machine
+pnpm test:t1       # the Tier 1 tests affected by changes since the last green run
+pnpm test:t2       # the affected Tier 2 tests plus the affected Tier 1 tests
+pnpm test:release  # every Tier 1 and Tier 2 test, plus lint and type check; before a release
 ```
 
-These are ZZ Meridian 0.18.0's tiers (its `docs/testing.md`; the README's "Checking it" says what each adds).
-`pnpm verify --full --timed` is the whole standard and the run before a release, on a quiet machine: `--full` judges
-no time, and the timed tier (`pnpm verify --timed`: the budgets, the live data, the console's `timedChecks` and Web
-Vitals, on the phone of benchmark index 800) runs alone and last. `--as` is a run of its own, refused beside
-`--timed`, so the persona walk and the timed tier are two runs. `pnpm verify --perf`, the 20-sample protocol, runs
-only in CI, split with `--shard <i>/<n>` (`.github/workflows/weekly.yml`); on a laptop narrow it,
-`node scripts/perf.ts --base <url> --routes <route>`. On every push CI runs `lint`, then the jobs `full`
-(`pnpm verify --full --as superadmin,member`) and `timed` (`pnpm verify --timed`) on separate runners
-(`.github/workflows/gate.yml`).
+Three commands, no arguments. The runner picks the tests; do not narrow a run by hand. `test:t1`
+runs the static checks and then Vitest's related selection over the files changed since the last
+green run (`out/last-green`, gitignored). Tier 1 is every test under `tests/` except
+`*.perf.test.*`; `test:t2` includes those too, so with no `*.perf.test.*` file here it runs the
+same affected Tier 1 tests. `test:release` runs every test with lint, the type check, the build,
+the route policy and the size checks; it is the run before a release. The browser audits and walks
+are diagnostics, not tiers: run `node scripts/audit.ts`, `scripts/interactions.ts`,
+`scripts/keyboard.ts`, `scripts/vitals.ts` directly when a change needs
+them.
+
+On every push CI runs `pnpm test:release` (`.github/workflows/gate.yml`); the weekly perf job runs
+`pnpm test:t2` (`.github/workflows/weekly.yml`).
 
 The specification checks
 (`scripts/check.ts` and `scripts/check.local.ts`) hold Meridian's rules and the console's own,

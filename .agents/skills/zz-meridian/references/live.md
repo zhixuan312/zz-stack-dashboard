@@ -1,5 +1,9 @@
 # Live data: one stream per tab, hints, resync and the safety poll
 
+Stream setup owns its subscriptions immediately. If an adapter throws while subscribing or reading a revision,
+the stream releases earlier subscriptions and its abort handler before propagating the error. A synchronous abort
+inside subscription also releases the newly returned cleanup and stops setup.
+
 A console tab keeps its tables fresh with one Server-Sent Events stream that carries hints, never data. A hint says
 which collection changed; the tab then reads that collection again through the authorized `read()` of
 `cache.md`. Every migration `update` reports for the live console names a section below.
@@ -282,11 +286,12 @@ type Ready = { scopeKey: string; pollMs?: number };
 
 /**
  * `?livePollMs=` is a test hook: the live check shortens the safety poll with it. Any visitor can type it, and each poll
- * refreshes the tenant's collections, so it never goes under a second.
+ * refreshes the tenant's collections, so it never goes under a second. Non-finite values and delays above the browser's
+ * signed 32-bit timer maximum are ignored rather than overflowing into a hot polling loop.
  */
 export function pollFromAddress(search: string): number | undefined {
   const ms = Number(new URLSearchParams(search).get('livePollMs'));
-  return ms > 0 ? Math.max(1000, ms) : undefined;
+  return Number.isFinite(ms) && ms > 0 && ms <= 2_147_483_647 ? Math.max(1000, ms) : undefined;
 }
 
 /** Waits for the caller's scope in its own boundary and reports it, so the page never waits and its children never remount. */
@@ -345,8 +350,13 @@ name the caller may not read. How it behaves:
   reporting lost hints, and is read.
 - Hints wait at most 500 ms and coalesce. One refresh runs at a time, and what arrives meanwhile runs next. A refresh
   slower than 10 s counts as failed.
+- Changing the normalized collection union invalidates the previous union's in-flight result: its success cannot mark
+  the new view live, and its failure cannot make that view stale or pause it. The current union's queued resync runs
+  after the previous read settles or times out. Reordering or repeating the same names keeps the stream and its read.
 - A safety refresh runs every `pollMs` (30 s) even on a healthy stream. A failed connection is retried after a second;
   after the third failure the tab polls, and tries the stream again on every fifth poll.
+  A synchronous failure to construct `EventSource` follows that same retry path; it does not interrupt provider setup
+  or prevent the safety poll and disposal from being installed.
 - An authorization failure pauses the stream. A hidden tab closes it, and showing the tab again resyncs. On logout, a
   scope change or an authorization failure the provider disposes the stream and the old scope's client state, and no
   event from an earlier connection applies after that. `scopeKey` is a reset key for the browser, never proof of access.

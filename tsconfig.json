@@ -18,7 +18,7 @@
     "incremental": true,
     // vitest runs with `globals: true`, so `describe`/`it`/`expect` are ambient
     // at runtime. Without this they are ambient to the runner but unknown to
-    // tsc, and `pnpm typecheck` fails on every test file while `pnpm test`
+    // tsc, and `pnpm typecheck` fails on every test file while `pnpm test:t1`
     // passes — two checks disagreeing about the same code.
     // `node` because scripts/ is TypeScript run by Node directly, and those files
     // reach for `process`, `Buffer` and friends. `types` is a whitelist: naming only
@@ -33,7 +33,7 @@
     //
     // It is off now, because `src/lib/host.ts` ships with ZZ Meridian and carries a parameter
     // property: a managed file cannot be edited to suit this project's compiler flag, and the
-    // guarantee the flag bought is one `pnpm verify` already covers by RUNNING the scripts. What
+    // guarantee the flag bought is one `pnpm test:release` already covers by RUNNING the scripts. What
     // still matters is kept: Node opens these files by the name written in the import, so the
     // tsconfig below lets them name `./lib/bin.ts` with its extension.
     // Those same files import each other by the name Node will open — `./lib/contrast-pairs.ts`.

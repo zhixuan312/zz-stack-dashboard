@@ -86,7 +86,7 @@ Migrate in place, page by page, keeping their data layer.
    with no sign-in passes no `access` at all, and the chrome then shows the full `nav` and the `app.user` it was given,
    so the rail never shows a sample person or a Sign out that goes nowhere.
    **Turn on Cache Components.** Meridian's pages prerender a shell and stream what each request reads, and the route
-   policy `pnpm verify` runs fails a page that is neither static nor partial. Set `cacheComponents: true` and
+   policy check fails a page that is neither static nor partial. Set `cacheComponents: true` and
    `partialPrefetching: true` in their `next.config` (`cache.md`, "Turn Cache Components on"), and put each per-request read (their API, cookies, headers) behind a `<Suspense>` boundary, as the
    template's pages do. A detail route whose ids come from their API at request time has no `generateStaticParams` to
    list them, and the shell reads the address: wrap the shell in the layout in `<Suspense>` too, or the build stops
@@ -102,35 +102,30 @@ Migrate in place, page by page, keeping their data layer.
    `@meridian/components/…`), keeping their data fetching and business logic untouched. Their old Tailwind utilities
    render nothing under Meridian's scales, and the gate names each one. Do the busiest page first, and render and score it
    (`standard.md`) before the rest: what it teaches you about their data carries to every other page.
-5. **Before `pnpm verify --full`, give it a fake API.** The default `pnpm verify` reads and never presses: the gate, one
-   build, the size checks and a navigation smoke of at most three routes, with only the harmless probes your
-   `navigationChecks` declare. In an adopted project it reports the browser as `not run` until `verify.config.ts` names
-   a `fakeApi`, or says `noLiveApi: true` because the pages read and write nothing outside the repository.
-   `pnpm verify --full` presses every control it finds on the built app, Approve, Revoke, Archive and Delete included,
-   and refuses without one of the two. If their pages call a live backend, those presses change it. Write
+5. **Before the browser diagnostics, give them a fake API.** The test commands read and never press. The browser
+   diagnostics press every control on the built app, Approve, Revoke, Archive and Delete included. If their pages call a
+   live backend, those presses change it, so build and serve the app against a fake first. Write
    `example:scripts/fake-api.ts`: a server on `--port 0` that answers every route the pages call with typed fixtures
    (writes answer success and are forgotten), prints `listening on <url>`, and logs each request it answers (method,
    path and body), which is how the scoreboard shows every action still sends what it sent. Name it and the environment
    variable their app reads its API address from in `scripts/verify.config.ts` (`fakeApi: { script, env }`): verify
-   starts it first and builds and serves the app against it. Point the build at it, not only the server: an address read
+   starts it before the app, so the app is built and served against it. Point the build at it, not only the server: an address read
    in `next.config` rewrites is baked in at build time. If their pages use web components, every browser suite (the
-   audit, the presses, the keyboard walk, the assistant walk-through, and under `--timed` the live-data walk-through and
+   audit, the presses, the keyboard walk, the assistant walk-through, the live-data walk-through and
    the vitals' taps) looks inside open shadow roots, and an element the audit cannot look inside is reported as
    `unmeasured:`; `validation.md` says what to do about it.
    **A direct database connection is the same hazard through another door.** If their pages read `DATABASE_URL` from
    `.env` (or any other data URL: name it in `dataUrls`), a `next build` and `next start` in their folder carry it, so
-   Approve and Delete land on whatever it names. verify reports the browser as `not run` in the default, and `--full`
-   refuses, when a data URL resolves to a host that is not this machine; point it at a local copy for the run, and set
-   `allowRemoteData: true` only when you know what the presses reach. Restore the data afterwards — the walk-through
+   Approve and Delete land on whatever it names. Point it at a local copy for the run. Restore the data afterwards — the walk-through
    flags rows and a press can delete, even on a run where every check passes.
 6. List their detail pages worth seeing (a normal record, a failed one) in `detailRoutes` in
    `scripts/verify.config.ts`, with ids from the fake API's fixtures, and a record that does not exist in
    `missingRoutes`: a detail route must render its page and a missing one the not-found screen, so a mistyped id fails
    instead of being measured as the not-found screen. A not-found screen of your own carries `data-missing-page` on its
-   root, as `MissingPage` does, since inside a streamed shell a missing record has already answered 200. Map their main routes in `navigationChecks` (a
-   ready selector and one harmless probe each) so the default smoke covers data and interaction, not only the shell. Run
-   `pnpm verify` until it passes, and `pnpm verify --full --timed` before a release (the timed suites want a quiet
-   machine); the line before the last of each says what it covered (`coverage: …`).
+   root, as `MissingPage` does, since inside a streamed shell a missing record has already answered 200. Map their main
+   routes in `navigationChecks` (a ready selector and one harmless probe each) so the navigation diagnostic covers data
+   and interaction, not only the shell. Run `pnpm test:release` until it passes, and the browser diagnostics over the
+   views you changed; the timed ones want a quiet machine.
 
 **The four layers, when the project already has a backend of its own.** Route A keeps their data layer, so the four
 layers are a destination rather than a condition. `data-layers.md` holds the ordered path from where their project is —
@@ -140,7 +135,7 @@ it touches: their schema, their migrations, their ORM and their API's shape. Unt
 `optional:scripts/check.local.ts`, `node scripts/check.ts` says nothing about the four layers: no rule fires, and the
 rest of the check runs as it always did.
 
-Without the assistant, `verify --full` skips its walk-through on its own (it runs only when `optional:app/api/assistant/route.ts`
+Without the assistant, `node scripts/assistant.ts` skips its walk-through on its own (it runs only when `optional:app/api/assistant/route.ts`
 exists).
 
 ## Adding the assistant
@@ -155,7 +150,7 @@ in `optional:src/views/settings.tsx`.
 Three things an adopter meets here. The layout's promise is a request-time part of every page, so each page's HTML
 carries that part's flight data beside the prerendered one: one adopter measured a page going from 65 to 90 KiB of
 HTML (11.2 to 12.0 KiB compressed), so a team should expect each page's HTML
-figure to move and record its baseline again (`node scripts/sizes.ts --write-baseline --base <url>`). The assistant walk-through in `pnpm verify --full` drives the sample's own Home,
+figure to move and record its baseline again (`node scripts/sizes.ts --write-baseline --base <url>`). The assistant walk-through (`node scripts/assistant.ts`) drives the sample's own Home,
 Now, Members (its lookups through `explore_members`, each request handing it), API keys (a key's revocation, found
 through `explore_keys`, expiring on moving on) and Settings, asks the sample's Usage and Tests through their prepared
 queries, and reports those steps as not applicable in a product that replaced them; what the product's own
@@ -165,7 +160,7 @@ product's own for a question, name it in `fakeModel` in the same file (`{ when: 
 input: { period: '7d' } }`): the fake model matches `when` (a case-insensitive pattern) before its own branches and
 answers with the tool's result, so the journey can compare what the assistant cites with what the page shows (a
 question with the word "fail" in it is still refused as a bad key, so `when` should not need that word). A check
-of the product's own that judges a time goes in `timedChecks`, which `pnpm verify --timed` runs alone. And a test setup of the product's own (a provider
+of the product's own that judges a time goes in `timedChecks`, which the timed diagnostics run alone. And a test setup of the product's own (a provider
 around every render, a polyfill) goes in a second file listed after `./tests/setup.ts` in `setupFiles` in
 `vitest.config.ts`: `tests/setup.ts` is Meridian's, and an update replaces it.
 
@@ -255,8 +250,8 @@ Meridian's components are React, so the honest options are:
 - **A new Meridian project** for the dashboard, talking to their existing backend (usually the best result), or
 - **Tokens only**: copy `src/styles/tokens.css` (plain CSS custom properties, framework-agnostic) and rebuild their
   components against those roles by hand, following the card specifications in `src/components/*/*/README.md`. Tell
-  them `pnpm verify` cannot validate a non-React app; run the contrast gate on the tokens and audit their pages with
+  them the test commands cannot validate a non-React app; run the contrast check on the tokens and audit their pages with
   `node scripts/audit.ts --base <their dev server URL> --routes <their routes>` from a Meridian checkout.
 
 When the request does not say which, take the new project and record it in the brief's Decisions: it keeps their app
-untouched and is the one `pnpm verify` can hold to the standard.
+untouched and is the one the test commands can hold to the standard.

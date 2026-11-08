@@ -52,9 +52,10 @@ These hold in every project, however it started, and nothing below overrides the
   the contract a backend answers, the seven direct reads, and the ordered path an existing product follows to the four
   layers. It is advice; `node scripts/check.ts` holds the six rules that a machine can decide, once the project sets its
   own switch in `optional:scripts/check.local.ts`.
-- **Done is when the scoreboard says so.** `pnpm verify` is the loop while you work; the work is finished only when
-  `pnpm verify --full --timed` ends with `the project meets the Meridian standard` and every view is rendered, scored
-  and none is Weak (`references/standard.md`). Never against a live backend: `--full` presses every control, Delete
+- **Done is when the scoreboard says so.** `pnpm test:t1` is the loop while you work; `pnpm test:t2` after a change to
+  shared components, the shell or the data. The work is finished only when `pnpm test:release` passes, every diagnostic
+  has run with nothing failed and nothing unrun the project can run, and every view is rendered, scored and none is Weak
+  (`references/standard.md`). Never against a live backend: the browser diagnostics press every control, Delete
   included, so a project whose pages call a live API or read a database names a `fakeApi` (or says `noLiveApi`) in
   `scripts/verify.config.ts` first (`references/existing-project.md`, step 5).
 - **Commit locally, never publish.** Commit each verified change on its own with the paths named. Pushing, a release, a
@@ -183,11 +184,10 @@ change the brand later, run `npx zz-meridian@<the manifest's version> brand` wit
 
 Requirements: Node 22.18 or newer. A new project uses pnpm when it is installed or corepack can run it, npm otherwise;
 an existing one keeps the package manager its lockfile names, and one with no lockfile gets npm, as `adopt` chooses. The
-commands here say `pnpm`: in an npm project `pnpm verify` is `npm run verify`, and a flag goes after `--`
-(`npm run verify -- --full --timed`). The browser checks use Google Chrome (`CHROME=/path/to/chrome` if it is not where
+commands here say `pnpm`: in an npm project `pnpm test:t1` is `npm run test:t1`. The browser checks use Google Chrome (`CHROME=/path/to/chrome` if it is not where
 the platform keeps it; a Chromium build works too). When one is missing, install it or point at what is there; in a
 sandbox without network or a browser, ask for the access these steps need (the package install, starting Chrome and a
-local server for verify). What still cannot run here does not stop the build: the floors it measures are `not run` with
+local server for the diagnostics). What still cannot run here does not stop the build: the floors it measures are `not run` with
 the reason, and the hand-over says the standard is not yet proven and what would prove it.
 
 Now fill the brief, so the decisions survive the conversation.
@@ -276,32 +276,29 @@ Run the loop in `references/standard.md`, scoring looks against the register in 
 the floors, render and score the craft, fix every Weak and every failure, commit, and go round again. The commands:
 
 ```sh
-pnpm verify            # the gate once, one build, the size checks and a smoke of up to three routes: the inner loop
-pnpm verify --full     # every view at six widths in both themes, every control pressed, the keyboard walk, the assistant; judges no time
-pnpm verify --timed    # the navigation budgets, live data, vitals; alone and last, on a quiet machine
-pnpm verify --full --timed   # the whole standard: the only run that can end "the project meets the Meridian standard"
+pnpm test:t1                   # the tests affected by the change since the last green run, static checks first
+pnpm test:t2                   # the affected Tier 2 tests too
+pnpm test:release              # every Tier 1 and Tier 2 test, once, with lint and the type check
 pnpm build                     # the renders read a built app: under `next dev` they are pictures of the loading state
 node_modules/.bin/next start --port 3100 & # then, for the renders (stop it with kill $!; with a fake API, set its address first: API_URL=<fake> node_modules/.bin/next start …):
-node scripts/shot.ts / <every other view> --width 1440,390 --theme dark,light --full
+node scripts/shot.ts / <every other view> --width 1440,390 --theme dark,light --whole-page
+# the floors the tests cannot see, each against the served build:
+node scripts/audit.ts --base http://127.0.0.1:3100
+node scripts/interactions.ts --base http://127.0.0.1:3100
+node scripts/keyboard.ts --base http://127.0.0.1:3100
+node scripts/navigate.ts --base http://127.0.0.1:3100 --mode full --timing on
+node scripts/vitals.ts --base http://127.0.0.1:3100
 ```
 
 A render is evidence only from a built app (`references/standard.md`, "The craft"): under `next dev` a page's
 browser-side reads can fail to fire, and the picture is of a skeleton that passes every check because it has nothing to
-clip and nothing to contrast. Stop the server before verify, which builds in the same folder: stop the process you
+clip and nothing to contrast. Stop the server before `pnpm test:release`, which builds in the same folder: stop the process you
 started, by its id, never by a name or a pattern, since other servers on the machine may be someone else's. Start Next
 itself, not through `pnpm dev`, whose id is the package manager's and leaves the server running when it is stopped. The default
-takes about two minutes; `--full` takes about a quarter of an hour for a dozen routes, and `--timed` several minutes
-more. `--timed` judges time, so run it alone on a quiet machine: nothing else building, testing or rendering beside it.
-Every run ends with a coverage line, which says the depth that ran, whether the browser ran (and why not), how many
-routes have a readiness and a control mapping (`navigationChecks` in `scripts/verify.config.ts`), and which suites did
-not run:
-
-```text
-coverage: full+timed; browser ran; 9 routes; data configured 9/9; interaction configured 9/9; not run: none
-```
-
-Nothing that did not run is reported as passed, and only a `--full --timed` run with nothing left unrun ends with
-`the project meets the Meridian standard`. `--full` and `--timed` refuse, listing every gap, until
+`test:release` takes several minutes; the diagnostics take about a quarter of an hour for a dozen routes, and the
+timed ones several minutes more. The timed diagnostics judge time, so run them alone on a quiet machine: nothing else
+building, testing or rendering beside it. Each diagnostic prints one line per case and a final line that says what it
+reached; nothing it could not measure is reported as passed. A full diagnostic refuses, listing every gap, until
 `scripts/verify.config.ts` describes the product you built (`references/standard.md`, "The floors"). When something
 fails, read `references/validation.md`, fix the cause, never the check, and run it again. A passing run is half the
 evidence: the other half is the renders, judged and scored, because the audit measures what can be measured and the eye
@@ -315,8 +312,8 @@ describing it. Draft step 8's feedback first, since the hand-over carries it. Wr
 ```
 Built <Product> on Meridian at <path>. <One sentence on what it lets them do.>
 Open it: <the commands, the fake API's included when there is one, and the address>.
-Standard: <"met", or "not yet proven: needs <what only the person can provide>">. verify --full --timed: <its last line, verbatim>.
-Coverage: <the coverage line, verbatim>. Scoreboard: <n> views, <s> Strong, <g> Good, 0 Weak, after <r> rounds (out/standard/scoreboard.md).
+Standard: <"met", or "not yet proven: needs <what only the person can provide>">. test:release: <its last line, verbatim>.
+Diagnostics: <each one's last line, verbatim>. Scoreboard: <n> views, <s> Strong, <g> Good, 0 Weak, after <r> rounds (out/standard/scoreboard.md).
 Pages: <one line each: the page and the question it answers>.
 Decided for you: <each decision from the brief's Decisions, one line each, with how to change it>.
 Not run: <each floor that could not run here, why, and what would run it; or "nothing">.

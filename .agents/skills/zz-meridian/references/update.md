@@ -9,7 +9,7 @@ for either.
 When the project is already on the running version, `update` (and its dry run) prints
 `already at <version>; nothing to update` and exits 0: say so in the hand-over and stop there; the standard is not
 re-proven for a change that did not happen. After an update that changed files, run the loop in `standard.md` on what it
-changed, and close with `pnpm verify --full --timed`. A release can make a suite look further than the last one did (the
+changed, and close with `pnpm test:release` and the browser diagnostics. A release can make a suite look further than the last one did (the
 browser checks now look inside open shadow roots), so a finding that is new after an update may be a page that was never
 measured before; `validation.md` says what each line means.
 
@@ -123,10 +123,9 @@ left by a process that is no longer running, after it has read the journal.
 3. The installed dependencies must match the plan: each entry the update added or raised, and `next`, `react` and
    `react-dom`, must be installed at a version that satisfies the planned specification; the framework must be
    exactly the planned version.
-4. It runs the project gate (which already type checks) and then one `next build`, in place, with no separate `tsc`.
-   With `--verify` it runs the project's default verify (`node scripts/verify.ts`) once instead, which is the gate, the build and the
-   bounded smoke, so nothing runs twice. The output goes to `evidence/`. Before and after each command it compares the
-   protected inputs.
+4. It runs `node scripts/test-run.ts release` (every Tier 1 and Tier 2 test, lint and the type check) and then one
+   `next build`, in place. The output goes to `evidence/`. Before and after each command it compares the protected
+   inputs.
 5. When both pass and the inputs still match, it writes the target manifest atomically, marks the session complete and
    moves it to `.meridian/history/<version>/<id>/`, keeping `state.json`, `MERGE.md`, `resolutions.json` and
    `evidence/` and dropping the temporary `base/`, `ours/`, `new/` and `backup/`. A rename that was interrupted is
@@ -145,12 +144,11 @@ project, overlaps a managed or kept file or is a folder holding tracked files is
 conflict. A protected file a check rewrites, such as a `tsconfig.json` that Next updates, also fails: review and
 commit the change, then finalize again.
 
-**What "complete" means.** The gate and one production build passed on the live project, the files are the target
-release's (plus the team's resolutions), and `optional:.meridian/manifest.json` now records the target as the baseline
-for the next update. Without `--verify` it does not mean the browser checks ran: the output says `browser: not run`, and
-`<pm> run verify` runs the bounded smoke (`<pm> run verify -- --full` the exhaustive suites, `-- --timed` the timed
-ones). With `--verify` the output, `MERGE.md` and the archived evidence carry verify's coverage line, which says what
-ran and what did not. A failing verify fails the session as a failing gate does.
+**What "complete" means.** Every Tier 1 and Tier 2 test, lint and the type check passed, one production build passed
+on the live project, the files are the target release's (plus the team's resolutions), and
+`optional:.meridian/manifest.json` now records the target as the baseline for the next update. The Postgres suite, where
+its URLs are not set, is reported `not run`; the browser diagnostics are not part of finalize. A failing test or build
+fails the session.
 
 A zero-conflict update finalizes in the same command: `update` prints the conflict summary and then the finalize
 output, exit `0`.
@@ -189,7 +187,7 @@ Moving a project to 0.9.0 can report two more `migration:<id>` items, to 0.10.0 
 | `today-in-timezone` (0.16.3) | `optional:app/api/assistant/route.ts` or `optional:src/data/metrics.ts` cutting today with `clock().toISOString().slice(0, 10)` | `dayOf(clock())` from `src/lib/format-date.ts`, so today is the day in `app.timezone`; a file of your own comparing an instant's day with a day row asks `dayOf` too; checked by the gate |
 | `verify-tiers` (0.17.0) | a file of the team's importing `finalOutcome` from `scripts/lib/coverage.ts` and calling it with a boolean, such as a copy of `optional:tests/verify-suite-outcome.test.ts` from before the tiers | `finalOutcome` takes `{ full, timed }` since verify has a timed tier: bring `optional:tests/verify-suite-outcome.test.ts` over from the release as it has it, and call `finalOutcome({ full, timed }, notRun)` in a file of your own, as `validation.md` describes; checked by the gate |
 | `no-data-mark` (0.19.0) | a test of the team's importing the Column chart and expecting a `.bg-fill-track` in a period with no data, such as `optional:tests/column-chart-no-data.test.tsx` as the template wrote it | a `null` period draws a dashed hairline on the baseline since 0.19.0, not a track the height of the scale, which was the tallest mark on the chart: bring `optional:tests/column-chart-no-data.test.tsx` over from the release as it has it, and find `[data-no-data-mark]` where a test of your own found `.bg-fill-track` or `[data-track]`; checked by the gate |
-| `table-grid` (0.26.0) | a file of the team's importing the Table or the DataTable that expects a `grow` column's `@min-[672px]:min-w-64`, such as `optional:tests/table-cut-cell.test.tsx` as the template wrote it, or passes a `colSpan` to a `TableCell` | a table is a grid since 0.26.0, its spare shared equally between the gaps, and a `grow` column's floor is `min-w-40` at every width: bring `optional:tests/table-cut-cell.test.tsx` over from the release as it has it, expect `min-w-40` alone where a test of your own expected the wider floor, and draw a row that spans the table, such as an empty state, outside it or as a `DataTable` `empty`, since a cell takes one track; checked by the gate |
+| `table-grid` (0.26.0) | a file of the team's importing the Table or DataTable that expects the old `grow` utility class, or passes a `colSpan` to a `TableCell` | a table is a grid, its spare shared equally between gaps, and a `grow` column has a 160px floor at every width: bring `optional:tests/table-cut-cell.test.tsx` over from the release, remove utility-class pins rather than repinning them, and check truncation, full-value access and the rendered responsive grid. Draw a spanning row outside the table or as a `DataTable` `empty`, since a cell takes one track; checked by the gate |
 | `four-layers` (0.28.0) | a file of the team's importing a module that has left `optional:src/views/` or `optional:src/data/` for `src/logic/` — the migration names the file and, in its instruction, every path the module left — or importing `afterStart` from `src/components/patterns/incident-card` or `summarise` from `src/components/patterns/status-list`, which no longer export them | thirty-eight modules are in `src/logic/` since 0.28.0, thirty-six of them from `optional:src/views/`, and each import is rewritten to the path the module has: `afterStart` is `src/logic/after-start.ts` and `summarise` is `src/logic/summarise.ts`, and those two must move because the cards are Meridian's and the update replaces them, while every path under `optional:src/views/` and `optional:src/data/` is the team's and stays as it is; a created project brings the release's `src/logic/` over with the pages that import it; the standard the layers come from is `data-layers.md`; checked by the gate and a build |
 | `direct-query-escape` (0.30.0) | a `.query(` call on a collection in `optional:app/`, `optional:src/logic/`, `optional:src/views/` or `src/lib/` whose line carries no `allow-no-direct-query:` escape: the gate let five sites of the template's through by line number before | read through `read()`, `readAll()` or `aggregate()` from `optional:src/data/read.ts`, which ask the caller's grant; where the read has to be direct (a server action reading the record it is about to change, a streamed export, the sign-in before an `AccessScope` exists), state why on the call's line, `// allow-no-direct-query: read() cannot serve this — <why>`: `data-layers.md`, "The seven direct reads"; checked by the gate |
 | `app-description` (0.30.0) | a `src/app.config.ts` whose `app` has no `description` | add `description: '<one sentence about your product>',` beside `name`: the release's `optional:app/layout.tsx` shows it as the document's description, the line a search engine and a link preview put under the name; checked by the gate |
@@ -199,7 +197,11 @@ Moving a project to 0.9.0 can report two more `migration:<id>` items, to 0.10.0 
 | `self-hosted-fonts` (0.34.0) | a file under `app/` that imports `next/font/google` and names `--font-face-sans` or `--font-face-mono` | the faces ship under `src/styles/fonts/` and an update delivered them: load each with `next/font/local` (`src: '../src/styles/fonts/Geist-Variable.woff2'` and `'../src/styles/fonts/GeistMono-Variable.woff2'`, `weight: '100 900'`, the same `variable`), so `next build` fetches nothing from Google Fonts and cannot fail when that host is unreachable; checked by the gate and the build |
 | `nav-item-fields` (0.36.0) | a `src/app.config.ts` whose `NavItem` type lacks `under?: string` or `prefetch?: true` | the release's rail and trail read both on every item, where they tested for them first: add `prefetch?: true; under?: string` to the type, as the release's `src/app.config.ts` declares it; an item that sets neither is drawn as before; checked by the gate |
 | `workspace-homes-moved` (0.36.0) | a file of the team's importing `workspaceHomes` from `scripts/navigate.ts`, or the module whole | `workspaceHomes` moved to `scripts/lib/journey.ts` with the journey and takes the arguments of the command that reads `--homes`: import it from there and call `workspaceHomes(process.argv.slice(2))`; checked by the gate |
-| `sample-with-its-tests` (0.36.0) | in a project `create` made, a sample source under `app/`, `optional:src/views/`, `optional:src/data/`, `optional:src/logic/`, `src/lib/` or `optional:src/system/fixtures/`, or the demo gate `optional:proxy.ts`, that differs from the release's, or a sample module the release added (`optional:src/lib/totals.ts`) that the project lacks | the sample is the team's and an update never touches it, while the shipped tests that pin it arrive: write the release's copies with `npx zz-meridian@<version> create <scratch folder> --no-install`, copy each named file the team never changed over its own, and copy each added module; for a file the team made its own, change or delete the shipped tests that pin it (a deleted one named in `optional:.meridian/keep.json`); checked by the gate and the build |
+| `sample-with-its-tests` (0.36.0) | in a project `create` made, an existing team-owned sample file differs from the release on any forward upgrade, or a module first introduced after the recorded version is missing | the sample stays team-owned while managed tests update. Create a scratch copy with `npx zz-meridian@<version> create <scratch folder> --no-install`; review every named difference and bring over untouched sample files and newly introduced modules. For customized code, migrate its contracts and adapt tests to the actual product. Retire only incidental pins or tests of features truly removed; never delete meaningful behavior or security failures just to finalize. An intentional deletion after a module's introduction is not resurrected; checked by the gate and build |
+| `env-reset-before-each` (0.29.0) | a test file of the team's that sets `process.env` or calls `vi.stubEnv` inside a `beforeAll` | the shipped `tests/setup.ts` restores the environment before every test, so a value set in `beforeAll` is gone before the first test: keep the costly start in `beforeAll` and set the environment from what it returned in a `beforeEach`; checked by the gate |
+| `computed-series-slot` (0.32.0) | a file of the team's that imports a Column chart, Composition bar, Sparkline or Trend chart and computes a `color` by arithmetic (`color: i + 1`) without typing it `SeriesSlot` | a chart's `color` is a `SeriesSlot`, `1` to `6` from `src/components/charts/scale.ts`: type the computed value `SeriesSlot`, or fold the parts past the palette into one "Other"; checked by the gate |
+| `proposal-approve-required` (0.37.0) | a file of the team's rendering `<Proposal>` with neither `state` nor `onApprove` | an uncontrolled Proposal requires `onApprove`, since Approve without one claimed Applied for a change nothing ran: pass the function that runs the change, or pass `state` and own the card's states; checked by the gate |
+| `open-command-moved` (0.37.0) | a file of the team's importing `openCommand` or `usePaletteKey` from `@/components/patterns/command-palette` | the palette is a chunk of its own, loaded with `next/dynamic`, so these two moved to `@/components/patterns/command-palette/open`: import them from there, and mount the palette through `dynamic()` as `src/views/console-chrome.tsx` does; checked by the gate |
 
 A created project that never changed the template's pages brings the release's version of each affected file over, with
 the files that arrived with them: the view contexts `optional:src/logic/home-context.ts` and its siblings, the view
@@ -218,7 +220,7 @@ each one in the project, then record it as above, with the hashes of the files a
 
 | Id | The old shape it found | The change |
 |----|------------------------|------------|
-| `verify-modes` | a `package.json` script, workflow or shell file passing `--quick`, `--no-vitals` or `--extra` to verify | use `pnpm verify`, `--full`, `--timed` or `--perf` instead: `validation.md`; only the gate runs after it |
+| `verify-modes` | a `package.json` script, workflow or shell file passing `--quick`, `--no-vitals` or `--extra` to verify | use `pnpm test:t1`, `pnpm test:t2` or `pnpm test:release` instead: `validation.md` |
 | `shell-assistant-promise` | `<AppShell assistant=...>` with a boolean | pass a `Promise<boolean>`: `cache.md`, "The shell's assistant promise" |
 | `assistant-available-promise` | `useAssistantAvailable()` read as a boolean | `use(useAssistantAvailable())` inside a `Suspense` boundary: same section |
 | `clock-now-required` | `Freshness`, `ShellTools` or `AlertsPanel` without `now`, `formatRelative` with one argument | pass the data's clock: "The clock is the data's" |
@@ -229,7 +231,7 @@ each one in the project, then record it as above, with the hashes of the files a
 | `live-provider` | collections without `optional:src/data/live-actions.ts`, or a console layout without the provider | add the live files: `live.md`, "The live starters" and "Refreshing" |
 | `authorized-endpoints` | the assistant route or an actions file that never calls `resolveAccess` | resolve the caller first, and bring `optional:src/lib/assistant/tools.ts` and `optional:src/lib/assistant/respond.ts` over, which take the guard: "The assistant route" |
 
-Every migration but `verify-modes` is checked by the gate and a build; `verify-modes` by the gate alone. After 0.5.0 the gate alone checks `agent-reads-section`, `nav-needs`, `agent-reads-own-group`, `agent-does-here-section`, `marker-measured-on-observe`, `view-page-matched-as-next`, `journey-moved`, `today-in-timezone`, `verify-tiers`, `no-data-mark`, `table-grid`, `direct-query-escape`, `app-description`, `live-stream-shutdown`, `nav-item-fields` and `workspace-homes-moved`, and verify checks `missing-routes`.
+Every migration but `verify-modes` is checked by the gate and a build; `verify-modes` by the gate alone. After 0.5.0 the gate alone checks `agent-reads-section`, `nav-needs`, `agent-reads-own-group`, `agent-does-here-section`, `marker-measured-on-observe`, `view-page-matched-as-next`, `journey-moved`, `today-in-timezone`, `verify-tiers`, `no-data-mark`, `table-grid`, `direct-query-escape`, `app-description`, `live-stream-shutdown`, `nav-item-fields`, `workspace-homes-moved`, `env-reset-before-each`, `computed-series-slot`, `proposal-approve-required` and `open-command-moved`, and verify checks `missing-routes`.
 
 How to make the change depends on whose file it is:
 
@@ -278,15 +280,15 @@ JSON array of exactly `{ "path", "reason" }` entries. Paths are unique, project-
   fails the gate.
 - A kept file that is missing fails the gate. An update never recreates it: restore the file or remove the entry.
 - Do not add an entry to make a conflict disappear without reading it. The reason is the record of the decision.
-- A managed file whose bytes are not the release's and that no entry keeps is named by the gate, on a `drift:` line
-  after its last line (and under the gate in `pnpm verify`). It is a warning, not a failure: the next update asks about
+- A managed file whose bytes are not the release's and that no entry keeps is named by the static checks, on a `drift:` line
+  after their last line. It is a warning, not a failure: the next update asks about
   each, and it can tell a file whose imports are only spelled differently from one the team changed, which the gate
   cannot. Restore the file to the release, or keep it here with its reason, so the question is answered before the
   update asks it.
 
 ## An unresolved session fails the gate
 
-While an update session exists under `optional:.meridian/update/`, `node scripts/check.ts` (and so `pnpm gate`) refuses
+While an update session exists under `optional:.meridian/update/`, `node scripts/check.ts` (and so every test command) refuses
 it until every open item is resolved: an interrupted apply (run `update --resume`), an edited plan, a write that was
 never applied, a staged file or a migration without exactly one current resolution, and any unknown or duplicate
 resolution. More than one session fails too. When the session is ready, the gate reads its candidate manifest in place

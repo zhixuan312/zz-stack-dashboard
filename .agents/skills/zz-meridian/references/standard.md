@@ -72,37 +72,36 @@ Each floor is measured by a command, and its evidence is the line the command pr
 
 | Floor | Measured by |
 |---|---|
-| Gate: tokens fresh, specifications complete, no literal value, contrast in every theme and accent, lint, types, tests | `pnpm gate` (inside every `pnpm verify`) |
+| Static checks: tokens fresh, specifications complete, no literal value, contrast in every theme and accent, lint, types | `pnpm test:t1` (every test command runs them) |
 | The numbers the pages show are the data's | `example:tests/data.test.ts` asserting the counts and totals the pages show (SKILL.md, step 5) |
-| Build, route policy, first-load and HTML sizes | `pnpm verify` |
-| Every view at 2560, 1440, 1024, 768, 390 and 320px (WCAG's reflow width) in both themes: no sideways scroll, clipped text, table wider than its card, unnamed control, text under 4.5:1, control without a focus ring, touch target under 44px, runtime error; inside open shadow roots too, and a custom element it cannot look inside is `unmeasured:` (`validation.md`) | `pnpm verify --full` (the audit) |
-| Every control pressed and every link followed, mouse at 1440px and taps at 390px, controls inside open shadow roots included; nothing does nothing | `pnpm verify --full` (the presses) |
-| The whole keyboard path, a visible focus ring (a change on focus) at every stop, and the same stops in reverse with Shift+Tab | `pnpm verify --full` (the keyboard walk) |
-| The assistant off and on, when the project has it | `pnpm verify --full`; a step it prints as `n/a`, with its reason, is not applicable and does not count against the outcome |
-| Each rail route's shell, data and first interaction arrive within their budgets, on desktop and through the phone drawer | `pnpm verify --timed` (the navigation budgets; needs a quiet machine) |
-| Live data across tabs, restarts and offline, while the sample Members page it drives is there (a product's own live pages add a `browserChecks` script, or a `timedChecks` script where it judges a time) | `pnpm verify --timed` (the live data); a step it prints as `n/a`, with its reason, is not applicable and does not count against the outcome |
-| LCP under 2.5 s, INP under 200 ms, CLS under 0.1 on a mid-range phone | `pnpm verify --timed` (the vitals) |
+| Build, route policy, first-load and HTML sizes | `pnpm test:release` |
+| Every view at 2560, 1440, 1024, 768, 390 and 320px (WCAG's reflow width) in both themes: no sideways scroll, clipped text, table wider than its card, unnamed control, text under 4.5:1, control without a focus ring, touch target under 44px, runtime error; inside open shadow roots too, and a custom element it cannot look inside is `unmeasured:` (`validation.md`) | `node scripts/audit.ts` |
+| Every control pressed and every link followed, mouse at 1440px and taps at 390px, controls inside open shadow roots included; nothing does nothing | `node scripts/interactions.ts` |
+| The whole keyboard path, a visible focus ring (a change on focus) at every stop, and the same stops in reverse with Shift+Tab | `node scripts/keyboard.ts` |
+| The assistant off and on, when the project has it | `node scripts/assistant.ts`; a step it prints as `n/a`, with its reason, is not applicable and does not count against the outcome |
+| Each rail route's shell, data and first interaction arrive within their budgets, on desktop and through the phone drawer | `node scripts/navigate.ts --timing on` (needs a quiet machine) |
+| Live data across tabs, restarts and offline, while the sample Members page it drives is there | `node scripts/live.ts`; a step it prints as `n/a`, with its reason, is not applicable and does not count against the outcome |
+| LCP under 2.5 s, INP under 200 ms, CLS under 0.1 on a mid-range phone | `node scripts/vitals.ts` |
 | Reduced motion shows the final state at once | motion only through `src/styles/motion.css`, whose reduced-motion rule covers it; nothing animates outside it |
-| All of the above together | `pnpm verify --full --timed` ending with the line `the project meets the Meridian standard` |
+| All of the above together | `pnpm test:release`, then every diagnostic with nothing failed and nothing it could not measure reported as passed |
 | In an existing product, what it did still works: every route at its URL, every action sending the request it sent, its own tests and scripts (a project with no tests of its own has its `lint` and `build`) | the list from `existing-project.md` ("Before you change anything"), each item checked against the fake API's log and the project's own commands |
 
-`--full` and `--timed` check what the project tells it about, so keep `scripts/verify.config.ts` true to the product as
+The diagnostics check what the project tells them about, so keep `scripts/verify.config.ts` true to the product as
 you change it (its comments describe every field, and the template's own entries show the shape): a `navigationChecks`
 entry for every rail route (a ready selector and one harmless probe that works at 390px too, where a table is a card
 list with no column headers to sort: a filter, a link or a dialog), `detailRoutes` with ids from your data for each
 state worth seeing and `missingRoutes` for a record that does not exist (a route that answers an error or draws the
 not-found screen is failed unless it is listed there), `smokeRoutes` among the rail routes, `budgets.htmlKb`, when the project pins a page's HTML, naming only routes that exist, a `fakeApi` as
 soon as a page calls an API, and in an adopted project a `fakeApi` or `noLiveApi` (a created project whose pages read
-only its own sample needs neither). After the pages change, look at the sizes `pnpm verify` prints and record them with
+only its own sample needs neither). After the pages change, look at the sizes `node scripts/sizes.ts` prints and record them with
 `node scripts/sizes.ts --write-baseline --base <url>` against the running build once you have judged them: first-load JS
-for every route and the gzipped HTML of every page, each then held to 5% growth over its own figure. `--full` and `--timed` refuse, listing every gap,
-until these hold.
+for every route and the gzipped HTML of every page, each then held to 5% growth over its own figure. A full diagnostic refuses, listing every gap, until these hold.
 
 ### The craft: judged on the renders, with evidence
 
 Look at every view rendered, not at the code. Serve a production build — `pnpm build`, then `node_modules/.bin/next start --port 3100` (the port the screenshot and audit
-scripts read; stop it again before `pnpm verify`, which builds in the same folder) — and run
-`node scripts/shot.ts <routes> --width 1440,390 --theme dark,light --full`, plus 768 and 2560 where the layout depends on
+scripts read; stop it again before `pnpm test:release`, which builds in the same folder) — and run
+`node scripts/shot.ts <routes> --width 1440,390 --theme dark,light --whole-page`, plus 768 and 2560 where the layout depends on
 width (tables, grids, side panels), and open every PNG in `out/shots/`. **A craft screenshot is evidence only from a built app:** under `next dev` a page's browser-side reads can fail to fire, and the render is then a picture of the loading state — which passes every check, because a skeleton has nothing to clip, nothing unnamed and nothing to contrast. A dialog, sheet, menu or popover is shot open:
 `--press "<the name of the control that opens it>"` (the first visible control with that name; give row actions names
 of their own, "Delete order CR-10425"), repeated for a menu item inside it. With a fake API, every server a render or
@@ -142,20 +141,22 @@ Run rounds until the stop condition holds. Order matters here, because each step
 2. **Build or fix.** Change working code only for a problem you can name, as simply as it allows, from Meridian's tokens
    and components. When a defect is one a test can catch (a wrong total, a missing state, a formatter), write the failing
    test at the lowest layer first, then fix it. Update the page's `README.md` and any doc that describes what you changed.
-3. **Measure what changed.** `pnpm verify` while you iterate. A round that touched only some views checks only those:
-   build once (`pnpm build`), serve it (`node_modules/.bin/next start --port 3100`, stopped by its own id), and run
+3. **Measure what changed.** `pnpm test:t1` after each change, with `pnpm test:t2` when the change touches shared
+   components, the shell or the data. A round that touched only some views checks only those: build once
+   (`pnpm build`), serve it (`node_modules/.bin/next start --port 3100`, stopped by its own id), and run
    `node scripts/audit.ts`, `node scripts/interactions.ts` and `node scripts/keyboard.ts`, each with
    `--routes <the views you changed>`; a change to the shell, a shared component, the tokens or the data touches every
-   view. `pnpm verify --full --timed` runs once more at the end, over everything, alone on a quiet machine, because only
-   it can show the stop condition. Fix the cause of every failure, never the check (`validation.md`).
+   view. The timed diagnostics (`node scripts/navigate.ts --timing on`, `node scripts/live.ts`, `node scripts/vitals.ts`)
+   run once more at the end, over everything, alone on a quiet machine. Fix the cause of every failure, never the check
+   (`validation.md`).
 4. **Look and score.** Render, open every PNG, and score every view with its evidence, looks judged against the register in force.
 5. **Commit** each verified change on its own, staging the paths you changed by name, with a message that says what a
    person will notice. Commit locally only; pushing, releasing and deploying are the person's call.
 6. **Next round** on every Weak and every failed floor. An approach that has failed three times is the wrong approach:
    change it rather than repeat it.
 
-**The stop condition**: a round, run after your last change, in which `pnpm verify --full --timed` ends with
-`the project meets the Meridian standard`, every view has been rendered and scored, nothing is Weak, and the round found
+**The stop condition**: a round, run after your last change, in which `pnpm test:release` passes, every diagnostic has
+run with nothing failed and nothing unrun that the project can run, every view has been rendered and scored, nothing is Weak, and the round found
 nothing new: no failure, no Weak and no default that the round before it had not already fixed. That round is the last
 one; it needs no round after it to confirm it. Then hand over (SKILL.md, step 7). If a floor cannot run here (no Chrome,
 no network, a missing credential only the person has), install or substitute what you can first; what is left is

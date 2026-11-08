@@ -82,8 +82,9 @@ it: the same grant asked the same way, the same tag and profile, and the collect
 one call, so nothing reads a collection page by page to count it.
 
 The profile is `{ stale: 30, revalidate: 60, expire: 3600 }`. The tag is `collection:<sha256 of canonical [tenantId,
-collectionName]>`: bounded, deterministic and free of any raw identifier. The real cache key still includes the subject
-and the authorization identity, because the cached function's arguments include the whole scope. `authorizationKey`
+collectionName]>`: bounded, deterministic and free of any raw identifier. This tenant-and-collection tag is only for
+invalidation. Cache identity includes the whole scope (tenant, subject and authorization identity), collection name and
+normalized query, because these are the cached function's arguments. `authorizationKey`
 must change whenever what the scope may see changes; derive it on the server from current permissions or a trusted
 authorization revision. If an adapter cannot supply a stable, correct visibility identity, leave its read uncached
 until it can.
@@ -359,8 +360,7 @@ export async function gate(feature: FeatureId): Promise<Refusal | null> {
 
 /**
  * The tab a withheld page carries. It is the standalone missing page's own title, written here because this layer may
- * not import a view to read it; `tests/refusal-descriptor.test.ts` and `tests/cli-refusal.test.tsx` hold the two to one
- * string, so they cannot drift apart.
+ * not import a view to read it. A withheld feature uses a generic missing title rather than disclosing its own name.
  */
 const WITHHELD_TITLE = 'Not found';
 
@@ -495,14 +495,17 @@ const PAGE = 500;
  * Every row a question keeps, of a collection the scope may read. A read returns a page, so this keeps asking the *same*
  * question until the total is in hand: a count, a join or a summary over a collection starts here, never from a first
  * page. The order and the conditions are re-asked of every page, so a table claiming "each" is not the first page of
- * something else. Any `limit` the caller passes is ignored: asking here means every row.
+ * something else. Any `limit` or `offset` the caller passes is ignored: asking here means every matching row.
  */
 export async function readAllInScope(scope: AccessScope, name: string, q: Query = {}): Promise<{ rows: Record<string, unknown>[]; revision?: string; observedAt: string }> {
-  const first = await readInScope(scope, name, { ...q, limit: PAGE });
-  // The first page says how many there are, so the rest are asked together: one after another, a read of N pages waited
-  // N round trips (a year of usage for twenty models is fifteen).
+  if (!(await can(scope, name, 'read'))) throw new AccessDenied();
+  const query = normalizeQuery(collectionFor(scope, name), { ...q, limit: PAGE, offset: 0 });
+  const first = await cachedRead(scope, name, query);
+  // Normalize the caller's question once. Only this traversal supplies later offsets: the public read's offset ceiling
+  // still holds, but it must not cap a question asking for every row. All pages share the ordinary scoped read cache.
+  // Ask the remaining pages together rather than waiting one network round trip per page.
   const offsets = Array.from({ length: Math.max(0, Math.ceil(first.total / PAGE) - 1) }, (_, i) => (i + 1) * PAGE);
-  const rest = await Promise.all(offsets.map((offset) => readInScope(scope, name, { ...q, limit: PAGE, offset })));
+  const rest = await Promise.all(offsets.map((offset) => cachedRead(scope, name, { ...query, offset })));
   const rows = [...first.rows, ...rest.flatMap((page) => page.rows)];
   if (rows.length < first.total) throw new Error(`${name} could not be read in full.`);
   return { rows, revision: first.revision, observedAt: first.observedAt };
@@ -528,10 +531,13 @@ export async function memberNamesFor(scope: AccessScope, ids: readonly string[])
 }
 ```
 
-`normalizeQuery` (in `optional:src/lib/collection.ts`, Meridian's) defaults and caps the limit and offset, rejects an
-unknown field or operator, and sorts by the collection's key last. A caller cannot supply or remove an authorization
-predicate through `where`: the predicate belongs to the bound collection. `normalizeAggregate` does the same for an
-aggregate query, and holds its `top` at 8 groups when none is asked and 50 at most.
+`normalizeQuery` (in `optional:src/lib/collection.ts`, Meridian's) defaults and caps the limit, bounds public offsets
+from 0 to 100000, rejects an unknown field or operator, and defaults the order to the collection's key. The backend
+uses the key as the final sort tiebreaker. `readAll()` normalizes the question once and ignores caller pagination;
+only its internally generated offsets bypass the public ceiling, so every matching row can be read in 500-row pages.
+A caller cannot supply or remove an authorization predicate through `where`: the predicate belongs to the bound
+collection. `normalizeAggregate` does the same for an aggregate query, and holds its `top` at 8 groups when none is asked
+and 50 at most.
 
 A page moves like this:
 
