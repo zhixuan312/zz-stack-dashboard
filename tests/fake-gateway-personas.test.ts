@@ -80,6 +80,20 @@ async function memberReads(): Promise<string[]> {
   return paths.flatMap((p) => [p, `${p}${p.includes('?') ? '&' : '?'}scope=platform`]);
 }
 
+/**
+ * `read` over many paths without one connection per path. `memberReads` returns about 300, and a
+ * single `Promise.all` over them opens 300 sockets at the single-threaded fixture at once; under
+ * load the accept queue drops some and `fetch` reports `connect`/`read ECONNRESET`. Eight at a
+ * time issues the same reads and keeps the burst the fixture can answer.
+ */
+async function readAll(paths: string[]): Promise<unknown[]> {
+  const out: unknown[] = [];
+  for (let i = 0; i < paths.length; i += 8) {
+    out.push(...await Promise.all(paths.slice(i, i + 8).map((path) => read(MEMBER, path))));
+  }
+  return out;
+}
+
 describe('who the fake gateway answers as', () => {
   it('is the superadmin with no cookie, and with the superadmin\'s', async () => {
     const bare = await read<Me>(null, 'me');
@@ -476,7 +490,7 @@ describe('the personas pnpm verify --as signs in as', () => {
   it('probe each page the member is refused for a string its read holds and no read of the member\'s does', async () => {
     const probes = Object.entries(personas.member.deniedProbe ?? {}).filter(([route]) => !OTHER_TEAMS.includes(route));
     expect(probes.map(([route]) => route).sort()).toEqual(['/platform/audit', '/platform/bugs/0b3f2a6e-8c41-4d2a-9f10-2e6c4b7a1d01', '/platform/people', '/platform/teams']);
-    const theirs = JSON.stringify(await Promise.all((await memberReads()).map((path) => read(MEMBER, path))));
+    const theirs = JSON.stringify(await readAll(await memberReads()));
     for (const [route, probe] of probes) {
       // `/platform/teams` and `/platform/people` are Teams and People under Platform, reading the gateway's `/teams` and
       // `/people`. A bug report reads its own address: the member reads the list it sits in, by a title generated from
