@@ -21,7 +21,7 @@
  * not evidence that nothing needs testing. A deleted file is a change too. A documents- or workflows-only change runs
  * the guideline test that reads them.
  */
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { bin } from './lib/bin.ts';
@@ -166,20 +166,48 @@ const affectsBrowser = (files: string[]): boolean =>
   files.some((f) => /^(src\/components|src\/styles|src\/views|src\/logic|src\/lib|src\/data|app\/|tokens\/|journeys\/)/.test(f));
 
 /**
+ * The suites whose failure is a Tier 2 performance verdict: the navigation's budgets, a product's own checks that judge
+ * a time, and Web Vitals. Since the standard of 2026-11-10 such a result is reported and compared against earlier
+ * releases, and never fails a run. Every other suite `--timed` runs is functional — the live-data checks included — and
+ * still fails.
+ */
+const TIER2_SUITES = new Set(['timing', 'timedChecks', 'vitals']);
+
+/**
+ * Whether a failed browser standard failed only on Tier 2 performance. `verify.ts` ends on a `coverage:` line naming the
+ * suites that failed; a run that ends without that line did not complete — a crash, a Chrome that would not start, a
+ * suite that wedged — and is a failure whatever it printed.
+ */
+const onlyTier2 = (failed: string[] | null): boolean => failed !== null && failed.length > 0 && failed.every((s) => TIER2_SUITES.has(s));
+
+/**
  * The browser standard, from `scripts/verify.ts`: it builds and serves the app against the fake gateway, then runs the
  * audit, the presses, the keyboard walk, the assistant walk-through and the persona walks (`--full`) and the timed suites
  * (`--timed`). The three test commands are the only entry points; this is coverage they call, never a command a person
- * names. Without Chrome it is reported not run, never passed.
+ * names. Without Chrome it is reported not run, never passed. Its output streams as it arrives while being kept, because
+ * the coverage line it ends on is what says which suites failed.
  */
-function browserStandard(flags: string[], label: string): number {
+function browserStandard(flags: string[], label: string): Promise<{ status: number; failed: string[] | null }> {
   if (!chromeAvailable()) {
     console.log(`not run ${label}: no Chrome (CHROME is unset and no browser was found)`);
-    return 0;
+    return Promise.resolve({ status: 0, failed: null });
   }
-  return run(label, process.execPath, ['scripts/verify.ts', ...flags]);
+  return new Promise((resolve) => {
+    const t = Date.now();
+    const child = spawn(process.execPath, ['scripts/verify.ts', ...flags], { cwd: ROOT, stdio: ['ignore', 'pipe', 'inherit'] });
+    let out = '';
+    child.stdout.on('data', (d: Buffer) => { out += String(d); process.stdout.write(d); });
+    child.on('close', (code) => {
+      const status = code ?? 1;
+      console.log(`${status === 0 ? 'ok  ' : 'FAIL'} ${label} (${((Date.now() - t) / 1000).toFixed(1)}s)`);
+      const coverage = out.split('\n').filter((l) => l.startsWith('coverage: ')).at(-1);
+      const listed = coverage ? /\bfailed: ([^;]+)/.exec(coverage) : null;
+      resolve({ status, failed: coverage ? (listed ? listed[1].split(',').map((s) => s.trim()).filter(Boolean) : []) : null });
+    });
+  });
 }
 
-function release(): number {
+async function release(): Promise<number> {
   const notRun: string[] = [];
   if (staticChecks() !== 0) {
     console.log('test:release: FAIL: a static check failed');
@@ -216,15 +244,21 @@ function release(): number {
   // checks replace the separate steps below when Chrome runs. Without Chrome it is reported not run, never passed.
   if (chromeAvailable()) {
     // Two passes, because `--as` is refused beside `--timed`: the complete tier with each persona, then the timed tier.
-    // Only the first blocks. Since the standard of 2026-11-10 a Tier 2 performance result (the timed suites, and the
-    // vitals, navigation timing and size budgets they hold) is reported and compared against earlier releases; it never
-    // fails a run or blocks a release.
-    if (browserStandard(['--full', '--as', 'superadmin,member'], 'browser standard (Tier 1, with the persona walk)') !== 0) {
+    // Only the first blocks outright. Since the standard of 2026-11-10 a Tier 2 performance result (the timing budgets,
+    // a product's own timed checks and Web Vitals) is reported and compared against earlier releases; it never fails a
+    // run. The live-data checks `--timed` also runs are functional, and the coverage line is what tells them apart.
+    const full = await browserStandard(['--full', '--as', 'superadmin,member'], 'browser standard (Tier 1, with the persona walk)');
+    if (full.status !== 0) {
       console.log('test:release: FAIL: the browser standard failed');
       return 1;
     }
-    if (browserStandard(['--timed'], 'browser standard (Tier 2, timed)') !== 0) {
-      console.log('test:release: a Tier 2 performance result did not hold; reported above and compared against earlier releases, not failing this run');
+    const timed = await browserStandard(['--timed'], 'browser standard (Tier 2, timed)');
+    if (timed.status !== 0) {
+      if (!onlyTier2(timed.failed)) {
+        console.log('test:release: FAIL: the browser standard failed');
+        return 1;
+      }
+      console.log(`test:release: Tier 2 performance did not hold (${timed.failed!.join(', ')}); reported above and compared against earlier releases, not failing this run`);
     }
   } else {
     console.log('not run browser standard: no Chrome (CHROME is unset and no browser was found)');
@@ -260,7 +294,7 @@ function release(): number {
   return 0;
 }
 
-function affected(tier: 't1' | 't2'): number {
+async function affected(tier: 't1' | 't2'): Promise<number> {
   const { ref, from } = baseline();
   const changed = changedSince(ref);
   const withTier2 = tier === 't2';
@@ -325,18 +359,24 @@ function affected(tier: 't1' | 't2'): number {
   };
   // Everything after the Vitest run: the large browser-fixture suites, the Tier 2 browser checks a shared change
   // reaches, and the guideline test when a document or workflow changed.
-  const tail = (): boolean => {
+  const tail = async (): Promise<boolean> => {
     if (!deepOk()) return false;
     // A fresh CI checkout has no marker and no diff: `changed` is empty and there is no change to
     // be "affected by", but the scheduled Tier 2 run must still exercise the timed suite. The
     // early return above already handled a marker with nothing new, so an empty `changed` here is
     // the no-marker case.
     const wholeCheckout = changed.length === 0;
-    // Reported, never failing (the standard of 2026-11-10): a Tier 2 performance result is compared against earlier
-    // releases, and only a Tier 1 failure blocks.
-    if (withTier2 && (wholeCheckout || affectsBrowser(changed))
-      && browserStandard(['--timed'], 'tier 2 browser checks (--timed)') !== 0) {
-      console.log(`test:${tier}: a Tier 2 performance result affected by ${where} did not hold; reported above, not failing this run`);
+    // Tier 2 performance is reported, never failing (the standard of 2026-11-10); the live-data checks the timed pass also
+    // runs are functional, and the coverage line is what tells them apart.
+    if (withTier2 && (wholeCheckout || affectsBrowser(changed))) {
+      const timed = await browserStandard(['--timed'], 'tier 2 browser checks (--timed)');
+      if (timed.status !== 0) {
+        if (!onlyTier2(timed.failed)) {
+          console.log(`test:${tier}: FAIL: a browser check affected by ${where} failed`);
+          return false;
+        }
+        console.log(`test:${tier}: Tier 2 performance did not hold (${timed.failed!.join(', ')}); reported above and compared against earlier releases, not failing this run`);
+      }
     }
     if (guidelineNeeded && run('guideline tests', bin('vitest'), ['run', GUIDELINE]) !== 0) {
       console.log(`test:${tier}: FAIL: the guideline test failed`);
@@ -351,13 +391,13 @@ function affected(tier: 't1' | 't2'): number {
       console.log(`test:${tier}: FAIL: a test in the whole tier failed`);
       return 1;
     }
-    if (!tail()) return 1;
+    if (!(await tail())) return 1;
     recordGreen();
     console.log(`test:${tier}: ${all.files} test files, ${all.tests} tests (whole tier, ${where})`);
     return 0;
   }
 
-  if (!tail()) return 1;
+  if (!(await tail())) return 1;
   recordGreen();
   console.log(first.files
     ? `test:${tier}: ${first.files} test file${first.files === 1 ? '' : 's'}, ${first.tests} test${first.tests === 1 ? '' : 's'} (${where})`
@@ -372,5 +412,5 @@ if (import.meta.main) {
     console.error('test-run: takes one of t1, t2 or release, and nothing else. Use pnpm test:t1, pnpm test:t2 or pnpm test:release.');
     process.exit(1);
   }
-  process.exit(tier === 'release' ? release() : affected(tier as 't1' | 't2'));
+  process.exit(tier === 'release' ? await release() : await affected(tier as 't1' | 't2'));
 }
