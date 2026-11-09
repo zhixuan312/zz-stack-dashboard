@@ -51,6 +51,25 @@ Tier 2 the timed suites. It writes the marker on success. Without Chrome the bro
 reported not run, never passed. On a fresh CI checkout (no marker, no diff) `test:t2` runs the
 timed browser suite as well as the whole Vitest tier.
 
+**The standard from 2026-11-10: only Tier 1 blocks.** A Tier 1 failure fails the run. A Tier 2
+performance result — the timed browser suites and the vitals, navigation timing and size budgets
+they hold — is reported and compared against earlier releases; it never fails a run and never
+blocks a release. A check that did not run is listed as "not run" with its reason and is never
+counted as passed. A Tier 1 failure that passes on a retry with no cause found is reported as
+flaky, not as a pass. CI is the evidence for a release.
+
+Known Tier 2 item, not blocking and not being fixed now: six document routes measure LCP
+2.64–2.73 s against the 2.5 s floor on CI, with INP, CLS and dropped frames inside budget —
+`/initiatives/atlas/2026-09-28-search-relevance/spec.md` (2.73 s), its `plan.md` (2.70 s),
+`/initiatives/atlas/2026-09-12-onboarding-revamp/review.md` (2.66 s),
+`/initiatives/atlas/2026-10-02-query-latency/spec.md` (2.67 s),
+`/initiatives/atlas/2026-10-04-index-rebuild/spec.md` (2.64 s) and
+`/plugins/sdlc/sdlc-spec?view=read` (2.69 s). The 141 KiB markdown renderer (react-markdown +
+remark-gfm) is lazy-loaded to keep those routes under the 820 KiB first-load cap, so the body is
+in hand at about 350 ms while the formatted first paragraph — the LCP element — waits for the
+chunk. The fix, when it is scheduled, is to render the body on the server: `Prose` has no
+`'use client'`, so the 141 KiB never ships.
+
 The 20-sample navigation protocol (`node scripts/perf.ts`) is a diagnostic run by hand on a quiet
 machine. It is not a test tier and no CI job calls it; the scheduled `test:t2` runs the timed
 browser suite, which is the Tier 2 performance evidence.

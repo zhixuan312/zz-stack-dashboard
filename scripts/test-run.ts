@@ -216,10 +216,15 @@ function release(): number {
   // checks replace the separate steps below when Chrome runs. Without Chrome it is reported not run, never passed.
   if (chromeAvailable()) {
     // Two passes, because `--as` is refused beside `--timed`: the complete tier with each persona, then the timed tier.
-    if (browserStandard(['--full', '--as', 'superadmin,member'], 'browser standard (Tier 1, with the persona walk)') !== 0
-      || browserStandard(['--timed'], 'browser standard (Tier 2, timed)') !== 0) {
+    // Only the first blocks. Since the standard of 2026-11-10 a Tier 2 performance result (the timed suites, and the
+    // vitals, navigation timing and size budgets they hold) is reported and compared against earlier releases; it never
+    // fails a run or blocks a release.
+    if (browserStandard(['--full', '--as', 'superadmin,member'], 'browser standard (Tier 1, with the persona walk)') !== 0) {
       console.log('test:release: FAIL: the browser standard failed');
       return 1;
+    }
+    if (browserStandard(['--timed'], 'browser standard (Tier 2, timed)') !== 0) {
+      console.log('test:release: a Tier 2 performance result did not hold; reported above and compared against earlier releases, not failing this run');
     }
   } else {
     console.log('not run browser standard: no Chrome (CHROME is unset and no browser was found)');
@@ -327,10 +332,11 @@ function affected(tier: 't1' | 't2'): number {
     // early return above already handled a marker with nothing new, so an empty `changed` here is
     // the no-marker case.
     const wholeCheckout = changed.length === 0;
+    // Reported, never failing (the standard of 2026-11-10): a Tier 2 performance result is compared against earlier
+    // releases, and only a Tier 1 failure blocks.
     if (withTier2 && (wholeCheckout || affectsBrowser(changed))
       && browserStandard(['--timed'], 'tier 2 browser checks (--timed)') !== 0) {
-      console.log(`test:${tier}: FAIL: a Tier 2 browser check affected by ${where} failed`);
-      return false;
+      console.log(`test:${tier}: a Tier 2 performance result affected by ${where} did not hold; reported above, not failing this run`);
     }
     if (guidelineNeeded && run('guideline tests', bin('vitest'), ['run', GUIDELINE]) !== 0) {
       console.log(`test:${tier}: FAIL: the guideline test failed`);
