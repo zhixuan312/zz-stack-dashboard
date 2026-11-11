@@ -54,4 +54,20 @@ jobs:
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
       # The only test command this repository offers. It runs its own static checks, type check, lint and build.
-      - run: pnpm test:release
+      #
+      # The step's own log is long — the suites print every expected failure, and a downloaded log was cut off before
+      # any of its verdict lines — so the lines that decide the run go to the run's summary as well, where they stay
+      # readable however the log is cut: each suite's last line and every failure it named.
+      - name: pnpm test:release
+        run: |
+          set +e
+          pnpm test:release 2>&1 | tee /tmp/test-release.log
+          status=${PIPESTATUS[0]}
+          {
+            echo '### test:release'
+            echo '```'
+            grep -aE '(^| )(FAIL|not run|states:|journeys:|primary data:|test:release:)' /tmp/test-release.log | tail -60
+            echo '```'
+            echo "exit status: ${status}"
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "${status}"
