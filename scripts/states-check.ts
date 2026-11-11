@@ -154,6 +154,12 @@ type Seen = {
   exceptions: string[];
   /** Streamed segments still held in their hidden place-holder: a page that did not finish placing them. */
   buffers: number;
+  /** Whether two matching reads were seen inside the window; an unsettled page is never compared with another. */
+  settled: boolean;
+  /** What was still moving when the window ran out: the words, a script, or the page's own loading state. */
+  changing: string;
+  /** How long the page took to settle, from navigation start, in milliseconds. */
+  settleMs: number;
 };
 
 /**
@@ -174,14 +180,35 @@ async function visit(page: Page, t: Target, value: string): Promise<Seen> {
         buffers: document.querySelectorAll('div[hidden][id^="S:"]').length };
     })()`);
     let seen = await read();
-    // Settled is two reads in a row with nothing loading, a quarter of a second apart.
-    for (let calm = 0; calm < 2 && seen.now < SETTLE_MS; ) { await sleep(250); seen = await read(); calm = seen.loading ? 0 : calm + 1; }
+    // Settled is two reads in a row, a quarter of a second apart, with nothing loading, the same words in the main
+    // region, and no chunk fetched in between. A lazily loaded chunk — a document's markdown renderer, a chart — draws
+    // after it arrives, and a read taken across those two moments compares a page with itself half-drawn: on 2026-11-11
+    // two `partial` rows (spec.md line 20, review.md line 42) read raw markdown against rendered markdown and were
+    // judged a part missing. Chunks alone are counted: a lazy renderer or a chart is a script, while every request would
+    // never be quiet on a page whose reads the live stream refetches. The loop is still bounded by SETTLE_MS, and a page
+    // that never matches itself is failed, never compared.
+    const scripts = () => page.eval<number>('performance.getEntriesByType("resource").filter((e) => e.initiatorType === "script").length');
+    let fetched = await scripts();
+    let calm = 0;
+    let changing = 'loading';
+    for (; calm < 2 && seen.now < SETTLE_MS; ) {
+      await sleep(250);
+      const next = await read();
+      const count = await scripts();
+      const same = next.text === seen.text && count === fetched;
+      changing = next.loading ? 'loading' : !same ? (next.text !== seen.text ? 'the words changing' : 'a script still arriving') : changing;
+      calm = !next.loading && same ? calm + 1 : 0;
+      seen = next;
+      fetched = count;
+    }
     const exceptions = page.errors.filter((e) => e.startsWith('exception:'));
     // The page's own stack for each exception, flattened to one line: the message alone does not say which code threw.
     const stacks = exceptions.length
       ? await page.eval<string[]>('(window.__stacks ?? []).slice(0, 2).map((s) => String(s).replace(/\\s+/g, " ").trim())').catch(() => [])
       : [];
-    return { ...seen, exceptions: [...exceptions, ...stacks.map((s) => `behind: ${s}`)] };
+    // A page that never matched itself inside the window is reported as unsettled and never compared: comparing two
+    // reads of a page still drawing would bring the race back with no sign that it happened.
+    return { ...seen, settled: calm >= 2, changing: calm >= 2 ? '' : changing, settleMs: Math.round(seen.now), exceptions: [...exceptions, ...stacks.map((s) => `behind: ${s}`)] };
   } finally {
     await page.send('Page.removeScriptToEvaluateOnNewDocument', { identifier });
   }
@@ -338,12 +365,12 @@ export function slowRule(x: Pick<Seen, 'content' | 'refusal' | 'alert' | 'frames
   return { problems, said };
 }
 
-type Row = { who: string; state: State; t: Target; problems: string[]; said: string };
+type Row = { who: string; state: State; t: Target; problems: string[]; said: string; settleMs: number };
 const rows: Row[] = [];
 const normals = new Map<string, Seen>();
 
 /** The parts of a load this file's one tolerance reads: what was thrown, and whether the page finished placing it. */
-export type StreamLoad = Pick<Seen, 'exceptions' | 'buffers' | 'loading' | 'errorPage' | 'text'>;
+export type StreamLoad = Pick<Seen, 'exceptions' | 'buffers' | 'loading' | 'errorPage' | 'text' | 'settled'>;
 
 /** React's streaming helper, swapping a placeholder a deferred boundary flush has already removed. Exact, nothing else. */
 const RS_THROW = /^exception: TypeError: Cannot read properties of null \(reading 'parentNode'\)$/;
@@ -365,7 +392,7 @@ export function toleratedStreamingThrow(x: StreamLoad, health?: Pick<Seen, 'text
   const thrown = x.exceptions.filter((e) => e.startsWith('exception:'));
   const fromRs = x.exceptions.some((e) => e.startsWith('behind:') && /\$RS\b/.test(e));
   if (thrown.length !== 1 || !RS_THROW.test(thrown[0]) || !fromRs) return false;
-  const settled = x.buffers === 0 && !x.loading && !x.errorPage;
+  const settled = x.settled && x.buffers === 0 && !x.loading && !x.errorPage;
   const drawn = health ? digitless(x.text) === digitless(health.text) : x.text.trim().length > 0;
   return settled && drawn;
 }
@@ -381,6 +408,7 @@ function judge(who: string, state: State, t: Target, x: Seen, standing: Seen | n
   const denied = known || (!t.rail && state !== 'normal' && !!normal?.refusal);
   const problems: string[] = [];
   const said: string[] = [];
+  if (!x.settled) problems.push(`did not settle within the ${SETTLE_MS / 1000} s a page is given (still ${x.changing})`);
   if (x.exceptions.length) {
     // Held to the healthy read's content where that state draws the route's own; every other state is held to "something
     // was drawn" and keeps its own rule below.
@@ -435,7 +463,7 @@ function judge(who: string, state: State, t: Target, x: Seen, standing: Seen | n
     const zeros = madeUpZeros(x.text, standing.text);
     if (zeros.length) problems.push(`draws 0 where the answer sent null: ${zeros.slice(0, 3).join('; ')}`);
   }
-  return { who, state, t, problems, said: said.join(' · ') };
+  return { who, state, t, problems, said: said.join(' · '), settleMs: x.settleMs };
 }
 
 /**
@@ -456,7 +484,7 @@ async function session(page: Page, who: string, state: State, start: number) {
       }
       row = judge(who, state, t, x, standing);
     } catch (e) {
-      row = { who, state, t, problems: [(e as Error).message], said: '' };
+      row = { who, state, t, problems: [(e as Error).message], said: '', settleMs: 0 };
     }
     rows.push(row);
     console.log(`${row.problems.length ? 'FAIL' : 'ok  '} ${who.padEnd(10)} ${state.padEnd(7)} ${t.path.padEnd(64)} ${row.problems.length ? row.problems.join('; ') : row.said}`);
@@ -483,6 +511,6 @@ if (import.meta.main) {
 
   for (const r of rows) for (const p of r.problems) failures.push(`${r.t.path} as ${r.who} in ${r.state}: ${p}`);
   for (const f of failures) console.log(`FAIL  ${f}`);
-  console.log(`\nstates: ${rows.length} route, person and state rows; ${rows.filter((r) => r.problems.length).length} failed; tolerated $RS: ${tolerated}`);
+  console.log(`\nstates: ${rows.length} route, person and state rows; ${rows.filter((r) => r.problems.length).length} failed; tolerated $RS: ${tolerated}; slowest settle: ${(Math.max(0, ...rows.map((r) => r.settleMs)) / 1000).toFixed(1)} s`);
   process.exit(failures.length || !rows.length ? 1 : 0);
 }

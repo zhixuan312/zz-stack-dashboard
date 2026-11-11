@@ -135,7 +135,7 @@ describe('the slow rule, which judges whether and never when', () => {
 const RS_MESSAGE = "exception: TypeError: Cannot read properties of null (reading 'parentNode')";
 const RS_STACK = 'behind: TypeError: Cannot read properties of null (reading \'parentNode\') at $RS (http://localhost:3100/platform/teams/dune:4:8049) at http://localhost:3100/platform/teams/dune:4:8118';
 const load = (o: Partial<Parameters<typeof toleratedStreamingThrow>[0]> = {}) => ({
-  exceptions: [RS_MESSAGE, RS_STACK], buffers: 0, loading: false, errorPage: false, text: 'Dune\nMembers', ...o,
+  exceptions: [RS_MESSAGE, RS_STACK], buffers: 0, loading: false, errorPage: false, text: 'Dune\nMembers', settled: true, ...o,
 });
 
 describe('the tolerated streaming throw', () => {
@@ -162,6 +162,8 @@ describe('the tolerated streaming throw', () => {
     expect(toleratedStreamingThrow(load({ loading: true }))).toBe(false);
     expect(toleratedStreamingThrow(load({ errorPage: true }))).toBe(false);
     expect(toleratedStreamingThrow(load({ text: '' }))).toBe(false);
+    // A page that never matched itself in the window is not compared, so it cannot be a recovered load either.
+    expect(toleratedStreamingThrow(load({ settled: false }))).toBe(false);
   });
 
   it('holds the content to the healthy read where the state draws it, digits aside', () => {

@@ -154,8 +154,17 @@ describe('the CI', () => {
     expect(Object.keys(jobs)).toEqual(['release']);
     const job = jobs.release;
     expect(job).toMatch(/^ {4}runs-on: \S+$/m);
-    // The command alone on its line: nothing pipes its exit status away.
-    expect(job).toMatch(/^\s*- run: pnpm test:release$/m);
+    // The only test command in the job is the release command, and its exit status reaches the job: the step
+    // reads it from the pipeline's first command, not from whatever it is piped into, and ends by exiting with
+    // it, so a failing run cannot read as a pass. The step also copies the lines that decide the run into the
+    // run's summary, because a downloaded log can be cut off before them; that copy reads the same run's output
+    // and never replaces its status.
+    const script = stepScript(job, 'pnpm test:release');
+    expect(script).not.toBe('');
+    expect(script.split('\n').map((line) => line.trim()).filter((line) => /^pnpm test:/.test(line)))
+      .toEqual(['pnpm test:release 2>&1 | tee /tmp/test-release.log']);
+    expect(script).toMatch(/^status=\$\{PIPESTATUS\[0\]\}$/m);
+    expect(script.trimEnd().split('\n').at(-1)?.trim()).toBe('exit "${status}"');
     expect(job).not.toMatch(/continue-on-error/);
     expect(job).not.toMatch(/pnpm (?:verify|gate|run (?:lint|test|typecheck))/);
   });
