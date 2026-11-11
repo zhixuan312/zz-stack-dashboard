@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { skillText } from '../scripts/fake-gateway/platform.ts';
 import { empty } from '../scripts/fake-gateway/states.ts';
 import * as STATES_CHECK from '../scripts/states-check.ts';
-import { EMPTY_IS_NORMAL, SETTLE_MS, emptyRule, slowRule } from '../scripts/states-check.ts';
+import { EMPTY_IS_NORMAL, SETTLE_MS, emptyRule, slowRule, toleratedStreamingThrow } from '../scripts/states-check.ts';
 import { SLOW_MS } from '../scripts/fake-gateway/states-partial.ts';
 import config from '../scripts/verify.config.ts';
 
@@ -125,5 +125,47 @@ describe('the slow rule, which judges whether and never when', () => {
   it('is the rule states-check runs in browserChecks, with no bound of its own', () => {
     expect(config.browserChecks).toContainEqual({ script: 'scripts/states-check.ts', browsers: 4 });
     expect(Object.keys(STATES_CHECK)).not.toContain('BOUND_MS');
+  });
+});
+
+/**
+ * The one tolerated throw (scripts/states-check.ts): React's `$RS` swapping a placeholder a deferred flush has already
+ * removed, tolerated only while that same load proves it recovered. zhixuan312/zz-meridian#143.
+ */
+const RS_MESSAGE = "exception: TypeError: Cannot read properties of null (reading 'parentNode')";
+const RS_STACK = 'behind: TypeError: Cannot read properties of null (reading \'parentNode\') at $RS (http://localhost:3100/platform/teams/dune:4:8049) at http://localhost:3100/platform/teams/dune:4:8118';
+const load = (o: Partial<Parameters<typeof toleratedStreamingThrow>[0]> = {}) => ({
+  exceptions: [RS_MESSAGE, RS_STACK], buffers: 0, loading: false, errorPage: false, text: 'Dune\nMembers', ...o,
+});
+
+describe('the tolerated streaming throw', () => {
+  it('is tolerated only as the exact signature, thrown from $RS, on a page that recovered', () => {
+    expect(toleratedStreamingThrow(load())).toBe(true);
+  });
+
+  it('is not tolerated for any other uncaught error', () => {
+    expect(toleratedStreamingThrow(load({ exceptions: ["exception: TypeError: Cannot read properties of undefined (reading 'x')", RS_STACK] }))).toBe(false);
+    expect(toleratedStreamingThrow(load({ exceptions: ['exception: ChunkLoadError: Failed to load chunk'] }))).toBe(false);
+  });
+
+  it('is not tolerated without the stack that names React\'s streaming helper', () => {
+    expect(toleratedStreamingThrow(load({ exceptions: [RS_MESSAGE] }))).toBe(false);
+    expect(toleratedStreamingThrow(load({ exceptions: [RS_MESSAGE, 'behind: TypeError: at renderWithHooks (http://localhost:3100/a.js:1:1)'] }))).toBe(false);
+  });
+
+  it('is not tolerated when another error was raised on the same load', () => {
+    expect(toleratedStreamingThrow(load({ exceptions: [RS_MESSAGE, 'exception: Error: boom', RS_STACK] }))).toBe(false);
+  });
+
+  it('is not tolerated unless that load proves it recovered', () => {
+    expect(toleratedStreamingThrow(load({ buffers: 1 }))).toBe(false);
+    expect(toleratedStreamingThrow(load({ loading: true }))).toBe(false);
+    expect(toleratedStreamingThrow(load({ errorPage: true }))).toBe(false);
+    expect(toleratedStreamingThrow(load({ text: '' }))).toBe(false);
+  });
+
+  it('holds the content to the healthy read where the state draws it, digits aside', () => {
+    expect(toleratedStreamingThrow(load({ text: 'Dune\n12 members' }), { text: 'Dune\n9 members' })).toBe(true);
+    expect(toleratedStreamingThrow(load({ text: 'Dune' }), { text: 'Dune\nMembers' })).toBe(false);
   });
 });
