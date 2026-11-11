@@ -137,6 +137,9 @@ export const observe = (t: Target) => `(() => {
     if (now < spec.cap) requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);
+  // The stack behind an uncaught exception: the protocol's own event carries only the message's first line.
+  window.__stacks = [];
+  addEventListener('error', (e) => { const s = e.error && e.error.stack; if (s) window.__stacks.push(String(s)); });
 })()`;
 
 type Table = { caption: string; rows: number; pager: string; words: string };
@@ -168,7 +171,12 @@ async function visit(page: Page, t: Target, value: string): Promise<Seen> {
     let seen = await read();
     // Settled is two reads in a row with nothing loading, a quarter of a second apart.
     for (let calm = 0; calm < 2 && seen.now < SETTLE_MS; ) { await sleep(250); seen = await read(); calm = seen.loading ? 0 : calm + 1; }
-    return { ...seen, exceptions: page.errors.filter((e) => e.startsWith('exception:')) };
+    const exceptions = page.errors.filter((e) => e.startsWith('exception:'));
+    // The page's own stack for each exception, flattened to one line: the message alone does not say which code threw.
+    const stacks = exceptions.length
+      ? await page.eval<string[]>('(window.__stacks ?? []).slice(0, 2).map((s) => String(s).replace(/\\s+/g, " ").trim())').catch(() => [])
+      : [];
+    return { ...seen, exceptions: [...exceptions, ...stacks.map((s) => `behind: ${s}`)] };
   } finally {
     await page.send('Page.removeScriptToEvaluateOnNewDocument', { identifier });
   }
