@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, startTransition, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, startTransition, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Tooltip } from 'radix-ui';
 import { app } from '../../app.config';
 import { ACCENTS, STORAGE_KEY, type Preferences } from '../../lib/preferences';
@@ -28,8 +28,11 @@ function known(stored: Record<string, unknown>): Preferences {
 
 function apply(p: Preferences) {
   const d = document.documentElement;
-  if (p.theme === 'system') d.removeAttribute('data-theme');
-  else d.setAttribute('data-theme', p.theme);
+  // An embed owns its document theme through EmbedSurface; device choices belong to the console.
+  if (d.getAttribute('data-surface') !== 'embed') {
+    if (p.theme === 'system') d.removeAttribute('data-theme');
+    else d.setAttribute('data-theme', p.theme);
+  }
   d.setAttribute('data-accent', p.accent);
   d.setAttribute('data-density', p.density);
 }
@@ -48,12 +51,11 @@ export function Providers({ children }: { children: ReactNode }) {
         // `dynamic()` card, a lazy panel). Made urgently, React answers it by discarding the server's HTML for such a
         // part and drawing its fallback until the code loads: a page that arrived whole empties and fills again. A
         // transition waits for the part to hydrate first. The pre-paint script has already put the choice on the root.
-        startTransition(() => setPrefs(() => {
-          // The whole stored choice over the defaults, so another tab clearing it puts this one back on them too.
-          const next = known(stored && typeof stored === 'object' ? stored : {});
-          apply(next);
-          return next;
-        }));
+        // The whole stored choice over the defaults, so another tab clearing it puts this one back on them too. The DOM and
+        // storage write happen outside the updater: React may call an updater twice, and a side effect in it runs twice.
+        const next = known(stored && typeof stored === 'object' ? stored : {});
+        startTransition(() => apply(next));
+        startTransition(() => setPrefs(next));
       } catch {
         /* storage unavailable: the defaults stand */
       }
@@ -67,17 +69,19 @@ export function Providers({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('storage', changed);
   }, []);
 
+  // The choice as last set, read by `set` to build the next one: the DOM attribute and the stored value are side
+  // effects, and React may call a state updater twice, so neither belongs in one.
+  const current = useRef(prefs);
   const set = useCallback((patch: Partial<Preferences>) => {
-    setPrefs((p) => {
-      const next = { ...p, ...patch };
-      apply(next);
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      } catch {
-        /* storage unavailable: the choice lasts for this visit */
-      }
-      return next;
-    });
+    const next = { ...current.current, ...patch };
+    current.current = next;
+    apply(next);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      /* storage unavailable: the choice lasts for this visit */
+    }
+    setPrefs(next);
   }, []);
 
   const value = useMemo(() => ({ prefs, set }), [prefs, set]);

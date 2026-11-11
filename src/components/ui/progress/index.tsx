@@ -28,8 +28,8 @@ export function Progress({
   // A bar with no label row, as in a table cell, still has a name.
   | { label?: undefined; 'aria-label': string }
 )) {
-  // A value that is missing, or a whole of zero, says nothing about the share: a dash and no fill, never 0% or NaN%.
-  const known = Number.isFinite(value) && max > 0;
+  // Only a finite measurement and a finite positive whole define a share.
+  const known = Number.isFinite(value) && Number.isFinite(max) && max > 0;
   const now = known ? Math.max(0, Math.min(max, value)) : undefined;
   const pct = now === undefined ? 0 : (now / max) * 100;
   // A label that is a string names the bar itself; one that is drawn (an icon and words) names it through the element

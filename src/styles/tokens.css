@@ -7,14 +7,14 @@
  *   1 Base        src/styles/base.css and src/components/base: the ground, text roles, the shell and the grid
  *   2 Components  src/components/ui: single-purpose parts that never know which page they are on
  *   3 Patterns    src/components/patterns and charts: components composed for one dashboard job
- *   4 Pages       app/(dashboard): routes, each an arrangement of patterns, with no styling of their own
- *   5 Product workspaces   src/app.config.ts and docs/product-workspaces.md: how a product is assembled from its pages,
- *                 declared in the configuration and written down in the product's guide; not a folder of components
+ *   4 Pages       the app's routes, each an arrangement of patterns, with no styling of their own
+ *   5 Product workspaces   src/app.config.ts: how a product is assembled from its pages, declared in the configuration;
+ *                 not a folder of components
  *
  * Three independent modifiers, each settable on the root or on any subtree:
- *   data-theme="dark|light"         dark on :root; unset, the operating system may ask for light
- *   data-accent="indigo|cobalt|jade|graphite"   indigo by default
- *   data-density="comfortable|compact"        comfortable by default
+ *   data-theme="dark|light"   dark on :root; unset, the operating system may ask for light
+ *   data-accent="indigo|cobalt|jade|graphite|brand"   brand by default
+ *   data-density="comfortable|compact"   comfortable by default
  */
 
 :root{
@@ -626,6 +626,36 @@
 
 /* The embed surface (MCP Apps): transparent planes, and the host's neutrals with Meridian's as the fallback. */
 [data-surface="embed"]{
+  --frame:transparent;
+  --ground:transparent;
+  --surface:var(--color-background-primary, rgba(255,255,255,0.04));
+  --surface-sunk:var(--color-background-secondary, #0C0D12);
+  --surface-raised:var(--color-background-primary, #1B1D23);
+  --ink:var(--color-text-primary, #F2F5FD);
+  --ink-2:var(--color-text-secondary, #A8AAB4);
+  --ink-3:var(--color-text-tertiary, #9598A1);
+  --line:var(--color-border-primary, rgba(255,255,255,0.075));
+  --line-strong:var(--color-border-secondary, rgba(255,255,255,0.13));
+  --radius-lg:var(--border-radius-lg, 16px);
+  --radius-md:var(--border-radius-md, 10px);
+}
+@media (prefers-color-scheme:light){
+  [data-surface="embed"]:not([data-theme="dark"]){
+    --frame:transparent;
+    --ground:transparent;
+    --surface:var(--color-background-primary, rgba(255,255,255,0.74));
+    --surface-sunk:var(--color-background-secondary, #F2F5FD);
+    --surface-raised:var(--color-background-primary, #FFFFFF);
+    --ink:var(--color-text-primary, #121319);
+    --ink-2:var(--color-text-secondary, #565860);
+    --ink-3:var(--color-text-tertiary, #696B74);
+    --line:var(--color-border-primary, rgba(16,18,28,0.08));
+    --line-strong:var(--color-border-secondary, rgba(16,18,28,0.14));
+    --radius-lg:var(--border-radius-lg, 16px);
+    --radius-md:var(--border-radius-md, 10px);
+  }
+}
+[data-surface="embed"][data-theme="dark"]{
   --frame:transparent;
   --ground:transparent;
   --surface:var(--color-background-primary, rgba(255,255,255,0.04));

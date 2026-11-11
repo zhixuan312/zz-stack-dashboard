@@ -10,15 +10,25 @@
  */
 import { load, resolver, tokensOf, cssValue, NS } from './tokens.ts';
 import { parse, over, ratio, simulate, deltaE, oklchOf, hex, rgbToOklab, oklchToRgb } from '../src/lib/color.ts';
-import { PAIRS, MIXES } from './lib/contrast-pairs.ts';
+import { PAIRS, MIXES } from '../src/lib/contrast-pairs.ts';
+
+/**
+ * A token file, parsed once. Every theme x accent reads the same sets, so parsing them again for each of the eight was
+ * the whole cost of this run: `load` re-reads and re-parses the JSON every time it is called.
+ */
+const files = new Map<string, ReturnType<typeof load>>();
+const parsed = (f: string) => {
+  if (!files.has(f)) files.set(f, load(f));
+  return files.get(f)!;
+};
 
 /** Every custom property of one context, as raw CSS strings. */
 function context(theme: string, accent: string): Record<string, string> {
   const { sets, mods } = resolver();
   const env: Record<string, string> = {};
-  for (const f of sets) if (!f.startsWith('palette')) for (const t of tokensOf(load(f))) env[t.name] = cssValue(t);
-  for (const t of tokensOf(load(mods.theme.contexts[theme]!))) env[t.name] = cssValue(t);
-  const a = load(mods.accent.contexts[accent]!);
+  for (const f of sets) if (!f.startsWith('palette')) for (const t of tokensOf(parsed(f))) env[t.name] = cssValue(t);
+  for (const t of tokensOf(parsed(mods.theme.contexts[theme]!))) env[t.name] = cssValue(t);
+  const a = parsed(mods.accent.contexts[accent]!);
   for (const t of tokensOf(a)) env[t.name] = cssValue(t);
   Object.assign(env, Object.fromEntries(Object.entries(a.$extensions?.[NS]?.overrides?.[theme] ?? {}).map(([k, v]) => [k, String(v)])));
   return env;
@@ -90,7 +100,7 @@ function main() {
     const p = palette(theme);
     fails += p.fails.length;
     for (const f of p.fails) console.log(`FAIL ${theme} chart palette: ${f}`);
-    if (all) console.log(`ok   ${theme} chart palette: worst adjacent CVD ${p.worstCvd.toFixed(1)}, normal ${p.worstNormal.toFixed(1)}`);
+    if (all && !p.fails.length) console.log(`ok   ${theme} chart palette: worst adjacent CVD ${p.worstCvd.toFixed(1)}, normal ${p.worstNormal.toFixed(1)}`);
   }
   console.log(`contrast: ${count} pairs across every theme and accent, ${fails} failures`);
   process.exit(fails ? 1 : 0);

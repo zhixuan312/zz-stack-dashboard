@@ -16,12 +16,12 @@ type Props = Omit<InputProps, 'leading' | 'trailing' | 'type' | 'onChange' | 'va
  * Filters what is on screen as the reader types. A search glass in front, a clear button once there is text, and an
  * optional key that focuses it from anywhere. Escape clears it; a second Escape leaves it.
  */
-export const SearchInput = forwardRef<HTMLInputElement, Props>(function SearchInput({ value, onValueChange, shortcut, placeholder = 'Search', className, size = 'md', ...rest }, ref) {
+export const SearchInput = forwardRef<HTMLInputElement, Props>(function SearchInput({ value, onValueChange, shortcut, placeholder = 'Search', className, size = 'md', onKeyDown, disabled, readOnly, ...rest }, ref) {
   const inner = useRef<HTMLInputElement>(null);
   useImperativeHandle(ref, () => inner.current!);
 
   useEffect(() => {
-    if (!shortcut) return;
+    if (!shortcut || disabled) return;
     const on = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
       if (e.key !== shortcut || e.metaKey || e.ctrlKey || e.altKey) return;
@@ -31,7 +31,7 @@ export const SearchInput = forwardRef<HTMLInputElement, Props>(function SearchIn
     };
     window.addEventListener('keydown', on);
     return () => window.removeEventListener('keydown', on);
-  }, [shortcut]);
+  }, [shortcut, disabled]);
 
   return (
     <Input
@@ -39,11 +39,14 @@ export const SearchInput = forwardRef<HTMLInputElement, Props>(function SearchIn
       type="search"
       size={size}
       role="searchbox"
+      disabled={disabled}
+      readOnly={readOnly}
       value={value}
       placeholder={placeholder}
       onChange={(e: ChangeEvent<HTMLInputElement>) => onValueChange(e.target.value)}
       onKeyDown={(e) => {
-        if (e.key === 'Escape') {
+        onKeyDown?.(e);
+        if (!readOnly && !e.defaultPrevented && !e.nativeEvent.isComposing && e.key === 'Escape') {
           if (value) { e.preventDefault(); onValueChange(''); } else inner.current?.blur();
         }
       }}
@@ -53,6 +56,7 @@ export const SearchInput = forwardRef<HTMLInputElement, Props>(function SearchIn
           <button
             type="button"
             aria-label="Clear search"
+            disabled={disabled || readOnly}
             onClick={() => { onValueChange(''); inner.current?.focus(); }}
             className="-mr-1 grid size-6 place-items-center rounded-sm text-ink-3 hover:bg-fill-hover hover:text-ink [&_svg]:!size-3.5"
           >

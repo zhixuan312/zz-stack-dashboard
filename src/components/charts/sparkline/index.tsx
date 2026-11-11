@@ -1,7 +1,10 @@
 'use client';
 
-import { useId } from 'react';
+import { useId, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import { cn } from '../../../lib/cn';
 import { FORMATTERS } from '../../../lib/format';
+import { formatDate } from '../../../lib/format-date';
+import { Readout } from '../readout';
 import { useMeridianIndex } from '../meridian/index';
 import { linearPath, monotonePath, stepPath, ticksBetween, type Curve, SERIES_VAR, type SeriesSlot } from '../scale';
 import { useSize } from '../use-size';
@@ -13,7 +16,7 @@ import { useSize } from '../use-size';
  * chart's does, so a day that was not observed is never drawn as zero. `curve` names the path the line and its area take;
  * `domain` holds the scale, so sparklines side by side are drawn against one range.
  */
-export function Sparkline({ values, color = 'accent', height = 36, curve = 'monotone', domain, format = FORMATTERS.count, className }: {
+export function Sparkline({ values, color = 'accent', height = 36, curve = 'monotone', domain, format = FORMATTERS.count, readout, className }: {
   values: (number | null)[];
   color?: SeriesSlot | 'accent' | 'neutral';
   height?: number;
@@ -21,11 +24,21 @@ export function Sparkline({ values, color = 'accent', height = 36, curve = 'mono
   domain?: [number, number];
   /** How the title reads the range: the figure's own format beside it, a count by default. */
   format?: (n: number) => string;
+  /**
+   * Makes the line readable point by point, for a sparkline that is a view's only series: the reader points at it, or
+   * tabs to it and steps with the arrow keys, and reads the value and the day under that point, as the Trend chart's
+   * readout does. `label` names what is read ("Requests"), and `format` reads the value, defaulting to `format` (#128).
+   * Without it the sparkline is the unlabelled shape it has always been: `aria-hidden` and not interactive.
+   */
+  readout?: { label: string; format?: (n: number) => string };
   className?: string;
 }) {
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const [ref, { width: W }] = useSize<HTMLDivElement>();
   const { index, dates } = useMeridianIndex();
+  // Readable, the line is one Tab stop with a readout: the pointer or the arrow keys choose a point (#128). The state is
+  // declared here, above every early return, so the hook order never depends on the data.
+  const [pointed, setPointed] = useState<number | null>(null);
   const numbers = values.filter((v): v is number => v !== null);
   // Under two numbers there is no shape to draw, and `Math.min()`/`Math.max()` over fewer than two give ±Infinity, so
   // the area path closed into a stray filled triangle. The figure stands alone instead — the README's promise.
@@ -58,9 +71,52 @@ export function Sparkline({ values, color = 'accent', height = 36, curve = 'mono
   // A shape with no readout says nothing about what it covers, and it is the one chart a page puts beside a figure
   // without a table under it (issue #94). The range it draws is the words it has, on the pointer: the data's own, the
   // held domain, or, widened, the levels it is drawn to.
-  const range = `${format(min)} to ${format(max)}${widened ? `, scale widened from ${format(held[0])}–${format(held[1])}` : ''}`;
+  // The readout's format reads the range too, so a line given one names its points and its span in the same units.
+  const valueOf = readout?.format ?? format;
+  const range = `${valueOf(min)} to ${valueOf(max)}${widened ? `, scale widened from ${valueOf(held[0])}–${valueOf(held[1])}` : ''}`;
+  // A sparkline that is a view's only series is otherwise the one series a keyboard or screen-reader user cannot read at
+  // all: the line is a shape, and every other chart on such a view is read point by point. With `readout` the line is one
+  // Tab stop, the pointer or the arrow keys choose a point, and the readout names the value and, when the values are the
+  // page's own dates, the day (#128).
+  const readable = Boolean(readout);
+  const picked = readable && pointed !== null && pointed >= 0 && pointed < values.length ? pointed : null;
+  const pick = (e: PointerEvent<HTMLDivElement>) => {
+    if (!readable || !W) return;
+    const box = e.currentTarget.getBoundingClientRect();
+    const i = Math.round(((e.clientX - box.left) / Math.max(1, W)) * (values.length - 1));
+    setPointed(Math.min(values.length - 1, Math.max(0, i)));
+  };
+  const keys = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (!readable) return;
+    const k = e.key;
+    if (!values.length || !['ArrowLeft', 'ArrowRight', 'Home', 'End', 'Escape'].includes(k)) return;
+    e.preventDefault();
+    if (k === 'Escape') return setPointed(null);
+    const cur = picked ?? values.length - 1;
+    setPointed(k === 'Home' ? 0 : k === 'End' ? values.length - 1 : Math.min(values.length - 1, Math.max(0, cur + (k === 'ArrowLeft' ? -1 : 1))));
+  };
+  const readAt = picked === null ? null : values[picked];
+  // A day is named only when the values are the page's dates: a 14-day line on a 30-day page has no day for its points.
+  const dayOf = (i: number) => (values.length === dates?.length ? formatDate(dates[i]) : '');
+  const spoken = picked === null ? '' : readAt === null ? `${dayOf(picked) ? `${dayOf(picked)}: ` : ''}No data` : `${dayOf(picked) ? `${dayOf(picked)}: ` : ''}${readout!.label} ${valueOf(readAt)}`;
   return (
-    <div ref={ref} aria-hidden title={range} className={className} style={{ height }}>
+    <div
+      ref={ref}
+      {...(readable
+        ? {
+            role: 'img',
+            tabIndex: 0,
+            'aria-label': `${range}. Use the arrow keys to read a point.`,
+            onPointerMove: pick,
+            onPointerDown: pick,
+            onPointerLeave: () => setPointed(null),
+            onKeyDown: keys,
+            onBlur: () => setPointed(null),
+            className: cn('relative rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent', className),
+          }
+        : { 'aria-hidden': true as const, title: range, className })}
+      style={{ height }}
+    >
       {W ? (
         <svg width={W} height={H} className="block overflow-visible">
           <defs>
@@ -81,6 +137,14 @@ export function Sparkline({ values, color = 'accent', height = 36, curve = 'mono
           ) : null}
         </svg>
       ) : null}
+      {readable && picked !== null && W ? (
+        // The readout follows the pointer and the keys, and stays inside the card; the announcement is the same words.
+        <Readout at={x(picked)} after={x(picked) <= W / 2} top={0} visible>
+          <p className="t-eyebrow mb-0.5 break-words">{dayOf(picked) || readout!.label}</p>
+          <p className="t-num text-xs font-medium text-ink">{readAt === null ? 'No data' : valueOf(readAt)}</p>
+        </Readout>
+      ) : null}
+      {readable ? <p className="sr-only" aria-live="polite">{spoken}</p> : null}
     </div>
   );
 }

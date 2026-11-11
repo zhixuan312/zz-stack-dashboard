@@ -40,11 +40,24 @@ export function valueImports(src: string): { spec: string; at: number }[] {
   return out;
 }
 
+/** TypeScript/bundler extension substitution, in source, declaration, then runtime order. */
+const RUNTIME_SUBSTITUTIONS: Record<string, string[]> = {
+  '.js': ['.ts', '.tsx', '.d.ts', '.js', '.jsx'],
+  '.jsx': ['.tsx', '.ts', '.d.ts', '.jsx', '.js'],
+  '.mjs': ['.mts', '.d.mts', '.mjs'],
+  '.cjs': ['.cts', '.d.cts', '.cjs'],
+};
 /** The project file an import specifier names, with the extension resolved, or null for a package or a missing module. */
 export function resolveSpec(from: string, spec: string, aliases: [string, string][], root: string): string | null {
   const base = importTarget(from, spec, aliases);
   if (!base) return null;
-  return [base, `${base}.ts`, `${base}.tsx`, `${base}/index.ts`, `${base}/index.tsx`].find((c) => /\.tsx?$/.test(c) && fs.existsSync(path.join(root, c)) && fs.statSync(path.join(root, c)).isFile()) ?? null;
+  const extension = path.posix.extname(base);
+  const substitutions = RUNTIME_SUBSTITUTIONS[extension];
+  // TypeScript tries source/declaration counterparts before JavaScript, never orders.js.ts or orders.js/index.ts.
+  const candidates = substitutions
+    ? substitutions.map((ext) => `${base.slice(0, -extension.length)}${ext}`)
+    : [base, `${base}.ts`, `${base}.tsx`, `${base}/index.ts`, `${base}/index.tsx`];
+  return candidates.find((c) => /\.(?:[cm]?ts|tsx|[cm]?js|jsx)$/.test(c) && fs.existsSync(path.join(root, c)) && fs.statSync(path.join(root, c)).isFile()) ?? null;
 }
 
 const lineOf = (src: string, at: number) => src.slice(0, at).split('\n').length;
@@ -90,8 +103,8 @@ export function presentationDoesNotRead(tree: LayerTree): RuleProblem[] {
 
 // ── no direct query ──────────────────────────────────────────────────────────────────────────────────
 /**
- * A `.query(` call on a code line of `app/**`, `src/logic/**`, `src/views/**` or `src/lib/**`: a page, a view, a logic
- * module or a lib module reads through `read()`, `readAll()` or `aggregate()`, so the caller's access applies. Comments
+ * A `.query(` call on a code line of `app/**`, `src/app/**`, `src/logic/**`, `src/views/**` or `src/lib/**`: a page,
+ * view, logic module or lib module reads through `read()`, `readAll()` or `aggregate()`, so the caller's access applies. Comments
  * are blanked first, so a `.query(` a document quotes in prose is not a violation. The sites that must query
  * directly state it on the call's own line as `allow-no-direct-query: <reason>`, which `scripts/check.ts` prints as an
  * escape: a list of sites by line number here would point at whatever a comment added above them moved the call under,
@@ -100,11 +113,13 @@ export function presentationDoesNotRead(tree: LayerTree): RuleProblem[] {
  */
 export function noDirectQuery(tree: LayerTree): RuleProblem[] {
   const problems: RuleProblem[] = [];
-  for (const file of ['app', 'src/logic', 'src/views', 'src/lib'].flatMap((dir) => walk(tree.root, dir, /\.tsx?$/))) {
+  for (const file of ['app', 'src/app', 'src/logic', 'src/views', 'src/lib'].flatMap((dir) => walk(tree.root, dir, /\.tsx?$/))) {
     sourceOf(tree, file).split('\n').forEach((text, i) => {
-      const call = text.match(/([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\.query\s*\(/);
-      if (!call) return;
-      problems.push({ file, line: i + 1, message: `calls ${call[1]}.query( directly; no direct query — read it through read(), readAll() or aggregate() from @/data/read, so the caller's access applies` });
+      // Every call on the line, not only its first: two direct reads written on one line must both be reported, or the
+      // rule a project turns on can be walked past by moving a second one beside the first.
+      for (const call of text.matchAll(/([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\.query\s*\(/g)) {
+        problems.push({ file, line: i + 1, message: `calls ${call[1]}.query( directly; no direct query — read it through read(), readAll() or aggregate() from @/data/read, so the caller's access applies` });
+      }
     });
   }
   return problems;

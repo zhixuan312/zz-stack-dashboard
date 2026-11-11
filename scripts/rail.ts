@@ -11,7 +11,7 @@
  * persona against all of their routes; a route no rail links to (one the persona may not open) is opened once and adds
  * nothing, and a product whose landing rail links to every route is opened once.
  *
- * This is a suite of its own because `pnpm verify --as` compares the rail with a persona's hand-written expected routes,
+ * This is a suite of its own because `--as` compares the rail with a persona's hand-written expected routes,
  * and that comparison needs what the browser actually drew rather than what `src/app.config.ts` declares. It launches
  * Chrome through scripts/lib/chrome.ts and closes it, so nothing is left running.
  *

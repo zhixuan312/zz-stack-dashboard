@@ -121,6 +121,7 @@ export function TrendChart({
   label,
   legend,
   tick,
+  tickAt,
   stacked = false,
   whole = false,
   baseline,
@@ -128,6 +129,7 @@ export function TrendChart({
   floor,
   domain,
   marks,
+  spans,
   running = false,
   curve = 'monotone',
   points = false,
@@ -154,6 +156,11 @@ export function TrendChart({
   legend?: boolean;
   /** How a point's instant reads, on the axis and in the readout, when the points are not days: "14:00", "Week of 3 Mar". */
   tick?: (date: string) => string;
+  /** Which dates carry an x-axis label: quarter hours on an hour of minutes, month starts on a year of days. By default
+   *  labels count back from the last date, as many as fit. The width rule still thins the chosen ones so they never
+   *  collide, and the first and last are always labelled. The readout and the table are unaffected: every date reads
+   *  there (#135). */
+  tickAt?: (date: string, index: number) => boolean;
   /** The series are parts of one whole: bands stacked in order, the first at the bottom, each in its categorical slot. */
   stacked?: boolean;
   /** The values are counts, a stack of counts too: every level is a whole number, so a top of 10 draws none at 2.5 or 7.5 (#73). */
@@ -171,6 +178,13 @@ export function TrendChart({
    * among 360 points: the days a band's membership left out. Dates it does not draw are skipped.
    */
   marks?: { dates: readonly string[]; tone: 'warning' | 'neutral'; label: string };
+  /**
+   * Periods a fact names, drawn as a full-height wash behind the series from the first date to the last that is in
+   * `dates`: when p95 stayed over its ceiling, when an incident ran. `from` and `to` are dates of `dates`, either end
+   * optional when the period was still open at an edge of the plot. It is not a second band: a band is a level, a span is
+   * a period (#124).
+   */
+  spans?: { from: string; to: string; label: string }[];
   /** The last point is a period still in progress: the line into it is dashed and its readout says "so far". */
   running?: boolean;
   /**
@@ -247,7 +261,20 @@ export function TrendChart({
   // The words take a line of their own over the legend and the plot, or two on a phone card; unmeasured, one line.
   const lift = widened ? (widenedSize.height ? widenedSize.height + 1 : 18) : 0;
   const left = Math.max(...ticks.map((t) => axis(t).length)) * 6.4 + 12;
-  const showLegend = legend ?? series.length > 1;
+  // Each span as the stretch of dates it covers, drawn from its first date to its last. A date the plot does not hold is
+  // skipped, so a period that began before the window is drawn from the window's first day, and one still open at the end
+  // reaches the last. The ends are inclusive, which is what a person reads: "09:25–09:31" covers both minutes.
+  const washes = (spans ?? []).flatMap((span) => {
+    const from = dates.indexOf(span.from), to = dates.indexOf(span.to);
+    if (from < 0 && to < 0) return [];
+    const start = from < 0 ? 0 : Math.min(from, to < 0 ? dates.length - 1 : to);
+    const end = to < 0 ? dates.length - 1 : Math.max(from < 0 ? 0 : from, to);
+    return [{ ...span, start, end }];
+  });
+  // The legend names the series; the key under it names the marks, which would otherwise be a dot, a dash and a stem a
+  // reader has to guess at. Either one alone is enough to draw the row, and the plot keeps its room for it (#129).
+  const marksKey = Boolean(marks || running || washes.length);
+  const showLegend = legend ?? (series.length > 1 || marksKey);
   const pad = { t: (showLegend ? Math.max(34, legendSize.height + 16) : 14) + lift, r: 4, b: 26, l: left };
   const W = Math.max(0, width - pad.l - pad.r), H = h - pad.t - pad.b;
   const n = dates.length;
@@ -256,7 +283,7 @@ export function TrendChart({
   // The table follows the line a frame later when the dates change (`useSettled`).
   const settled = useSettled(dates.join('\n'));
   // Moving the cursor re-renders the chart, and no row of its table changes with it, so the rows are built once per data.
-  const caption = `${label}${band ? `. ${band.label}` : ''}${marks ? `. Marked: ${marks.label}` : ''}${baseline ? `. ${baseline.label}` : ''}${running ? `. ${SO_FAR}` : ''}${widened ? `. ${widened}` : ''}`;
+  const caption = `${label}${band ? `. ${band.label}` : ''}${marks ? `. Marked: ${marks.label}` : ''}${washes.length ? `. ${washes.map((w) => `${w.label} (${w.from}–${w.to})`).join('. ')}` : ''}${baseline ? `. ${baseline.label}` : ''}${running ? `. ${SO_FAR}` : ''}${widened ? `. ${widened}` : ''}`;
   const table = useMemo(
     () => (settled ? <table className="sr-only">
       <caption>{caption}</caption>
@@ -317,18 +344,38 @@ export function TrendChart({
     [series, curve, width, h, low, top, running, n, pad.l, pad.t, W, H],
   );
 
-  // What the plot draws, as the label placer needs it: every line, and the top of every band of a stack.
-  const drawn = bases ? bases.map(({ upper }) => ({ ys: upper.map((v) => (v === null ? null : y(v))), filled: true })) : series.map((s) => ({ ys: s.values.map((v) => (v === null ? null : y(v))), filled: s.kind === 'area' }));
+  // What the plot draws, as the label placer needs it: every line, and the top of every band of a stack. Memoised on the
+  // geometry, not rebuilt on every cursor move: pointing at the chart re-renders it, and this walks every point of every
+  // series and then places each reference label against all of them.
+  const drawn = useMemo(
+    () => (bases ? bases.map(({ upper }) => ({ ys: upper.map((v) => (v === null ? null : y(v))), filled: true })) : series.map((s) => ({ ys: s.values.map((v) => (v === null ? null : y(v))), filled: s.kind === 'area' }))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [bases, series, width, h, low, top, pad.l, pad.t, W, H],
+  );
   // The reference levels, in the order their labels are placed: the band's top edge first, then what is usual. Both are
   // placed against everything the plot draws. They may stand in the 14px the chart keeps clear over its top gridline,
   // and never under the axis.
-  const refs = [
-    ...(band ? [{ value: band.value, label: band.label, edge: true }] : []),
-    ...(baseline ? [{ value: baseline.value, label: baseline.label, edge: false }] : []),
-  ].map((r) => ({ ...r, at: placeLabel(r.label, y(r.value), { left: pad.l, right: pad.l + W, top: pad.t - 14, bottom: pad.t + H }, dates.map((_, i) => x(i)), drawn) }));
+  const refs = useMemo(
+    () => [
+      ...(band ? [{ value: band.value, label: band.label, edge: true }] : []),
+      ...(baseline ? [{ value: baseline.value, label: baseline.label, edge: false }] : []),
+    ].map((r) => ({ ...r, at: placeLabel(r.label, y(r.value), { left: pad.l, right: pad.l + W, top: pad.t - 14, bottom: pad.t + H }, dates.map((_, i) => x(i)), drawn) })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [band, baseline, drawn, dates, width, h, low, top, pad.l, pad.t, W, H],
+  );
 
-  const labelEvery = Math.max(1, Math.ceil(n / Math.max(2, Math.floor(W / 92))));
-  const xLabels = dates.map((d, i) => ({ d, i })).filter(({ i }) => (n - 1 - i) % labelEvery === 0);
+  // How many labels the plot holds, and so which of them it draws: every nth from the last, so the spacing is even.
+  const slots = Math.max(2, Math.floor(W / 92));
+  const labelEvery = Math.max(1, Math.ceil(n / slots));
+  // A caller may name the dates that carry a label — quarter hours, month starts — where counting back from the last one
+  // lands on 09:04 and 09:11. The chosen dates are then thinned to the same number of slots, counted back from the last,
+  // so they never collide; the first chosen one and the last are always labelled, since they anchor the range (#135).
+  const xLabels = (() => {
+    if (!tickAt) return dates.map((d, i) => ({ d, i })).filter(({ i }) => (n - 1 - i) % labelEvery === 0);
+    const chosen = dates.map((d, i) => ({ d, i })).filter(({ d, i }) => tickAt(d, i));
+    const every = Math.max(1, Math.ceil(chosen.length / slots));
+    return chosen.filter((_, k) => chosen.length - 1 - k === 0 || k === 0 || (chosen.length - 1 - k) % every === 0);
+  })();
 
   const pick = (e: PointerEvent<SVGSVGElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
@@ -352,7 +399,10 @@ export function TrendChart({
   const cx = active !== null ? Math.round(x(active)) + 0.5 : 0;
   const day = active === null ? '' : tick ? tick(dates[active]) : formatDate(dates[active]);
   /** The day pointed at, in words, for a screen reader: the readout is drawn for the eye and hidden from it. */
-  const reading = active === null ? null : `${day}${active === soFar ? ', so far' : ''}${marks?.dates.includes(dates[active]) ? `, ${marks.label}` : ''}: ${series.map((s) => `${s.label} ${fmt(s.values[active])}`).join(', ')}${totals ? `, Total ${fmt(totals[active])}` : ''}`;
+  // A point inside a span says which (#124): the wash is a shape, and the pointer and the keys must name the period it
+  // stands in as they name a marked day.
+  const spanAt = (i: number | null) => (i === null ? [] : washes.filter((w) => i >= w.start && i <= w.end).map((w) => w.label));
+  const reading = active === null ? null : `${day}${active === soFar ? ', so far' : ''}${marks?.dates.includes(dates[active]) ? `, ${marks.label}` : ''}${spanAt(active).map((l) => `, ${l}`).join('')}: ${series.map((s) => `${s.label} ${fmt(s.values[active])}`).join(', ')}${totals ? `, Total ${fmt(totals[active])}` : ''}`;
 
   return (
     <div ref={box} className={cn('relative w-full select-none', fill && 'min-h-55 flex-1', className)} style={fill ? undefined : { height }}>
@@ -390,6 +440,23 @@ export function TrendChart({
               </linearGradient>
             ))}
           </defs>
+          {/* A span: the period a fact names, as a full-height wash behind everything the plot draws, so "when" reads as
+              a stretch of the axis and not as a value. It is quiet, and the caption, the readout and the key name it. */}
+          {washes.map((w) => (
+            <rect
+              key={`${w.label}:${w.start}`}
+              data-span={w.label}
+              x={x(w.start)}
+              y={pad.t}
+              width={Math.max(1, x(w.end) - x(w.start))}
+              height={H}
+              fill="var(--fill-track)"
+              fillOpacity={0.55}
+              className="reveal-x"
+            >
+              <title>{w.label}</title>
+            </rect>
+          ))}
           {band ? (
             // The band: a wash of the track's own colour up to its ceiling, under the gridlines, so what the page is
             // judged against is the ground the line stands on rather than a line the reader has to be told about.
@@ -431,7 +498,7 @@ export function TrendChart({
             </g>
           ))}
           {xLabels.map(({ d, i }) => (
-            <text key={d} x={x(i)} y={h - 6} textAnchor={i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'} className="fill-ink-3 text-2xs">
+            <text key={d} data-x-label x={x(i)} y={h - 6} textAnchor={i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'} className="fill-ink-3 text-2xs">
               {tick ? tick(d) : formatDate(d).replace(/,? \d{4}$/, '')}
             </text>
           ))}
@@ -527,6 +594,13 @@ export function TrendChart({
               {s.label}
             </li>
           ))}
+          {/* A marked day's dot-and-stem, and the running stretch's dash, say what they mean in words here: the caption says
+              them too, but a screen reader reads that and the pointer only finds a title. */}
+          {marks ? <li data-key-mark className="flex items-center gap-1.5"><svg width="8" height="10" className="shrink-0 overflow-visible"><line x1="4" x2="4" y1="1" y2="9" stroke={marks.tone === 'warning' ? 'var(--warning)' : 'var(--ink-2)'} strokeOpacity={0.45} /><circle cx="4" cy="1" r="2.5" fill={marks.tone === 'warning' ? 'var(--warning)' : 'var(--ink-2)'} stroke="var(--surface)" strokeWidth="1.5" /></svg>{marks.label}</li> : null}
+          {running ? <li data-key-running className="flex items-center gap-1.5"><svg width="14" height="4" className="shrink-0 overflow-visible"><line x1="1" x2="13" y1="2" y2="2" stroke="currentColor" strokeWidth={1.5} strokeDasharray="3 4" strokeLinecap="round" /></svg>{SO_FAR}</li> : null}
+          {/* A span is a wash, and a wash with no word is a shape a reader guesses at: each names itself here, as a mark does.
+              Two spans of the same name are one legend entry. */}
+          {[...new Set(washes.map((w) => w.label))].map((w) => <li key={w} data-key-span className="flex items-center gap-1.5"><svg width="10" height="10" className="shrink-0 overflow-visible"><rect x="1" y="1" width="8" height="8" rx="1" fill="var(--fill-track)" fillOpacity={0.55} stroke="var(--ink-3)" strokeOpacity={0.35} /></svg>{w}</li>)}
         </ul>
       ) : null}
       {active !== null && width > 0 ? (
@@ -534,7 +608,7 @@ export function TrendChart({
           {/* A marked day says what it is marked for where every other reading of the day is (#94): the dot and its stem
               are a shape, the group they stand in takes no pointer, and the table's caption is read by a screen reader and
               not by the person pointing at the chart. */}
-          <p className="t-eyebrow mb-1.5 break-words">{day}{active === soFar ? ' · so far' : null}{marks?.dates.includes(dates[active]) ? ` · ${marks.label}` : null}</p>
+          <p className="t-eyebrow mb-1.5 break-words">{day}{active === soFar ? ' · so far' : null}{marks?.dates.includes(dates[active]) ? ` · ${marks.label}` : null}{spanAt(active).map((l) => ` · ${l}`).join('')}</p>
           {/* Stacked, the readout lists the bands top to bottom, as they sit on the chart, then the total. */}
           {(stacked ? series.map((s, k) => ({ s, k })).reverse() : series.map((s, k) => ({ s, k }))).map(({ s, k }) => (
             <p key={s.key} className="flex flex-wrap items-start gap-x-2 text-xs leading-6">

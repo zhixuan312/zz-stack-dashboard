@@ -24,24 +24,14 @@ export function AppearanceMenu({ className }: { className?: string }) {
         </MenuRadioGroup>
         <MenuSeparator />
         <MenuLabel>Accent</MenuLabel>
-        {/* One of a set, as pressed buttons rather than radios: inside a menu the arrow keys belong to the menu, which
-            moves between its items, so a radio group's own arrow-key contract could not be kept here. Each swatch is
-            then its own stop, which is what a menu offers. */}
-        <div role="group" aria-label="Accent" className="flex gap-1.5 px-2 pt-0.5 pb-2">
-          {ACCENTS.map((a) => (
-            <button
-              key={a}
-              type="button"
-              aria-pressed={prefs.accent === a}
-              aria-label={a}
-              title={a[0].toUpperCase() + a.slice(1)}
-              onClick={() => set({ accent: a })}
-              className="press hit grid size-7 place-items-center rounded-full ring-offset-2 ring-offset-surface-raised transition-[box-shadow,transform] aria-pressed:ring-2 aria-pressed:ring-ink"
-            >
-              <span data-accent={a} data-swatch className="size-5 rounded-full bg-accent" />
-            </button>
+        <MenuRadioGroup value={prefs.accent} onValueChange={(accent) => set({ accent })}>
+          {ACCENTS.map((accent) => (
+            <MenuRadioItem key={accent} value={accent} aria-label={accent}>
+              <span data-accent={accent} data-swatch className="size-4 rounded-full bg-accent" />
+              {accent[0].toUpperCase() + accent.slice(1)}
+            </MenuRadioItem>
           ))}
-        </div>
+        </MenuRadioGroup>
         <MenuSeparator />
         <MenuLabel>Density</MenuLabel>
         <MenuRadioGroup value={prefs.density} onValueChange={(v) => set({ density: v as typeof prefs.density })}>

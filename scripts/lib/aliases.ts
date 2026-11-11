@@ -5,12 +5,24 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import { parseJsonc } from './jsonc.ts';
 
 /** Each alias prefix (`@/`, `@meridian/`) and the project directory it names (`src/`, or `` for the root). */
 export function aliasesOf(tsconfig: string | null): [string, string][] {
   const out = new Map<string, string>();
-  // `"@/*": ["./src/*"]` maps `@/` to `src/`; `"@/*": ["./*"]` maps it to the project root.
-  for (const m of (tsconfig ?? '').matchAll(/"(@[\w-]*)\/\*"\s*:\s*\[\s*"([^"*]*)\*"/g)) out.set(`${m[1]}/`, m[2]!.replace(/^\.\//, ''));
+  if (tsconfig !== null) {
+    let config: unknown;
+    try { config = parseJsonc(tsconfig); } catch (error) {
+      throw new Error(`tsconfig.json: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    const options = (config as { compilerOptions?: { baseUrl?: unknown; paths?: Record<string, unknown> } } | null)?.compilerOptions;
+    const base = typeof options?.baseUrl === 'string' ? options.baseUrl : '.';
+    for (const [alias, targets] of Object.entries(options?.paths ?? {})) {
+      if (!/^@[\w-]*\/\*$/.test(alias) || !Array.isArray(targets) || typeof targets[0] !== 'string' || !/^[^*]*\*$/.test(targets[0])) continue;
+      const dir = path.posix.normalize(path.posix.join(base, targets[0].slice(0, -1)));
+      out.set(alias.slice(0, -1), dir === '.' ? '' : `${dir.replace(/\/$/, '')}/`);
+    }
+  }
   if (!out.size) out.set('@/', 'src/');
   return [...out].sort((a, b) => b[0].length - a[0].length);
 }

@@ -14,7 +14,7 @@
  * theme, a step at a time, until every pair in every theme passes. --no-atlas removes the Design Atlas: its routes, its
  * modules, its nav entries (the footer's link follows them) and its build tracing (the card previews stay: the gate checks them; the markdown packages stay for Prose).
  * --product goes further, for a dashboard that is not the design system: --no-atlas, and the card specs and previews,
- * page specs, docs, decisions, changelog and skill go too (the assistant, its collections and its fake model stay); the components, tokens, scripts and gates stay.
+ * page specs, docs, decisions, changelog and skill go too (the assistant, its collections and its fake model stay); the components, tokens, scripts and checks stay.
  * --existing is for an existing project that brought Meridian in (route A in the skill): it sets the name, accent and the
  * rest, never renames package.json unless --package is given, and has no Atlas or product branch to run. It never
  * touches AGENTS.md: the CLI writes the managed block there.
@@ -35,32 +35,43 @@ const file = (p: string) => path.join(ROOT, p);
 const read = (p: string) => fs.readFileSync(file(p), 'utf8');
 const write = (p: string, s: string) => fs.writeFileSync(file(p), s);
 const json = (p: string) => JSON.parse(read(p));
-// A brand value is written into TypeScript and JSON: a backslash or a line break could end the string it sits in.
+// Check value syntax before any write: another flag is not a value, and backslashes or line breaks cannot enter literals.
 for (const [i, a] of argv.entries()) {
-  if (a.startsWith('--') && argv[i + 1] !== undefined && /[\\\r\n\u2028\u2029]/.test(argv[i + 1])) throw new Error(`${a} may not contain a backslash or a line break`);
+  if (!a.startsWith('--') || a === '--no-atlas' || a === '--product' || a === '--existing') continue;
+  const value = argv[i + 1];
+  if (value === undefined || value.startsWith('--')) throw new Error(`${a} needs a value`);
+  if (/[\\\r\n\u2028\u2029]/.test(value)) throw new Error(`${a} may not contain a backslash or a line break`);
 }
+// The accent id becomes a filename, resolver key and TypeScript literal. Validate it before any configuration write.
+const accentName = opt('--accent-name') ?? 'brand';
+if (!/^[A-Za-z0-9_-]+$/.test(accentName)) throw new Error('--accent-name uses only letters, numbers, hyphens and underscores');
 const done: string[] = [];
 const existing = has('--existing');
 if (existing && (has('--no-atlas') || has('--product'))) {
   throw new Error('--existing brands a project that brought Meridian in: it has no Atlas to remove, and --product would delete that project\'s own docs, README and decisions');
 }
 
+const esc = (value: string) => value.replace(/'/g, "\\'");
+
 function setConfig(key: string, value: string) {
   const s = read('src/app.config.ts');
-  const re = new RegExp(`(\\n  ${key}: )'[^']*'`);
+  const re = new RegExp(`(\\n  ${key}: )'(?:\\\\.|[^'\\\\])*'`);
   if (!re.test(s)) throw new Error(`src/app.config.ts has no "${key}"`);
-  write('src/app.config.ts', s.replace(re, (_m, head: string) => `${head}'${value.replace(/'/g, "\\'")}'`));
+  write('src/app.config.ts', s.replace(re, (_m, head: string) => `${head}'${esc(value)}'`));
   done.push(`${key} = ${value}`);
 }
 
 const theme = opt('--theme');
 if (has('--theme') && theme !== 'dark' && theme !== 'light') throw new Error('--theme is dark or light');
+const timezone = opt('--timezone');
+if (timezone) {
+  try { new Intl.DateTimeFormat('en', { timeZone: timezone }); } catch { throw new Error('--timezone is an IANA timezone, such as UTC or Europe/London'); }
+}
 
 const name = opt('--name');
 if (name) setConfig('name', name);
 const workspace = opt('--workspace');
 if (workspace) setConfig('workspace', workspace);
-const timezone = opt('--timezone');
 if (timezone) setConfig('timezone', timezone);
 const currency = opt('--currency');
 if (currency) {
@@ -70,10 +81,9 @@ if (currency) {
 const user = opt('--user'), role = opt('--role');
 if (user || role) {
   const s = read('src/app.config.ts');
-  const m = s.match(/user: \{ name: '([^']*)', role: '([^']*)' \}/);
+  const m = s.match(/user: \{ name: '((?:\\.|[^'\\])*)', role: '((?:\\.|[^'\\])*)' \}/);
   if (!m) throw new Error('src/app.config.ts has no "user"');
-  const esc = (v: string) => v.replace(/'/g, "\\'");
-  write('src/app.config.ts', s.replace(m[0], () => `user: { name: '${esc(user ?? m[1])}', role: '${esc(role ?? m[2])}' }`));
+  write('src/app.config.ts', s.replace(m[0], () => `user: { name: '${user === undefined ? m[1] : esc(user)}', role: '${role === undefined ? m[2] : esc(role)}' }`));
   done.push(`user = ${user ?? m[1]}, ${role ?? m[2]}`);
 }
 
@@ -113,7 +123,7 @@ if (hex) {
 }
 if (hue !== undefined) {
   const h = Number(hue), c = Number(chroma ?? '0.16');
-  const id = opt('--accent-name') ?? 'brand';
+  const id = accentName;
   if (!Number.isFinite(h) || h < 0 || h > 360) throw new Error('--hue is an OKLCH hue in degrees, 0 to 360');
   if (!Number.isFinite(c) || c < 0 || c > 0.24) throw new Error('--chroma is OKLCH chroma, 0 to 0.24 (0.12 to 0.18 is typical)');
   const tokens = {
@@ -175,6 +185,11 @@ if (hue !== undefined) {
   const accent = opt('--accent');
   if (accent) defaultAccent(accent);
 }
+// A preset and a colour are two answers to one question. Silently dropping the preset left the caller believing a
+// choice had been applied, so the pair is refused before anything is written.
+if (opt('--accent') && (hex !== undefined || hue !== undefined)) {
+  throw new Error('--accent names a preset; --hex and --hue name a colour. Pass one or the other, not both');
+}
 
 if (theme) {
   const s = read('src/app.config.ts');
@@ -188,11 +203,10 @@ if (has('--no-atlas') || has('--product')) {
   // The routes, and the Atlas-only modules: the card previews keep specimen.tsx, sample-cells.tsx, registry.ts and
   // fixtures/, which the gate still checks.
   fs.rmSync(file('app/system'), { recursive: true, force: true });
-  const atlasOnly = ['content.ts', 'hero.tsx', 'markdown.tsx', 'page-stage.tsx', 'atlas-shell.tsx', 'card-stage.tsx', 'preview-loaders.ts', 'strata.tsx', 'token-view.tsx', 'tokens-data.ts'];
+  const atlasOnly = ['content.ts', 'hero.tsx', 'markdown.tsx', 'page-stage.tsx', 'atlas-shell.tsx', 'card-stage.tsx', 'preview-loaders.ts', 'preview-loading.tsx', 'strata.tsx', 'token-view.tsx', 'tokens-data.ts'];
   for (const f of atlasOnly) fs.rmSync(file(`src/system/${f}`), { force: true });
   // The shipped tests of those modules go with them: a test of a module the project no longer has would fail there.
-  // tests/cli-atlas-prune.test.ts holds this list and the modules above together.
-  for (const t of ['tests/atlas-layers.test.ts', 'tests/atlas-shell-early-press.test.tsx', 'tests/card-stage-hydration.test.tsx']) fs.rmSync(file(t), { force: true });
+  for (const t of ['tests/atlas-layers.test.ts', 'tests/atlas-shell-early-press.test.tsx', 'tests/card-stage-hydration.test.tsx', 'tests/card-stage-loading.test.tsx']) fs.rmSync(file(t), { force: true });
   // Nav entries for /system and /system/... exactly (never /systemic), then any group they leave empty.
   let cfg = read('src/app.config.ts').replace(/\n\s*\{ href: '\/system(?:\/[^']*)?'[^}]*\},/g, '');
   cfg = cfg.replace(/\n {2}\{\n(?: {4}label: '[^']*',\n)? {4}items: \[\s*\],\n {2}\},/g, '');
@@ -203,14 +217,14 @@ if (has('--no-atlas') || has('--product')) {
     return `import {\n  ${kept.join(', ')},\n} from 'lucide-react';`;
   });
   write('src/app.config.ts', cfg);
-  // The verification config's mappings and smoke routes for the Atlas, with the comments over them, which verify --full
+  // The diagnostic config's mappings and smoke routes for the Atlas, with the comments over them, which a navigation run
   // would report as no route.
   write('scripts/verify.config.ts', read('scripts/verify.config.ts').replace(/(?:\n\s*\/\/[^\n]*)*\n\s*\{ path: '\/system(?:\/[^']*)?'[^\n]*\},/g, '').replace(/,\s*'\/system(?:\/[^']*)?'/g, ''));
   // Build tracing: only the Atlas's `/system/**` entry goes; the tab icon's and the assistant's brief stay.
   write('next.config.ts', read('next.config.ts').replace(/\/\/ Card specifications[^\n]*/, '// The tab icon reads the tokens, and the assistant reads the brief, at build time.').replace(/'\/system\/\*\*':\s*\[[^\]]*\],\s*/, ''));
   // Route types generated for the removed pages would fail the type check until regenerated.
   for (const d of ['.next/types', '.next/dev/types']) fs.rmSync(file(d), { recursive: true, force: true });
-  done.push('the Design Atlas removed: app/system, its modules in src/system, its rail links and with them the footer link, its verification mappings and its build tracing');
+  done.push('the Design Atlas removed: app/system, its modules in src/system, its rail links and with them the footer link, its diagnostic mappings and its build tracing');
 }
 
 if (has('--product')) {
@@ -219,14 +233,14 @@ if (has('--product')) {
   const walkDirs = (dir: string): string[] => fs.existsSync(file(dir)) ? fs.readdirSync(file(dir), { withFileTypes: true }).flatMap((e) => e.isDirectory() ? walkDirs(path.join(dir, e.name)) : [path.join(dir, e.name)]) : [];
   for (const f of walkDirs('src/components')) if (/\/(README\.md|preview\.tsx)$/.test(f)) fs.rmSync(file(f));
   for (const f of walkDirs('app')) if (/\/README\.md$/.test(f)) fs.rmSync(file(f));
-  // A test of a module removed here goes with it (tests/cli-product-prune.test.ts holds the two lists together).
-  for (const f of ['src/system/specimen.tsx', 'tests/specimen-still.test.tsx', 'tests/atlas-product-slice.test.tsx', 'tests/atlas-template-contracts.test.tsx', 'tests/dialog-xl.test.tsx', 'tests/popover-preview.test.tsx', 'tests/banner-preview.test.tsx', 'tests/preview-live-controls.test.tsx', 'src/system/registry.ts', 'CONTRIBUTING.md', 'CHANGELOG.md']) fs.rmSync(file(f), { force: true });
+  // Tests of removed specimens go with them; production components, tokens, styles and checks stay.
+  for (const f of ['src/system/specimen.tsx', 'tests/specimen-still.test.tsx', 'tests/atlas-product-slice.test.tsx', 'tests/atlas-template-contracts.test.tsx', 'tests/popover-preview.test.tsx', 'tests/banner-preview.test.tsx', 'tests/preview-live-controls.test.tsx', 'src/system/registry.ts', 'CONTRIBUTING.md', 'CHANGELOG.md']) fs.rmSync(file(f), { force: true });
   for (const d of ['docs', 'decisions', 'skills']) fs.rmSync(file(d), { recursive: true, force: true });
   const p = json('package.json');
   delete p.scripts?.registry;
   write('package.json', JSON.stringify(p, null, 2) + '\n');
   const product = read('src/app.config.ts').match(/name: '([^']*)'/)?.[1] ?? 'Dashboard';
-  write('README.md', `# ${product}\n\nA dashboard built on ZZ Meridian (Next.js, React, Tailwind v4, DTCG tokens).\n\n## Run it\n\n\`\`\`sh\npnpm install\npnpm dev        # http://localhost:3000\npnpm verify     # the gate once, one build, the size checks and a smoke of up to three routes; --full runs the exhaustive suites and --timed the ones that judge a time; --full --timed is the whole standard\n\`\`\`\n\n## Where things are\n\n| Path | What |\n|---|---|\n| \`src/app.config.ts\` | Name, workspace, accent, timezone, currency, the signed-in user and the navigation |\n| \`src/data/collections.ts\` | Where pages, actions and the assistant read and change records |\n| \`src/views/\`, \`app/\` | The pages |\n| \`src/components/\` | Meridian's components and patterns |\n| \`tokens/\` | Colour, type, space and motion (run \`pnpm tokens\` after a change) |
+  write('README.md', `# ${product}\n\nA dashboard built on ZZ Meridian (Next.js, React, Tailwind v4, DTCG tokens).\n\n## Run it\n\n\`\`\`sh\npnpm install\npnpm dev          # http://localhost:3000\npnpm test:t1      # the tests affected by the change since the last green run\npnpm test:t2      # the affected Tier 2 tests too\npnpm test:release # every Tier 1 and Tier 2 test, with lint and the type check\n\`\`\`\n\n## Where things are\n\n| Path | What |\n|---|---|\n| \`src/app.config.ts\` | Name, workspace, accent, timezone, currency, the signed-in user and the navigation |\n| \`src/data/collections.ts\` | Where pages, actions and the assistant read and change records |\n| \`src/views/\`, \`app/\` | The pages |\n| \`src/components/\` | Meridian's components and patterns |\n| \`tokens/\` | Colour, type, space and motion (run \`pnpm tokens\` after a change) |
 
 ## Assistant
 
@@ -241,7 +255,7 @@ The dashboard carries an assistant panel. It is off until \`ASSISTANT_PROVIDER\`
 
 - Collections live in \`src/data/collections.ts\`: replace each \`rows\` with your API and \`clock\` with \`new Date()\`. The assistant reads and proposes changes only through them.
 - Add your sign-in check in the dashboard layout (\`app/(dashboard)/layout.tsx\`), in \`app/api/assistant/route.ts\` before the model is reached, and in every server action (each \`actions.ts\`): an action is a public endpoint the layout does not guard.
-- \`pnpm verify --full\` runs the assistant off, then on against a fake model (\`scripts/fake-llm.ts\`); the default \`pnpm verify\` does not.
+- \`node scripts/assistant.ts\` runs the assistant off, then on against a fake model (\`scripts/fake-llm.ts\`); \`pnpm test:t2\` runs the same walk-through in its browser sweeps.
 `);
   const agents = read('AGENTS.md');
   const cut = agents.indexOf('# Working in Meridian');

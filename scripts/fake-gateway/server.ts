@@ -118,7 +118,11 @@ import { record } from './work-record.ts';
 import { runs } from './work-runs.ts';
 
 const args = process.argv.slice(2);
-const port = Number(args[args.indexOf('--port') + 1] ?? 0) || 0;
+const asked = Number(args[args.indexOf('--port') + 1] ?? 0) || 0;
+// A test run builds the app before this server starts, and next.config.ts bakes its /api/console rewrite from
+// ZZ_GATEWAY, so a caller that pins that address needs this process there; unset, `--port 0` stays any port.
+const pin = (() => { try { return Number(new URL(process.env.ZZ_GATEWAY ?? '').port) || 0; } catch { return 0; } })();
+const port = asked || pin;
 const MODES: readonly string[] = STATES;
 const started = args.includes('--mode') ? args[args.indexOf('--mode') + 1] : 'normal';
 if (!isState(started)) throw new Error(`--mode ${started}: ${MODES.join(', ')}`);

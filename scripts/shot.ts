@@ -1,7 +1,7 @@
 /**
  * Screenshot routes of the running app at exact widths, in either theme.
  *
- *   node scripts/shot.ts <path ...> [--width 1440,390] [--theme light,dark] [--full] [--base http://localhost:3100] [--out out/shots]
+ *   node scripts/shot.ts <path ...> [--width 1440,390] [--theme light,dark] [--whole-page] [--base http://localhost:3100] [--out out/shots]
  *                                   [--as <persona>] [--press "<name>" ...]
  *                                   [--point "<chart label>" --at 0.6] [--missing <route,...>]
  *
@@ -11,7 +11,7 @@
  * Motion is reduced, so every page shows its final state. Files land in out/shots/<route>-<width>-<theme>.png.
  *
  * A capture Chrome does not finish in time fails that shot, not the run: the line names the page's height in CSS and device
- * pixels, and a `--full` page that tall says what to shoot instead. Chrome keeps working on the capture it abandoned, and
+ * pixels, and a `--whole-page` page that tall says what to shoot instead. Chrome keeps working on the capture it abandoned, and
  * the next shot timed out behind it, so that browser is closed and the run goes on in a fresh one. Any other error stops
  * the run.
  *
@@ -36,7 +36,7 @@ import { holdArgs } from './lib/args.ts';
 process.env.DPR ??= '2';
 
 const args = process.argv.slice(2);
-holdArgs('shot', args, ['--as', '--at', '--base', '--full', '--missing', '--out', '--point', '--press', '--theme', '--width']);
+holdArgs('shot', args, ['--as', '--at', '--base', '--whole-page', '--missing', '--out', '--point', '--press', '--theme', '--width']);
 const opt = (k: string, d: string) => {
   const i = args.indexOf(k);
   if (i < 0) return d;
@@ -48,12 +48,12 @@ const flag = (k: string) => { const i = args.indexOf(k); return i >= 0 ? (args.s
 // The routes meant to answer not-found (scripts/lib/answered.ts): any other route that answers an error is refused.
 const MISSING = missingRoutes(['--missing', opt('--missing', '')]);
 const presses: string[] = [];
-for (let i = args.indexOf('--press'); i >= 0; i = args.indexOf('--press')) presses.push(args.splice(i, 2)[1]);
+for (let i = args.indexOf('--press'); i >= 0; i = args.indexOf('--press')) presses.push(opt('--press', ''));
 const base = opt('--base', process.env.BASE ?? 'http://localhost:3100');
 const widths = opt('--width', '1440').split(',').map(Number);
 const themes = opt('--theme', 'light').split(',') as ('light' | 'dark')[];
 const out = opt('--out', 'out/shots');
-const full = flag('--full');
+const full = flag('--whole-page');
 const point = opt('--point', '');
 const at = Number(opt('--at', '0.6'));
 if (!Number.isFinite(at) || at < 0 || at > 1) throw new Error('--at must be a number from 0 to 1');
@@ -148,7 +148,7 @@ try {
           const css = full ? tall.page : tall.h;
           const size = `${css}px tall (${css * Number(process.env.DPR)} device px at ${process.env.DPR}x)`;
           console.log(full && tall.page > tall.h
-            ? `FAIL ${r} at ${w}px ${t}: the page is ${size}, and a full-page capture that tall passes what Chrome takes at once (${message}); shoot it without --full, or one part with --press "<name>" or a narrower route`
+            ? `FAIL ${r} at ${w}px ${t}: the page is ${size}, and a full-page capture that tall passes what Chrome takes at once (${message}); shoot it without --whole-page, or one part with --press "<name>" or a narrower route`
             : `FAIL ${r} at ${w}px ${t}: ${message} on a capture ${size}`);
           failed = true;
           // Chrome is still working on the capture it abandoned: the next shot runs in a fresh browser.

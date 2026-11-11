@@ -53,19 +53,12 @@ export const FIRST_RUN = '[data-empty="first-run"]';
 // ---- in the page ----
 
 /**
- * Every element of the page that matches a project-given selector, inside open shadow roots too (deepAll, scripts/lib/deep.ts).
- * A combinator does not cross a shadow boundary: `x-host .inner` finds nothing inside `x-host`'s root. Page code, defined after
- * the deep-DOM helper in every document this tab opens.
- */
-export const DEEP_MATCHES = `function deepMatches(selector) { return deepAll(document).filter((el) => el.matches(selector)); }`;
-
-/**
  * What a probe's result looks like: the address, how many elements, their whole text and their state attributes. Runs in the page.
  * The whole text, not a prefix: a prefix of 80 characters missed a change at the end of a row (#52). A whole text also counts a
  * clock that ticks inside the element, which is the page's change, not the probe's, so a `resultSelector` names what the control
  * changes.
  */
-export const SNAP = `(selector) => location.href + '|' + deepMatches(selector).slice(0, 40)
+export const SNAP = `(selector) => location.href + '|' + deepQueryAll(selector).slice(0, 40)
   .map((el) => (el.textContent ?? '').trim() + ['aria-sort', 'aria-expanded', 'aria-pressed', 'aria-checked', 'aria-selected', 'data-state', 'open'].map((a) => el.getAttribute(a)).join(','))
   .join(';')`;
 /**
@@ -74,7 +67,7 @@ export const SNAP = `(selector) => location.href + '|' + deepMatches(selector).s
  * that finds it true, so no round trip over the debugging protocol is in any of them. The press and the spec are kept in
  * sessionStorage, so a page that loads anew (not a client navigation) is timed from the same press.
  */
-const INSTRUMENT = `${DEEP_SOURCE}\n${DEEP_MATCHES}\n(() => {
+const INSTRUMENT = `${DEEP_SOURCE}\n(() => {
   const nav = window.__nav = { prefetches: [], spec: null, t0: undefined, res: {}, expect: null, snap: ${SNAP}, frames: 0 };
   const KEY = '__nav_journey';
   try { const kept = JSON.parse(sessionStorage.getItem(KEY) ?? 'null'); if (kept) { nav.spec = kept.spec; nav.t0 = kept.t0; } } catch { /* a fresh journey */ }
@@ -104,10 +97,10 @@ const INSTRUMENT = `${DEEP_SOURCE}\n${DEEP_MATCHES}\n(() => {
         // Only what is on screen and real counts as the data. The router keeps routes it has shown mounted and hidden
         // (Cache Components: display none), so the previous page's rows are still in the document; and a loading.tsx
         // draws rows shaped like the real ones, which would hide the time React holds a shown fallback (300 ms or more).
-        if (s.ready && r.data === undefined && nav.arrived() && deepMatches(s.ready).some((el) => el.getClientRects().length > 0 && el.textContent.toLowerCase().includes(s.text) && !el.querySelector('.shimmer') && !el.closest('.shimmer, [aria-busy="true"]'))) r.data = at;
+        if (s.ready && r.data === undefined && nav.arrived() && deepQueryAll(s.ready).some((el) => el.getClientRects().length > 0 && el.textContent.toLowerCase().includes(s.text) && !el.querySelector('.shimmer') && !el.closest('.shimmer, [aria-busy="true"]'))) r.data = at;
         // A page whose data arrived empty shows its first-run state instead of the rows: that is its data, ready. Only once
         // nothing in main is still loading, so a side card's empty state cannot stand in for a table on its way.
-        else if (s.ready && r.data === undefined && nav.arrived() && deepMatches('${FIRST_RUN}').some((el) => el.getClientRects().length > 0)
+        else if (s.ready && r.data === undefined && nav.arrived() && deepQueryAll('${FIRST_RUN}').some((el) => el.getClientRects().length > 0)
           && !Array.from(document.querySelectorAll('main .shimmer, main [aria-busy="true"]')).some((el) => el.getClientRects().length > 0)) { r.data = at; r.empty = true; }
         // A link probe leaves the route: its result is the address changing.
         if (nav.expect && r.interactive === undefined && nav.snap(nav.expect.selector) !== nav.expect.before) r.interactive = at;
@@ -187,7 +180,7 @@ const pickable = (selector: string, name?: string) => `(() => {
   const rendered = (el) => { let n = el; while (n.getRootNode() instanceof ShadowRoot) n = n.getRootNode().host; return n; };
   const hydrated = typeof self.__next_f === 'undefined' ? () => true : (el) => Object.keys(rendered(el)).some((k) => k.startsWith('__reactProps$'));
   const name = ${JSON.stringify(name ?? null)};
-  return deepMatches(${JSON.stringify(selector)}).find((el) => {
+  return deepQueryAll(${JSON.stringify(selector)}).find((el) => {
     if (name !== null && (el.getAttribute('aria-label') ?? el.textContent ?? '').trim() !== name) return false;
     const r = el.getBoundingClientRect();
     return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden' && hydrated(el);
@@ -256,6 +249,26 @@ export async function openStart(page: Page, device: Device, start: string, origi
   await page.open(origin + start, { ...(device === 'phone' ? PHONE : DESKTOP), theme: 'dark', wait: 200 });
   const ready = await poll(() => page.eval<boolean>(`document.readyState === 'complete' && !!document.querySelector('h1')`), Date.now() + PATIENCE[device]);
   if (!ready) throw new Fail('never-ready', `the starting page ${start} did not load in ${PATIENCE[device]} ms`);
+}
+
+/**
+ * Loads a route directly and times its shell: from the navigation to the page's first heading. A route with no navigation
+ * check has no journey to time, but the shell it arrives on can still be judged — it must load, draw no error state and
+ * raise no console error. Returns the problem instead of a time when it cannot be judged a working shell.
+ */
+export async function loadShell(page: Page, device: Device, route: string, origin: string): Promise<{ ms: number } | { fail: Fail }> {
+  await throttle(page, device);
+  const t = Date.now();
+  await page.open(origin + route, { ...(device === 'phone' ? PHONE : DESKTOP), theme: 'dark', wait: 200 });
+  const ready = await poll(() => page.eval<boolean>(`document.readyState === 'complete' && !!document.querySelector('h1')`), Date.now() + PATIENCE[device]);
+  if (!ready) return { fail: new Fail('never-ready', `${route} did not load in ${PATIENCE[device]} ms`) };
+  const shown = await page.eval<{ error: boolean; missing: boolean }>(`({ error: !!deepQuery('[data-empty="error"]'), missing: !!deepQuery('[data-missing-page]') })`);
+  if (shown.error) return { fail: new Fail('wrong-result', `${route} shows its error state`) };
+  if (shown.missing) return { fail: new Fail('wrong-result', `${route} shows the missing page`) };
+  if (page.status() >= 400) return { fail: new Fail('wrong-result', `${route} answered ${page.status()}`) };
+  // page.errors holds what this open raised: uncaught exceptions and console errors, since the last open().
+  if (page.errors.length) return { fail: new Fail('wrong-result', `${route} raised ${page.errors.length} console error(s): ${page.errors[0]}`) };
+  return { ms: Date.now() - t };
 }
 
 /** How long a warm press waits for the prefetches and the chunks they bring in, from the link being shown. */
@@ -514,7 +527,7 @@ const noted = new Set<string>();
 /** A lookup that chooses one element says so when several match; it never fails the check. */
 async function noteIfSeveral(page: Page, selector: string): Promise<void> {
   if (noted.has(selector)) return;
-  const n = await page.eval<number>(`deepMatches(${JSON.stringify(selector)}).length`);
+  const n = await page.eval<number>(`deepQueryAll(${JSON.stringify(selector)}).length`);
   if (n > 1) { noted.add(selector); console.log(`note: ${selector} matches ${n} elements; the first visible one was used`); }
 }
 

@@ -4,6 +4,13 @@ import type { Tone } from '../badge/index';
 const TONE: Record<Tone, string> = { neutral: 'bg-ink-3 text-ink-3', accent: 'bg-accent text-accent', positive: 'bg-positive text-positive', warning: 'bg-warning text-warning', critical: 'bg-critical text-critical' };
 
 /**
+ * What each tone means in a word, for a dot that carries a state on its own — a list row, a finding, an alert. One map,
+ * so the same state is the same word wherever a dot stands without its sentence (#133): an alert and an activity line
+ * both say "Needs attention" for the same warning.
+ */
+export const TONE_WORD: Record<Tone, string> = { neutral: 'For information', accent: 'In progress', positive: 'Went well', warning: 'Needs attention', critical: 'Failed' };
+
+/**
  * A state at a glance, always beside its word. `live` pulses, for a state that is current and wants a look now (a
  * service that is not operational) or a feed that refreshes on its own.
  *

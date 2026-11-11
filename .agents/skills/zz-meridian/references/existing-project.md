@@ -102,14 +102,14 @@ Migrate in place, page by page, keeping their data layer.
    `@meridian/components/…`), keeping their data fetching and business logic untouched. Their old Tailwind utilities
    render nothing under Meridian's scales, and the gate names each one. Do the busiest page first, and render and score it
    (`standard.md`) before the rest: what it teaches you about their data carries to every other page.
-5. **Before the browser diagnostics, give them a fake API.** The test commands read and never press. The browser
-   diagnostics press every control on the built app, Approve, Revoke, Archive and Delete included. If their pages call a
+5. **Before the browser sweeps, give them a fake API.** `test:t1` reads and never presses; `test:t2` builds the app and
+   its browser sweeps press every control, Approve, Revoke, Archive and Delete included. If their pages call a
    live backend, those presses change it, so build and serve the app against a fake first. Write
    `example:scripts/fake-api.ts`: a server on `--port 0` that answers every route the pages call with typed fixtures
    (writes answer success and are forgotten), prints `listening on <url>`, and logs each request it answers (method,
    path and body), which is how the scoreboard shows every action still sends what it sent. Name it and the environment
-   variable their app reads its API address from in `scripts/verify.config.ts` (`fakeApi: { script, env }`): verify
-   starts it before the app, so the app is built and served against it. Point the build at it, not only the server: an address read
+   variable their app reads its API address from in `scripts/verify.config.ts` (`fakeApi: { script, env }`): the
+   browser stage starts it before the app, so the app is built and served against it. Point the build at it, not only the server: an address read
    in `next.config` rewrites is baked in at build time. If their pages use web components, every browser suite (the
    audit, the presses, the keyboard walk, the assistant walk-through, the live-data walk-through and
    the vitals' taps) looks inside open shadow roots, and an element the audit cannot look inside is reported as
@@ -118,14 +118,16 @@ Migrate in place, page by page, keeping their data layer.
    `.env` (or any other data URL: name it in `dataUrls`), a `next build` and `next start` in their folder carry it, so
    Approve and Delete land on whatever it names. Point it at a local copy for the run. Restore the data afterwards — the walk-through
    flags rows and a press can delete, even on a run where every check passes.
+   **Or say the pages touch nothing.** When they call no API and read no database — fixtures in the repository only — set
+   `noLiveApi: true` in `scripts/verify.config.ts`: the same statement the browser stage reads, and without it an adopted
+   project's sweeps are reported not run and the browser evidence is missing for every route.
 6. List their detail pages worth seeing (a normal record, a failed one) in `detailRoutes` in
    `scripts/verify.config.ts`, with ids from the fake API's fixtures, and a record that does not exist in
    `missingRoutes`: a detail route must render its page and a missing one the not-found screen, so a mistyped id fails
    instead of being measured as the not-found screen. A not-found screen of your own carries `data-missing-page` on its
    root, as `MissingPage` does, since inside a streamed shell a missing record has already answered 200. Map their main
-   routes in `navigationChecks` (a ready selector and one harmless probe each) so the navigation diagnostic covers data
-   and interaction, not only the shell. Run `pnpm test:release` until it passes, and the browser diagnostics over the
-   views you changed; the timed ones want a quiet machine.
+   routes in `navigationChecks` (a ready selector and one harmless probe each) so the navigation suite covers data
+   and interaction, not only the shell. Run `pnpm test:release` until it passes; its timed suites want a quiet machine.
 
 **The four layers, when the project already has a backend of its own.** Route A keeps their data layer, so the four
 layers are a destination rather than a condition. `data-layers.md` holds the ordered path from where their project is —

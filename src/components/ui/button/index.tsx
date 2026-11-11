@@ -1,5 +1,6 @@
 import { Slot } from 'radix-ui';
-import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { cloneElement, forwardRef, isValidElement } from 'react';
+import type { ButtonHTMLAttributes, HTMLAttributes, MouseEventHandler, ReactNode } from 'react';
 import { cn } from '../../../lib/cn';
 import { Spinner } from '../spinner/index';
 
@@ -7,15 +8,20 @@ export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
 const VARIANT: Record<ButtonVariant, string> = {
-  primary: 'bg-accent bg-(image:--accent-fill) text-on-accent shadow-accent hover:brightness-[0.94]',
-  secondary: 'bg-surface text-ink border border-line-strong shadow-control hover:bg-surface-sunk hover:border-line-control/40',
-  ghost: 'text-ink-2 hover:bg-fill-hover hover:text-ink',
-  danger: 'bg-critical-fill text-on-critical shadow-accent hover:brightness-95',
+  primary: 'btn-primary',
+  secondary: 'btn-secondary',
+  ghost: 'btn-ghost',
+  danger: 'btn-danger',
 };
 const SIZE: Record<ButtonSize, string> = {
-  sm: 'h-(--control-sm) gap-1.5 rounded-md px-2.5 text-sm [&_svg]:size-3.5',
-  md: 'h-(--control-md) gap-2 rounded-md px-3.5 text-sm [&_svg]:size-4',
-  lg: 'h-(--control-lg) gap-2 rounded-lg px-5 text-base [&_svg]:size-[18px]',
+  sm: 'btn-sm',
+  md: 'btn-md',
+  lg: 'btn-lg',
+};
+
+const ignorePress: MouseEventHandler<HTMLElement> = (event) => {
+  event.preventDefault();
+  event.stopPropagation();
 };
 
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -34,12 +40,30 @@ export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 
 /** A button starts one action. One primary per view; every other action is secondary or ghost. */
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = 'secondary', size = 'md', asChild, icon, trailing, busy, block, className, children, disabled, onClick, ...rest },
+  { variant = 'secondary', size = 'md', asChild, icon, trailing, busy, block, className, children, disabled, onClick, onClickCapture, ...rest },
   ref,
 ) {
   const Comp = asChild ? Slot.Root : 'button';
+  const blocked = disabled || busy;
+  // A server component renders this tree with no client runtime, and React refuses a function anywhere in its props
+  // there ("Event handlers cannot be passed to Client Component props", #134): one function among them fails the whole
+  // view. So the injected handler appears only where a function may exist — on the client, which knows it is, or
+  // beside a handler the caller passed, which only a client component can. A server render drops a press with the
+  // platform instead: `disabled` on the native button, `pointer-events-none` on an `asChild` child, which is a class and
+  // so renders the same on both sides of hydration.
+  const hasHandler = Boolean(onClick || onClickCapture);
+  const attach = blocked && (hasHandler || typeof document !== 'undefined');
   const content = asChild ? (
-    children
+    blocked && isValidElement<HTMLAttributes<HTMLElement>>(children)
+      ? cloneElement(children, {
+          // Slot composes the child's handler first, so replace its capture handler while unavailable.
+          ...(attach ? { onClickCapture: ignorePress } : {}),
+          // A blocked child with no handler of its own is kept off by `pointer-events-none` below, on the slot itself.
+          'aria-disabled': true,
+          'aria-busy': busy || children.props['aria-busy'] || rest['aria-busy'],
+          tabIndex: disabled ? -1 : (children.props.tabIndex ?? rest.tabIndex),
+        })
+      : children
   ) : (
     <>
       {busy ? <Spinner size={size} label={null} /> : icon}
@@ -49,26 +73,30 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   );
   return (
     <Comp
+      {...rest}
       ref={ref}
       type={asChild ? undefined : (rest.type ?? 'button')}
       // Busy is not disabled: a disabled control loses focus, so a Retry that turns busy from a refetch would send the
       // keyboard back to the top of the page. It stays in the tab order and drops the press, a submit's included.
       disabled={disabled}
-      aria-disabled={(busy && !disabled) || undefined}
-      aria-busy={busy || undefined}
-      onClick={busy ? (e) => e.preventDefault() : onClick}
+      aria-disabled={blocked || rest['aria-disabled'] || undefined}
+      aria-busy={busy || rest['aria-busy'] || undefined}
+      onClick={attach ? ignorePress : onClick}
+      onClickCapture={attach ? ignorePress : onClickCapture}
       className={cn(
         // The frame is `.btn` (src/styles/base.css): the same on every button, so it is not repeated in each class list.
         'group/btn press hit btn',
+        // An `asChild` child a server render blocks has no native `disabled`: this class keeps a mouse off it there,
+        // and it is derived from props alone, so hydration sees the same class list.
+        blocked && asChild && !hasHandler && 'pointer-events-none',
         // A busy button is working, not unavailable: it keeps its colour, its shadow and its place, and the spinner is
         // the answer. Only a button nobody may press greys out.
-        !busy && 'disabled:opacity-45 disabled:shadow-none',
+        !busy && 'disabled:opacity-45 disabled:shadow-none aria-disabled:opacity-45 aria-disabled:shadow-none',
         VARIANT[variant],
         SIZE[size],
         block && 'w-full',
         className,
       )}
-      {...rest}
     >
       {content}
     </Comp>

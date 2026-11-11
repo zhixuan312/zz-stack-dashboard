@@ -279,7 +279,8 @@ function sizesOffered(caption: string | null): string[] | null {
 /** Ten a page under the total, every page another ten, and no larger page offered. */
 async function pagesAtTen(caption: string | null) {
   await pagesItself(caption);
-  expect(sizesOffered(caption), `${caption ?? 'the table'}: the page sizes offered`).toEqual(['10 per page']);
+  // One size is not a choice: since 0.37.0 the pager draws no page-size menu rather than a menu with one entry.
+  expect(sizesOffered(caption), `${caption ?? 'the table'}: the pager offers no page-size choice`).toBeNull();
 }
 /** `n` rows made of one, each its own. */
 const grow = <T,>(rows: T[], n: number, own: (row: T, i: number) => T): T[] => Array.from({ length: n }, (_, i) => own(rows[i % rows.length], i));

@@ -22,7 +22,7 @@
  *
  * Every static page and the detail pages in scripts/verify.config.ts are measured, the Atlas's among them: its front
  * page and one card page, the sample every other suite takes. `--atlas` measures every Atlas entry instead (the guides,
- * the token views, the cards and the page specs, about fifteen minutes), and is not part of `pnpm verify`. The Atlas was
+ * the token views, the cards and the page specs, about fifteen minutes), and is a diagnostic, never a tier. The Atlas was
  * left out as "not a product page" until it was measured once: every card page shifted 0.3 to 0.6 against the 0.1
  * floor, and nothing had been looking. `--list` prints the routes a run would visit and exits without a browser.
  *
@@ -43,7 +43,10 @@ import { thin } from './lib/timing.ts';
 import { discover } from './lib/routes.ts';
 import config from './verify.config.ts';
 import { holdArgs } from './lib/args.ts';
+import path from 'node:path';
+import { recordPart } from './lib/tier2.ts';
 
+const ROOT = path.resolve(import.meta.dirname, '..');
 const args = process.argv.slice(2);
 holdArgs('vitals', args, ['--atlas', '--base', '--list', '--missing', '--rate', '--routes']);
 const opt = (k: string, d: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
@@ -96,7 +99,7 @@ await page.send('Page.addScriptToEvaluateOnNewDocument', { source: DEEP_SOURCE }
 await page.send('Network.enable');
 
 /** One page measured once: what LCP, CLS and INP were, how many controls answered, and the frames that dropped on them. */
-type Measured = { answer: string | null; lcp: number; cls: number; moved: string; inp: number; slowest: string; tapped: number; frames: number; dropped: number; droppedBy: string; cause: string; longest: number };
+type Measured = { answer: string | null; lcp: number; cls: number; moved: string; inp: number; slowest: string; tapped: number; frames: number; dropped: number; droppedBy: string; cause: string; longest: number; taps: { name: string; longest: number; dropped: number }[] };
 
 async function measure(route: string): Promise<Measured> {
   await page.send('Network.emulateNetworkConditions', { offline: false, latency: 150, downloadThroughput: (1.6 * 1024 * 1024) / 8, uploadThroughput: (750 * 1024) / 8 });
@@ -107,6 +110,7 @@ async function measure(route: string): Promise<Measured> {
   const answer = answerProblem(route, page.status(), await page.eval<boolean>(DRAWS_NOT_FOUND), MISSING);
   await page.eval('window.__v.recording = true');
   let inp = 0, slowest = '', tapped = 0, frames = 0, dropped = 0, droppedBy = '', cause = '', worst = 0, longest = 0;
+  const taps: { name: string; longest: number; dropped: number }[] = [];
   for (const sel of TAPS) {
     const at = await page.eval<{ x: number; y: number } | null>(`(() => { const el = deepQuery(${JSON.stringify(sel)}); if (!el) return null; const r = el.getBoundingClientRect(); if (!r.width || !r.height) return null; return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
     if (!at) continue;
@@ -121,6 +125,8 @@ async function measure(route: string): Promise<Measured> {
     const name = sel.replace(/\[aria-label[$^]?="?([^"\]]*)"?\]/, '$1').slice(0, 40);
     if (ms > inp) { inp = ms; slowest = name; }
     const here = gaps.filter((f) => f > 50).length;
+    // Per tap, recorded with the page's value: the samples the flag line is re-tuned from after a few runs.
+    taps.push({ name, longest: Math.max(0, ...gaps), dropped: here });
     frames += gaps.length;
     dropped += here;
     longest = Math.max(longest, ...gaps);
@@ -138,7 +144,7 @@ async function measure(route: string): Promise<Measured> {
   const v = await page.eval<{ lcp: number; cls: number; moved: Record<string, number> }>('window.__v');
   // A page over the CLS floor says what moved: the three elements whose shifts sum highest (a shift counts for each element it moved).
   const moved = v.cls >= 0.1 ? Object.entries(v.moved).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, n]) => `${k} ${n.toFixed(3)}`).join(', ') : '';
-  return { answer, lcp: v.lcp, cls: v.cls, moved, inp, slowest, tapped, frames, dropped, droppedBy, cause, longest };
+  return { answer, lcp: v.lcp, cls: v.cls, moved, inp, slowest, tapped, frames, dropped, droppedBy, cause, longest, taps };
 }
 
 let failures = 0, warnings = 0;
@@ -154,10 +160,18 @@ for (const route of ROUTES) {
   const missed = [m.lcp >= 2500 && 'over the LCP floor (2.5 s)', m.inp >= 200 && 'over the INP floor (200 ms)', m.cls >= 0.1 && 'over the CLS floor (0.1)', m.dropped > 0 && 'dropped a frame (over 50 ms)'].filter(Boolean);
   // Each floor a page met by less than a fifth of it (scripts/lib/timing.ts): a pass by a hair here is a red on a slower machine.
   const near = [thin(m.lcp, 2500) && 'within 20% of the LCP floor', thin(m.inp, 200) && 'within 20% of the INP floor', thin(m.cls, 0.1) && 'within 20% of the CLS floor', thin(m.longest, 50) && 'a frame within 20% of 50 ms'].filter(Boolean);
-  const bad = !!m.answer || missed.length > 0;
+  // Tier 2 is reported, never a gate: a page over a floor or dropping a frame is a warn with its numbers, and only a
+  // page that answers as something other than the route (a failure of the page, not of its speed) fails the run.
+  const bad = !!m.answer;
   if (bad) failures++;
-  else if (near.length) warnings++;
-  console.log(`${bad ? 'FAIL' : near.length ? 'warn' : 'ok  '} ${route.padEnd(36)} LCP ${(m.lcp / 1000).toFixed(2)} s · INP ${Math.round(m.inp)} ms · CLS ${m.cls.toFixed(3)} · frames over 50 ms: ${m.dropped} of ${m.frames}, longest ${Math.round(m.longest)} ms${again ? ' (second measure)' : ''} · taps: ${m.tapped}${m.dropped ? ` · dropped by: ${m.droppedBy} · ${m.cause}` : ''}${m.inp >= 100 ? ` · slowest tap: ${m.slowest}` : ''}${m.moved ? ` · moved most: ${m.moved}` : ''}${missed.length ? `\n  ${missed.join(', ')}` : ''}${!bad && near.length ? `\n  ${near.join(', ')}` : ''}${m.answer ? `\n  ${m.answer}` : ''}`);
+  else if (missed.length || near.length) warnings++;
+  recordPart(ROOT, 'vitals', [
+    { check: 'vitals.lcp', page: route, unit: 's', value: m.lcp / 1000 },
+    { check: 'vitals.inp', page: route, unit: 'ms', value: m.inp },
+    { check: 'vitals.cls', page: route, unit: 'score', value: m.cls },
+    { check: 'vitals.frames', page: route, unit: 'ms', value: m.longest, samples: m.taps.map((t) => t.longest) },
+  ]);
+  console.log(`${bad ? 'FAIL' : missed.length ? 'warn' : near.length ? 'warn' : 'ok  '} ${route.padEnd(36)} LCP ${(m.lcp / 1000).toFixed(2)} s · INP ${Math.round(m.inp)} ms · CLS ${m.cls.toFixed(3)} · frames over 50 ms: ${m.dropped} of ${m.frames}, longest ${Math.round(m.longest)} ms${again ? ' (second measure)' : ''} · taps: ${m.tapped}${m.dropped ? ` · dropped by: ${m.droppedBy} · ${m.cause}` : ''}${m.inp >= 100 ? ` · slowest tap: ${m.slowest}` : ''}${m.moved ? ` · moved most: ${m.moved}` : ''}${missed.length ? `\n  ${missed.join(', ')}` : ''}${!bad && near.length ? `\n  ${near.join(', ')}` : ''}${m.answer ? `\n  ${m.answer}` : ''}`);
 }
 await page.send('Emulation.setCPUThrottlingRate', { rate: 1 });
 page.close();

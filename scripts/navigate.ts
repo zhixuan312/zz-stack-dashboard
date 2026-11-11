@@ -40,10 +40,9 @@
  * With `--timing on`, a time that passes leaving less than a fifth of its budget makes its line `warn` (scripts/lib/timing.ts
  * `HEADROOM`): a pass by a hair here is a red on a slower machine, and the weekly runner is one.
  *
- * scripts/perf.ts drives the same journey 20 times per route, device and condition (warm, cold and after a live refresh).
  *
  * The exit code is non-zero on a FAIL and on a configuration error. Missing Chrome makes every line `not run`: exit 0 in
- * the default mode, non-zero in `full`. The mappings and budgets come from scripts/verify.config.ts, which `--config` can
+ * the default mode, non-zero in `full` mode. The mappings and budgets come from scripts/verify.config.ts, which `--config` can
  * replace and `--rail` can name the rail routes for (the readiness fixtures, which have no src/app.config.ts). Each
  * workspace's home and name come from `workspaces` in src/app.config.ts (its `homeHref` and `label`); beside `--rail`, a
  * fixture names them with `--homes <home>=<workspace>,...`, and with `--rail` and no `--homes` no route is a home.
@@ -52,12 +51,13 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { budgetsOf, limitsFor, type NavigationCheck } from './lib/budgets.ts';
 import { launch, type Page } from './lib/chrome.ts';
-import { resolveCoverage, selectSmokeRoutes } from './lib/coverage.ts';
+import { prefetchJudged, resolveCoverage, selectSmokeRoutes } from './lib/coverage.ts';
 import { railRoutes } from './lib/routes.ts';
-import { DEVICES, Fail, METRICS, PREFETCH_WAIT, drawerRoutes, journey, journeyStart, openStart, prepare, sleep, workspaceHomes, type Device, type Measured, type Metric, type NavConfig } from './lib/journey.ts';
+import { DEVICES, Fail, METRICS, PREFETCH_WAIT, drawerRoutes, journey, journeyStart, loadShell, openStart, prepare, sleep, workspaceHomes, type Device, type Measured, type Metric, type NavConfig } from './lib/journey.ts';
 import { isPrefetch, prefetchProblems } from './lib/sizes.ts';
 import { headroom, judge, thin } from './lib/timing.ts';
 import { holdArgs } from './lib/args.ts';
+import { recordPart } from './lib/tier2.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const args = process.argv.slice(2);
@@ -71,7 +71,7 @@ const KIB = 1024;
 // ---- the retake rule, per route and device ----
 
 type Verdict = 'pass' | 'fail' | 'not-configured' | 'not-run';
-type Reported = { ms: number | null; limit?: number; verdict: Verdict; reason?: string };
+type Reported = { ms: number | null; limit?: number; verdict: Verdict; reason?: string; samples?: number[] };
 type Line = {
   route: string;
   device: Device;
@@ -83,6 +83,8 @@ type Line = {
   prefetchCapped: boolean;
   noisy: boolean;
   problems: string[];
+  /** A time past its budget: reported, never a failure (Tier 2, docs/testing.md). */
+  overBudget: string[];
   /** What the journey pressed to leave its start: the rail's link, or the workspace menu's item for `workspace`. */
   via: 'rail' | 'menu';
   workspace?: string;
@@ -102,7 +104,7 @@ const value = (m: Measured | null): number | null => (m && 'ms' in m ? m.ms : nu
 type From = { from: string; menu?: string };
 
 async function measure(page: Page, device: Device, start: From, route: string, check: NavigationCheck | undefined, limits: Record<Metric, number>): Promise<Line> {
-  const line: Line = { route, device, status: 'ok', shell: { ms: null, verdict: 'pass' }, data: { ms: null, verdict: 'not-configured' }, interactive: { ms: null, verdict: 'not-configured' }, noisy: false, prefetchCapped: false, problems: [], ...viaOf(start) };
+  const line: Line = { route, device, status: 'ok', shell: { ms: null, verdict: 'pass' }, data: { ms: null, verdict: 'not-configured' }, interactive: { ms: null, verdict: 'not-configured' }, noisy: false, prefetchCapped: false, problems: [], overBudget: [], ...viaOf(start) };
   const fill = (name: Metric, m: Measured | null) => {
     if (m === null) return;
     if ('fail' in m) {
@@ -134,8 +136,8 @@ async function measure(page: Page, device: Device, start: From, route: string, c
       const samples = all.map((s) => value(s[name])).filter((v): v is number => v !== null);
       if (samples.length !== 3) continue;
       const j = judge(samples, limits[name]);
-      line[name] = { ms: j.median, limit: limits[name], verdict: j.verdict === 'pass' ? 'pass' : 'fail', reason: j.verdict === 'pass' ? undefined : `median of ${samples.join(', ')} ms over ${limits[name]} ms` };
-      if (j.verdict !== 'pass') line.problems.push(`${name} ${j.median} ms over its ${limits[name]} ms budget (samples ${samples.join(', ')})`);
+      line[name] = { ms: j.median, limit: limits[name], verdict: 'pass', samples, reason: j.verdict === 'pass' ? undefined : `median of ${samples.join(', ')} ms over ${limits[name]} ms` };
+      if (j.verdict !== 'pass') line.overBudget.push(`${name} ${j.median} ms over its ${limits[name]} ms budget (samples ${samples.join(', ')})`);
       line.noisy ||= j.noisy;
     }
   }
@@ -144,13 +146,37 @@ async function measure(page: Page, device: Device, start: From, route: string, c
 
 const viaOf = (start: From | undefined): Pick<Line, 'via' | 'workspace'> => (start?.menu === undefined ? { via: 'rail' } : { via: 'menu', workspace: start.menu });
 
+/**
+ * A route with no navigation check: there is no journey to time, and none is invented. Its shell is still judged, by
+ * loading the route itself on each device; its data readiness and its interaction need a configured check, and are
+ * reported not-configured with that reason — never as passes, and the run says so at its end.
+ */
+async function shellOnly(page: Page, device: Device, route: string): Promise<Line> {
+  const reason = 'no navigation check is configured';
+  const line: Line = { route, device, status: 'warn', shell: { ms: null, verdict: 'not-run' }, data: { ms: null, verdict: 'not-configured', reason }, interactive: { ms: null, verdict: 'not-configured', reason }, noisy: false, prefetchCapped: false, problems: [], overBudget: [], via: 'rail' };
+  const loaded = await loadShell(page, device, route, base);
+  if ('fail' in loaded) {
+    const why = `${loaded.fail.kind}: ${loaded.fail.message}`;
+    line.shell = { ms: null, verdict: 'fail', reason: why };
+    line.problems.push(why);
+  } else {
+    // Judged as a shell that works — it loaded, drew no error state and raised no console error — with its time reported.
+    // The navigation budgets time a warm press inside the app; a direct load is a document the browser fetches whole,
+    // so no navigation budget applies to it and none is invented.
+    line.shell = { ms: loaded.ms, verdict: 'pass' };
+  }
+  return finish(line);
+}
+
 /** A time judged against its budget and passed: what its headroom is read from. `--timing off` judges none. */
 const judged = (r: Reported): r is Reported & { ms: number; limit: number } => timing === 'on' && r.verdict === 'pass' && r.ms !== null && r.limit !== undefined;
 const percent = (r: { ms: number; limit: number }) => `${Math.floor(headroom(r.ms, r.limit) * 100)}%`;
 
 function finish(line: Line): Line {
   line.thin = METRICS.flatMap((name) => { const r = line[name]; return judged(r) && thin(r.ms, r.limit) ? [`${name} ${Math.round(r.ms)} ms leaves ${percent(r)} of its ${r.limit} ms budget`] : []; });
-  line.status = line.problems.length ? 'FAIL' : line.noisy || line.thin.length || line.data.verdict === 'not-configured' || line.interactive.verdict === 'not-configured' ? 'warn' : 'ok';
+  // A function problem — a link that does not work, a page that never becomes ready, a wrong result — is red. A time past
+  // its budget is reported with its numbers and never fails the run.
+  line.status = line.problems.length ? 'FAIL' : line.noisy || line.thin.length || line.overBudget.length || line.data.verdict === 'not-configured' || line.interactive.verdict === 'not-configured' ? 'warn' : 'ok';
   return line;
 }
 
@@ -166,7 +192,8 @@ const text = (l: Line): string =>
   + (l.via === 'menu' ? ` · through the workspace menu (${l.workspace})` : '')
   + (l.prefetched === undefined ? '' : l.prefetched === 0 ? ' · not prefetched' : ` · prefetched ${l.prefetched} time(s) before the press`)
   + (l.thin?.length ? ` · ${l.thin.join('; ')}` : '')
-  + (l.problems.length ? ` · ${l.problems.join('; ')}` : '');
+  + (l.problems.length ? ` · ${l.problems.join('; ')}` : '')
+  + (l.overBudget.length ? ` · ${l.overBudget.join('; ')}` : '');
 
 // ---- prefetch ----
 
@@ -193,7 +220,7 @@ async function main(): Promise<number> {
   holdArgs('navigate', args, ['--base', '--config', '--homes', '--mode', '--rail', '--rate', '--routes', '--samples', '--timing']);
   if (timing !== 'on' && timing !== 'off') { console.error(`--timing must be on or off, got ${timing}`); return 1; }
   if (mode !== 'default' && mode !== 'full') { console.error(`--mode must be default or full, got ${mode}`); return 1; }
-  if ((opt('--samples') ?? '1') !== '1') { console.error('--samples: one sample and two retakes is the only protocol here; scripts/perf.ts takes the 20-sample one'); return 1; }
+  if ((opt('--samples') ?? '1') !== '1') { console.error('--samples: one sample and two retakes is the only protocol here; a 20-sample protocol takes its own samples'); return 1; }
 
   const config = ((await import(pathToFileURL(path.resolve(ROOT, opt('--config') ?? 'scripts/verify.config.ts')).href)) as { default?: NavConfig }).default ?? {};
   const budgets = budgetsOf(config);
@@ -264,18 +291,35 @@ async function main(): Promise<number> {
   }
 
   const lines: Line[] = [];
-  let prefetch: { desktopKiB: number; phoneClosedKiB: number } | undefined;
+  /** The timed values this run measured, recorded for the run's Tier 2 table. */
+  const values: { check: string; page: string; unit: 'ms'; value: number; samples?: number[] }[] = [];
+  /** What this run reported as not configured: routes without a navigation check, and a prefetch budget that is not the project's promise. */
+  const unrun: string[] = [];
+  let prefetch: { desktopKiB?: number; phoneClosedKiB?: number } | undefined;
   let problems: string[] = [];
   try {
     await prepare(page);
     const { starts, drawn } = await drawerRoutes(page, base, rail.routes);
+    // A project that configures a check somewhere has said where its presses go: a route it leaves out is a gap in its
+    // own coverage, and one with no other route to start a journey from is a red, as it always was.
+    const configured = checks.length > 0;
     for (const route of routes) {
       const check = checks.find((c) => c.path === route);
+      if (!check) unrun.push(`${route}: no navigation check is configured`);
       // Each journey comes from the nearest rail route whose rail links to the destination, so it is a navigation and not the
       // page already shown; a workspace's only destination, from the nearest route of another workspace, through the menu.
       const way = journeyStart(rail.routes, route, starts, drawn, [...homes.keys()]);
       const start: From | undefined = way && { from: way.from, menu: way.via === 'menu' ? homes.get(route) : undefined };
       for (const device of DEVICES) {
+        // No check for this route and no journey to start it from: the project has not said where its presses go, so
+        // there is no navigation to time. Its shell is judged by loading it directly; what needs a configured check is
+        // reported not-configured, and the run exits 2 so it is never counted as passed.
+        if (!check && start === undefined && !configured) {
+          const line = await shellOnly(page, device, route);
+          lines.push(line);
+          console.log(text(line));
+          continue;
+        }
         const limits = limitsFor(budgets, 'warm', device, check);
         let line: Line;
         try {
@@ -285,23 +329,36 @@ async function main(): Promise<number> {
         } catch (e) {
           // The starting page never loading is a failure of this route and device, not of the run.
           const reason = e instanceof Fail ? `${e.kind}: ${e.message}` : (e as Error).message;
-          line = finish({ route, device, status: 'FAIL', shell: { ms: null, verdict: 'fail', reason }, data: { ms: null, verdict: 'not-run' }, interactive: { ms: null, verdict: 'not-run' }, noisy: false, prefetchCapped: false, problems: [reason], ...viaOf(start) });
+          line = finish({ route, device, status: 'FAIL', shell: { ms: null, verdict: 'fail', reason }, data: { ms: null, verdict: 'not-run' }, interactive: { ms: null, verdict: 'not-run' }, noisy: false, prefetchCapped: false, problems: [reason], overBudget: [], ...viaOf(start) });
         }
         if (!check) {
-          line.data = { ms: null, verdict: 'not-configured' };
-          line.interactive = { ms: null, verdict: 'not-configured' };
+          line.data = { ms: null, verdict: 'not-configured', reason: 'no navigation check is configured' };
+          line.interactive = { ms: null, verdict: 'not-configured', reason: 'no navigation check is configured' };
           finish(line);
         }
         lines.push(line);
         console.log(text(line));
+        for (const name of METRICS) {
+          const r = line[name];
+          if (r.ms !== null && r.limit !== undefined) values.push({ check: `nav.${name}`, page: `${route} ${device}`, unit: 'ms', value: r.ms, ...(r.samples ? { samples: r.samples } : {}) });
+        }
       }
     }
-    const bytes = { desktop: await prefetchKiB(page, 'desktop', rail.landing), phoneClosed: await prefetchKiB(page, 'phone', rail.landing) };
-    prefetch = { desktopKiB: bytes.desktop / KIB, phoneClosedKiB: bytes.phoneClosed / KIB };
-    problems = prefetchProblems({ desktopBytes: bytes.desktop, phoneClosedBytes: bytes.phoneClosed }, budgets.prefetchKb);
+    recordPart(ROOT, 'navigate', values);
+    // The phone-closed cap is judged only where the rail is in a drawer on a phone — the project's own promise, as the
+    // template's is. A rail in the page prefetches what its visible links point at; that budget is not its promise.
+    const phoneJudged = prefetchJudged('phoneClosed', starts);
+    const desktop = await prefetchKiB(page, 'desktop', rail.landing);
+    const phoneClosed = phoneJudged.judged ? await prefetchKiB(page, 'phone', rail.landing) : 0;
+    prefetch = phoneJudged.judged ? { desktopKiB: desktop / KIB, phoneClosedKiB: phoneClosed / KIB } : { desktopKiB: desktop / KIB };
+    problems = prefetchProblems({ desktopBytes: desktop, phoneClosedBytes: phoneClosed }, budgets.prefetchKb, { phoneClosed: phoneJudged.judged });
     const lineFor = (device: string, kib: number, cap: number) => `${kib > cap ? 'FAIL   ' : 'ok     '} prefetch ${device} ${kib.toFixed(1)} KiB compressed · cap ${cap} KiB`;
-    console.log(lineFor('desktop', prefetch.desktopKiB, budgets.prefetchKb.desktop));
-    console.log(lineFor('phone-closed', prefetch.phoneClosedKiB, budgets.prefetchKb.phoneClosed));
+    console.log(lineFor('desktop', prefetch.desktopKiB!, budgets.prefetchKb.desktop));
+    if (phoneJudged.judged) console.log(lineFor('phone-closed', prefetch.phoneClosedKiB!, budgets.prefetchKb.phoneClosed));
+    else {
+      console.log(`not run prefetch phone-closed · ${phoneJudged.reason}`);
+      unrun.push(`prefetch phone with the drawer closed: ${phoneJudged.reason}`);
+    }
     for (const p of problems) console.log(`FAIL    ${p}`);
   } finally {
     page.close();
@@ -319,9 +376,12 @@ async function main(): Promise<number> {
     warnings: coverage.warnings,
     lines: lines.map(({ route, device, status: s, shell, data, interactive, drawerMs, prefetchCapped, noisy, thin: t, problems: p, via, workspace, prefetched, landed, empty }) => ({ route, device, status: s, via, workspace, prefetched, landed, empty, shell, data, interactive, drawerMs, prefetchCapped, noisy, thin: t, problems: p })),
     prefetch: prefetch && { ...prefetch, problems },
+    notRun: unrun,
   });
-  return failed ? 1 : 0;
+  // Exit 2 is "left a case unrun": the suite's not-configured cases are never counted as a pass, and the last-green
+  // marker is not advanced by a run that has them.
+  return failed ? 1 : unrun.length ? 2 : 0;
 }
 
-// perf.ts imports the journey and must not run this main.
+// Run only as the command: a test or a script of the project's own that imports this file must not start a run.
 if (process.argv[1] === fileURLToPath(import.meta.url)) process.exit(await main());

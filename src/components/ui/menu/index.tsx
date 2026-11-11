@@ -23,7 +23,7 @@ export function MenuContent({ className, align = 'start', sideOffset = 6, ...res
         align={align}
         sideOffset={sideOffset}
         collisionPadding={8}
-        className={cn('float-in', MENU_CONTENT, className)}
+        className={cn('float-in max-h-(--radix-dropdown-menu-content-available-height) overflow-y-auto', MENU_CONTENT, className)}
         {...rest}
       />
     </M.Portal>

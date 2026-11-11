@@ -15,6 +15,15 @@ export function median(values: number[]): number {
 /** Day of the week for a YYYY-MM-DD date, 0 for Sunday, read in UTC so the date string is the day it names. */
 export const weekday = (date: string) => new Date(`${date}T12:00:00Z`).getUTCDay();
 
+/**
+ * The weekday names, Sunday first, to match `weekday`'s number: one list for the product, so a chart's bucket, a
+ * context's sentence and an aggregation's order cannot name the same day by different words or in a different order.
+ * A view that counts from Monday slices this list rather than declaring its own.
+ */
+export const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const;
+/** Monday first, for a list or an axis that reads the working week from Monday: a slice of the one list, never a copy. */
+export const WEEKDAY_NAMES_MONDAY_FIRST: readonly string[] = [...WEEKDAY_NAMES.slice(1), WEEKDAY_NAMES[0]];
+
 /** The steady state of day `index` in a series that follows the week: the median of the other days on the same weekday. */
 export function sameWeekdayBaseline(values: number[], dates: string[], index: number): number {
   const day = weekday(dates[index]);

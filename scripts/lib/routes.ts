@@ -4,6 +4,9 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { importTarget, projectAliases } from './aliases.ts';
 
+/** The address `discover()` adds so every suite meets the product's not-found screen. */
+export const NOT_FOUND_PROBE = '/this-page-does-not-exist';
+
 const ROOT = path.resolve(import.meta.dirname, '../..');
 
 /** Where the routes live: `app/`, or `src/app/` in a project that keeps its app under src. */
@@ -218,7 +221,7 @@ export function discover(root = ROOT): string[] {
   };
   walk(path.join(root, fs.existsSync(path.join(root, 'app')) ? 'app' : 'src/app'), []);
   if (out.includes('/system') && fs.existsSync(path.join(root, 'src/components/ui/button/README.md'))) out.push('/system/components/button');
-  out.push('/this-page-does-not-exist');
+  out.push(NOT_FOUND_PROBE);
   return [...new Set(out)].sort();
 }
 

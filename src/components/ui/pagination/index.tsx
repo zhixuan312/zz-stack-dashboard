@@ -6,7 +6,7 @@ import { cn } from '../../../lib/cn';
 import { IconButton } from '../icon-button/index';
 import { Menu, MenuContent, MenuItem, MenuTrigger } from '../menu/index';
 
-/** Page numbers with gaps: 1 … 4 5 6 … 12. Always the first, the last, and one either side of the current page. */
+/** Page numbers with gaps: 1 … 4 5 6 … 12. First, last and current neighbours; four at the near edge, or all when at most seven. */
 export function pageList(page: number, count: number): (number | 'gap')[] {
   if (count <= 7) return Array.from({ length: count }, (_, i) => i + 1);
   const set = new Set([1, count, page - 1, page, page + 1].filter((p) => p >= 1 && p <= count));
@@ -59,7 +59,8 @@ export function Pagination({
         </span>
         <span title={`Page ${page} of ${count}`} className="block truncate @min-[32rem]/pager:hidden">Page <span className="font-medium text-ink">{page}</span> of {count}</span>
       </p>
-      {pageSizes && onPageSizeChange ? (
+      {/* A menu of one size offers nothing, so it is drawn only when there is a choice. */}
+      {pageSizes && pageSizes.length > 1 && onPageSizeChange ? (
         <Menu>
           <MenuTrigger className="press inline-flex h-(--control-sm) items-center gap-1.5 rounded-md px-2 text-sm text-ink-2 hover:bg-fill-hover hover:text-ink @max-[44rem]/pager:hidden">
             <span><span className="t-num">{pageSize}</span> per page</span><ChevronDown className="size-3.5" />

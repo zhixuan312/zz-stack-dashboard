@@ -26,7 +26,7 @@ vi.mock('next/headers', () => ({
 /** The refused view is an async Server Component, and the chrome never draws it. */
 vi.mock('@/console/no-access', () => ({ NoAccess: async () => null }));
 
-import { openCommand } from '@/components/patterns/command-palette';
+import { openCommand } from '@/components/patterns/command-palette/open';
 import { chromeAccess } from '@/data/access';
 import type { ChromeAccess } from '@/lib/collection';
 import { WorkspacePalette, WorkspaceRail } from '@/views/workspace-chrome';

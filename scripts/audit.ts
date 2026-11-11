@@ -11,7 +11,7 @@
  * --atlas audits the Design Atlas instead: every card's page and its bare preview, and every other entry the Atlas
  * serves — the token views, the page specs and the guides — at 1440, 390 and 320px in both themes.
  * A card's preview is the one place it is drawn alone, so a defect in its own box shows there and nowhere else. It is
- * not part of `pnpm verify` (the default stays fast); run it when the question is the component surface. It takes
+ * not part of a test tier; run it when the question is the component surface. It takes
  * about thirty-five minutes, and a project without the Atlas has nothing for it to read. `--list` prints the routes a run would
  * visit, and for `--atlas` what they are by kind, and exits without opening a browser: what a run covers, before it runs.
  *
@@ -366,10 +366,17 @@ const measure = async (route: string, width: number, theme: string, embed: boole
   for (let i = 0; i < 18; i++) {
     await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9 });
     await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9 });
-    const miss = await page.eval<string | null>(`(() => {
+    // A focus style lands a frame or two after the key, and occasionally later than that: read in the tick the key
+    // arrives, every stop reports a 0px ring (measured on `/` at 1440: `0px` at once, `2px` one frame on), and the audit
+    // reported 907 issues that were its own timing rather than the page's. So it polls for the ring instead of sampling
+    // once, up to ~5 frames, and only then calls the stop unmarked.
+    const miss = await page.eval<string | null>(`(async () => {
       const el = deepActive(); if (!el || el === document.body) return null;
+      const frame = () => new Promise((done) => requestAnimationFrame(() => done(true)));
       // A ring is a change on focus, wherever on the element's frames it may be drawn (scripts/lib/deep.ts).
-      if (ringChain(el).some((n) => ringed(n, window.__ringBefore && window.__ringBefore.get(n)))) return null;
+      const marked = () => ringChain(el).some((n) => ringed(n, window.__ringBefore && window.__ringBefore.get(n)));
+      for (let i = 0; i < 6 && !marked(); i++) await frame();
+      if (marked()) return null;
       return el.tagName.toLowerCase() + '.' + String(el.className).split(' ').slice(0, 3).join('.');
     })()`);
     if (miss) r.focusless.push(miss);
@@ -383,16 +390,17 @@ const measure = async (route: string, width: number, theme: string, embed: boole
     // First, because it is the one that fails in the direction of looking clean: a route that never rendered passes
     // everything below, and the run would end with the standard's line over a page nobody measured.
     //
-    // `location.pathname` never carries a query, so comparing it to the route *as asked* fails every route that has one —
-    // parent-ba measured ten combinations of five widths and two themes failing that way, deterministically, on a page
-    // that renders correctly. Comparing the path alone would go too far the other way: a route that dropped its query and
-    // served the default view would pass, audited as something it is not. So the path is compared, and every parameter
-    // that was asked for has to still be in the address. (Both halves from parent-ba, 2026-10-12.)
+    // Compare the path and the complete value list for each requested key. A key that survives with a different
+    // value (or loses one of its repeated values) names a different view just as surely as a dropped key.
     ...((): string[] => {
       const asked = new URL(route, 'http://x'), here = new URL(r.href);
       if (here.pathname.replace(/\/$/, '') !== asked.pathname.replace(/\/$/, '')) return [`the audit measured ${here.pathname} while asking for ${route} — the route served another page`];
       const dropped = [...asked.searchParams.keys()].filter((k) => !here.searchParams.has(k));
-      return dropped.length ? [`the address dropped ${dropped.join(', ')} — the audit measured a different view than it asked for`] : [];
+      const changed = [...new Set(asked.searchParams.keys())].filter((k) => here.searchParams.has(k) && JSON.stringify(here.searchParams.getAll(k)) !== JSON.stringify(asked.searchParams.getAll(k)));
+      return [
+        ...(dropped.length ? [`the address dropped ${dropped.join(', ')} — the audit measured a different view than it asked for`] : []),
+        ...(changed.length ? [`the address changed ${changed.join(', ')} — the audit measured a different view than it asked for`] : []),
+      ];
     })(),
     ...(r.text < 24 ? [`the page holds ${r.text} characters of text — it rendered nothing, or only its loading state`] : []),
     ...r.sideways.map((x) => 'sideways: ' + x),

@@ -27,6 +27,7 @@ export function GroupedColumns({
   noData = 'No data',
   whole = false,
   axisFormat,
+  domain,
   height = 200,
   label,
   labelEvery: every,
@@ -50,7 +51,7 @@ export function GroupedColumns({
   }), [columns, parts]);
 
   const af = axisFormat ?? format;
-  const { ticks, low, top, at100, left } = scaleOf(bars.flatMap((b) => b.values.filter((v): v is number => v !== null)), true, whole, af);
+  const { ticks, low, top, at100, left, widened } = scaleOf(bars.flatMap((b) => b.values.filter((v): v is number => v !== null)), true, whole, af, domain);
   const gap = opens(n).filter((w) => width - left > w).length;
   const column = n ? (width - left - gap * (n - 1)) / n : 0;
   // A part's bar wide enough for a figure keeps its value above it at rest; a narrower one is read when pointed at.
@@ -58,7 +59,7 @@ export function GroupedColumns({
   const rest = bar >= REST;
   const value = useCallback((v: number | null, running = false) => (v === null ? (running ? `${noData} so far` : noData) : format(v)), [format, noData]);
   // Moving the cursor re-renders the chart, and no row of its table changes with it, so the rows are built once per data.
-  const caption = `${label}${highlight && highlightLabel ? `. Ringed: ${highlightLabel}` : ''}`;
+  const caption = `${label}${highlight && highlightLabel ? `. Ringed: ${highlightLabel}` : ''}${widened ? `. ${widened}` : ''}`;
   const table = useMemo(
     () => (settled ? <table className="sr-only">
       <caption>{caption}</caption>
@@ -87,6 +88,8 @@ export function GroupedColumns({
       <ul data-legend aria-hidden className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-2" style={{ paddingLeft: left }}>
         {parts.map((p, k) => <li key={p.key} className="flex items-center gap-1.5"><Swatch color={colors[k]} />{p.label}</li>)}
       </ul>
+      {/* A held scale that had to take a part outside it says so, as the Trend chart does. */}
+      {widened ? <p data-widened className="mb-1 text-2xs text-ink-3" style={{ paddingLeft: left }}>{widened}</p> : null}
       <div
         data-plot
         role="group"

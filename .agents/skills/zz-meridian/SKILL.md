@@ -53,9 +53,9 @@ These hold in every project, however it started, and nothing below overrides the
   layers. It is advice; `node scripts/check.ts` holds the six rules that a machine can decide, once the project sets its
   own switch in `optional:scripts/check.local.ts`.
 - **Done is when the scoreboard says so.** `pnpm test:t1` is the loop while you work; `pnpm test:t2` after a change to
-  shared components, the shell or the data. The work is finished only when `pnpm test:release` passes, every diagnostic
-  has run with nothing failed and nothing unrun the project can run, and every view is rendered, scored and none is Weak
-  (`references/standard.md`). Never against a live backend: the browser diagnostics press every control, Delete
+  shared components, the shell or the data. The work is finished only when `pnpm test:release` passes with nothing
+  failed and nothing unrun the project can run, and every view is rendered, scored and none is Weak
+  (`references/standard.md`). Never against a live backend: the browser sweeps press every control, Delete
   included, so a project whose pages call a live API or read a database names a `fakeApi` (or says `noLiveApi`) in
   `scripts/verify.config.ts` first (`references/existing-project.md`, step 5).
 - **Commit locally, never publish.** Commit each verified change on its own with the paths named. Pushing, a release, a
@@ -276,9 +276,9 @@ Run the loop in `references/standard.md`, scoring looks against the register in 
 the floors, render and score the craft, fix every Weak and every failure, commit, and go round again. The commands:
 
 ```sh
-pnpm test:t1                   # the tests affected by the change since the last green run, static checks first
-pnpm test:t2                   # the affected Tier 2 tests too
-pnpm test:release              # every Tier 1 and Tier 2 test, once, with lint and the type check
+pnpm test:t1                   # the tests affected by the change since the last green run, static checks and types first
+pnpm test:t2                   # the affected Tier 2 checks too, the browser sweeps included
+pnpm test:release              # every Tier 1 and Tier 2 test, once, with the timed suites, lint and the type check
 pnpm build                     # the renders read a built app: under `next dev` they are pictures of the loading state
 node_modules/.bin/next start --port 3100 & # then, for the renders (stop it with kill $!; with a fake API, set its address first: API_URL=<fake> node_modules/.bin/next start …):
 node scripts/shot.ts / <every other view> --width 1440,390 --theme dark,light --whole-page
@@ -295,10 +295,10 @@ browser-side reads can fail to fire, and the picture is of a skeleton that passe
 clip and nothing to contrast. Stop the server before `pnpm test:release`, which builds in the same folder: stop the process you
 started, by its id, never by a name or a pattern, since other servers on the machine may be someone else's. Start Next
 itself, not through `pnpm dev`, whose id is the package manager's and leaves the server running when it is stopped. The default
-`test:release` takes several minutes; the diagnostics take about a quarter of an hour for a dozen routes, and the
-timed ones several minutes more. The timed diagnostics judge time, so run them alone on a quiet machine: nothing else
-building, testing or rendering beside it. Each diagnostic prints one line per case and a final line that says what it
-reached; nothing it could not measure is reported as passed. A full diagnostic refuses, listing every gap, until
+`test:release` takes several minutes; the browser sweeps take about a quarter of an hour for a dozen routes, and the
+timed ones several minutes more. The timed suites judge time, so run them alone on a quiet machine: nothing else
+building, testing or rendering beside it. Each suite prints one line per case and a final line that says what it
+reached; nothing it could not measure is reported as passed. A full run refuses, listing every gap, until
 `scripts/verify.config.ts` describes the product you built (`references/standard.md`, "The floors"). When something
 fails, read `references/validation.md`, fix the cause, never the check, and run it again. A passing run is half the
 evidence: the other half is the renders, judged and scored, because the audit measures what can be measured and the eye

@@ -42,7 +42,7 @@ vi.mock('next/navigation', () => ({
   redirect: (to: string) => { throw new Error(`redirect to ${to}`); },
 }));
 
-import { openCommand } from '@/components/patterns/command-palette';
+import { openCommand } from '@/components/patterns/command-palette/open';
 import { SurfaceOverride, type Surface } from '@/components/base/surface';
 import { can, chromeAccess, may, resolveAccess } from '@/data/access';
 import { clock, collections } from '@/data/collections';

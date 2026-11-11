@@ -4,7 +4,7 @@ import Link, { useLinkStatus } from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useLeave } from '../../base/shell/index';
 import { useEffect, useId, useRef, useState } from 'react';
-import { Check, ChevronDown, ChevronRight, ChevronsUpDown, LogOut, Settings } from 'lucide-react';
+import { Check, ChevronDown, ChevronsUpDown, LogOut, Settings } from 'lucide-react';
 import { app, type NavGroup } from '../../../app.config';
 import { cn } from '../../../lib/cn';
 import { AppMark } from '../../base/app-mark/index';
@@ -104,8 +104,10 @@ export function Rail({
   // A sub page names its parent with `under` (`parentOf`, shared with the palette and the trail). `nav` holds only what the
   // person may open, so a parent they may not open leaves its sub pages at the top level, with their icons.
   const subsOf = (g: NavGroup, href: string) => g.items.filter((s) => parentOf(g, s)?.href === href);
-  // The branch that holds the current page: the parent whose own page it is, or whose sub page it is.
-  const branchHere = nav.flatMap((g) => g.items.filter((p) => !parentOf(g, p) && subsOf(g, p.href).length > 0)).find((p) => p.href === here || subsOf(nav.find((g) => g.items.includes(p))!, p.href).some((s) => s.href === here))?.href;
+  // The branch that holds the current page: the parent whose own page it is, or whose sub page it is. One pass over the
+  // groups, each parent kept beside the group it came from, so no second search nor an assertion that its group exists.
+  const branchHere = nav.flatMap((g) => g.items.filter((p) => !parentOf(g, p) && subsOf(g, p.href).length > 0).map((p) => ({ p, g })))
+    .find(({ p, g }) => p.href === here || subsOf(g, p.href).some((s) => s.href === here))?.p.href;
   // Open branches, by parent href. The branch holding the page opens on arrival and on each change of page; the person's
   // own toggles stand across navigations, and a branch closed from inside stays closed until a page inside it is reached.
   const [open, setOpen] = useState<Set<string>>(() => new Set(branchHere ? [branchHere] : []));
@@ -135,7 +137,16 @@ export function Rail({
       >
         {sub ? null : <LinkIcon icon={<Icon strokeWidth={1.75} />} label={it.label} />}
         <span title={it.label} className="flex-1 truncate">{it.label}</span>
-        {it.badge ? <span className="t-num grid h-5 min-w-5 place-items-center rounded-full bg-warning-tint px-1.5 text-2xs font-semibold text-warning-ink">{it.badge}</span> : null}
+        {/* A count alone says nothing about what it counts: the badge names its destination, so a "3" read on its own
+            still says "API keys: 3 new", and so does its pointer's title. */}
+        {it.badge ? (
+          <span
+            role="img"
+            aria-label={`${it.label}: ${it.badge} new`}
+            title={`${it.label}: ${it.badge} new`}
+            className="t-num grid h-5 min-w-5 place-items-center rounded-full bg-warning-tint px-1.5 text-2xs font-semibold text-warning-ink"
+          >{it.badge}</span>
+        ) : null}
         {state.reserve ? <span aria-hidden className="w-4 shrink-0 pointer-coarse:w-8" /> : null}
       </Link>
     );
@@ -258,13 +269,15 @@ export function Rail({
                         <button
                           type="button"
                           aria-expanded={isOpen}
-                          aria-controls={branch}
+                          aria-controls={isOpen ? branch : undefined}
                           aria-label={`${it.label} pages`}
                           onClick={() => toggle(it.href)}
                           className="relative col-start-1 row-start-1 mr-1 grid size-7 place-items-center self-center justify-self-end rounded-md text-ink-3 transition-colors duration-(--dur-hover) hover:bg-fill-hover hover:text-ink pointer-coarse:size-11"
                         >
-                          {/* One chevron that turns, never swapped: the same element keeps the button's focus ring and the turn animates. */}
-                          <ChevronRight className={cn('size-4 transition-transform duration-(--dur-hover)', isOpen && 'rotate-90')} strokeWidth={1.75} />
+                          {/* One chevron that turns, never swapped: the same element keeps the button's focus ring and the turn animates.
+                              It is the shell's own ChevronDown turned a quarter: a ChevronRight of its own split the menu icons into
+                              a first-load chunk of their own on every route of an adopted project (issue 122). */}
+                          <ChevronDown className={cn('size-4 transition-transform duration-(--dur-hover)', !isOpen && '-rotate-90')} strokeWidth={1.75} />
                         </button>
                       </div>
                       {isOpen ? (

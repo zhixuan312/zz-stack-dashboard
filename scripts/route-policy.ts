@@ -8,7 +8,7 @@
  * It reads the build's own manifests in the configured `distDir`: every app route in app-path-routes-manifest.json, and
  * the prerendered ones in prerender-manifest.json, where `renderingMode` says STATIC or PARTIALLY_STATIC (a partial
  * prerender). A route in the first and absent from the second is dynamic. It also fails a partial route whose shell for a
- * parameter the build did not know is an empty file. `pnpm verify` runs it right after its production build.
+ * parameter the build did not know is an empty file. `pnpm test:release` runs it after its production build.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -68,6 +68,14 @@ if (import.meta.main) {
   }
   let bad: string[];
   const routes = routesOf(dist);
+  // A build made without `cacheComponents` and `partialPrefetching` writes no `renderingMode` at all, and every route then
+  // reads dynamic: the policy presupposes the flags. That is the project's own configuration, not a failure — an update's
+  // finalize already reports it not run — so it is reported with the reason and exits 2, never counted as passed.
+  const judged = routes.filter((r) => !r.path.startsWith('/api/'));
+  if (judged.length && !judged.some((r) => r.kind !== 'dynamic')) {
+    console.log("not run route-policy: the build writes no renderingMode: the project's next.config sets no cacheComponents and partialPrefetching, which the policy presupposes");
+    process.exit(2);
+  }
   try {
     // verify.config.ts is the team's, so a product set up by an earlier release has a config type without the field.
     bad = offenders(routes, (config as { requestDependentRoutes?: Declared[] }).requestDependentRoutes ?? []);

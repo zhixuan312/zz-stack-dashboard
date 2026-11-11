@@ -3,35 +3,21 @@
 import { Dialog as D } from 'radix-ui';
 import { useRouter } from 'next/navigation';
 import { useLeave } from '../../base/shell/index';
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ArrowRight, CornerDownLeft, Monitor, Moon, Search, Sun } from 'lucide-react';
 import type { NavGroup } from '../../../app.config';
 import { cn } from '../../../lib/cn';
+import { rank } from '../../../lib/rank';
 import { usePreferences } from '../../base/providers';
 import { Kbd } from '../../ui/kbd/index';
 import { parentOf } from '../rail/trail';
+import { registerOpener, usePaletteKey } from './open';
 
 export type Command = { id: string; group: string; label: string; hint?: string; icon: ReactNode; run: () => void };
 
-let opener: (() => void) | null = null;
-/** Open the palette from anywhere: the rail's search button, a shortcut in a page. */
-export function openCommand() {
-  opener?.();
-}
-
-const noChange = () => () => {};
-const appleKeyboard = () => /mac|iphone|ipad/i.test((navigator as { userAgentData?: { platform: string } }).userAgentData?.platform ?? navigator.platform);
-/**
- * The palette's keystroke as the reader's keyboard names it: ⌘K on Apple's, Ctrl K on every other. The server cannot
- * know, so it draws ⌘K and the client names the reader's key once it has hydrated.
- */
-export function usePaletteKey() {
-  return useSyncExternalStore(noChange, () => (appleKeyboard() ? '⌘K' : 'Ctrl K'), () => '⌘K');
-}
-
 /**
  * Every destination and every global action behind one keystroke (⌘K or Ctrl K). Type to filter; the arrow keys
- * move, Enter runs, Escape closes. Matches are ranked by where the query starts, then by order.
+ * move, Enter runs, Escape closes. Matches are ranked by `rank` (src/lib/rank.ts), the same function the Combobox uses.
  */
 export function CommandPalette({ nav }: { /** Every destination the rail offers, one "Go to" each: pass the same groups as the Rail. */ nav: NavGroup[] }) {
   const [open, setOpen] = useState(false);
@@ -47,7 +33,7 @@ export function CommandPalette({ nav }: { /** Every destination the rail offers,
   const { set } = usePreferences();
 
   useEffect(() => {
-    opener = () => setOpen(true);
+    registerOpener(() => setOpen(true));
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
@@ -56,7 +42,7 @@ export function CommandPalette({ nav }: { /** Every destination the rail offers,
     };
     window.addEventListener('keydown', onKey);
     return () => {
-      opener = null;
+      registerOpener(null);
       window.removeEventListener('keydown', onKey);
     };
   }, []);
@@ -76,15 +62,8 @@ export function CommandPalette({ nav }: { /** Every destination the rail offers,
     [nav, router, leave, set],
   );
 
-  const shown = useMemo(() => {
-    const s = q.trim().toLowerCase();
-    if (!s) return commands;
-    return commands
-      .map((c, i) => ({ c, i, p: c.label.toLowerCase().indexOf(s) }))
-      .filter((x) => x.p >= 0 || (x.c.hint ?? '').toLowerCase().includes(s))
-      .sort((a, b) => (a.p < 0 ? 99 : a.p) - (b.p < 0 ? 99 : b.p) || a.i - b.i)
-      .map((x) => x.c);
-  }, [q, commands]);
+  // The same filter and rank the Combobox uses (src/lib/rank.ts), so a person who types in either finds the same order.
+  const shown = useMemo(() => rank(commands, q), [q, commands]);
 
   useEffect(() => {
     list.current?.querySelector(`[data-index="${at}"]`)?.scrollIntoView({ block: 'nearest' });
@@ -103,7 +82,9 @@ export function CommandPalette({ nav }: { /** Every destination the rail offers,
         <D.Overlay className="scrim-in fixed inset-0 z-(--layer-overlay) bg-scrim" />
         <D.Content
           aria-describedby={undefined}
-          className="dialog-in fixed top-[14vh] left-1/2 z-(--layer-overlay) w-[min(600px,calc(100vw-24px))] -translate-x-1/2 overflow-hidden rounded-xl bg-surface-raised shadow-overlay"
+          // A sheet on a phone, as every other dialog is: a panel floating at 14vh on a 390px screen puts its list under
+          // the thumb's reach and leaves a strip of page that does nothing. Above 640px it stays the floating palette.
+          className="dialog-in fixed inset-x-0 bottom-0 z-(--layer-overlay) overflow-hidden rounded-t-xl bg-surface-raised pb-[env(safe-area-inset-bottom)] shadow-overlay sm:inset-x-auto sm:bottom-auto sm:top-[14vh] sm:left-1/2 sm:w-[min(600px,calc(100vw-24px))] sm:-translate-x-1/2 sm:rounded-xl sm:pb-0"
           // An input method composing (Chinese, Japanese, Korean) owns Enter, Escape and the arrows until it is done.
           onEscapeKeyDown={(e) => { if (e.isComposing) e.preventDefault(); }}
           onKeyDown={(e) => {
@@ -184,7 +165,7 @@ export function CommandPanel({
                   onPointerMove={() => onAt(i)}
                   onClick={() => onRun(c)}
                   className={cn(
-                    'flex h-10 cursor-default items-center gap-3 rounded-md px-3 text-sm [&_svg]:size-4 [&_svg]:text-ink-3',
+                    'flex h-10 cursor-default items-center gap-3 rounded-md px-3 text-sm pointer-coarse:h-11 [&_svg]:size-4 [&_svg]:text-ink-3',
                     i === at && 'bg-fill-hover [&_svg]:text-ink-2',
                   )}
                 >

@@ -3,7 +3,7 @@
  * and right after a live refresh, with the nearest-rank p95 of each metric held to the budget.
  *
  *   node scripts/perf.ts --base http://127.0.0.1:3000 [--config scripts/verify.config.ts] [--rail /,/a,/b] [--homes /b=Name]
- *                        [--routes /a,/b] [--samples <n>] [--shard <i>/<n>] [--rate <n>]
+ *                        [--routes /a,/b] [--samples <n>] [--rate <n>]
  *
  * It is the journey of scripts/navigate.ts (the press time and the frame clock are the page's own) taken `--samples` times,
  * 20 by default, with no retake: every sample counts, and what is reported is the p95 of the lot, never the best of them.
@@ -26,28 +26,27 @@
  *   ok|warn|FAIL <route> <device> <condition> shell <median>/<p95>/<max> ms · data … · interactive …[ · drawer <median> ms][ · <reasons>]
  *   perf: {...}
  *
- * A p95 over its budget is a `warn`, a report and never a failure: the protocol is statistical evidence, run weekly, not
- * a release gate. A sample that never got ready or whose control did nothing is a FAIL. Exit non-zero on a FAIL, on a
- * missing mapping (named before anything is sampled) and on a missing Chrome: this is an explicit mode, so a lack of
- * Chrome is never a pass. The whole protocol runs only where `CI` is `true`, split by route with `--shard <i>/<n>`: shard i
- * of n measures the rail routes at positions k with k % n === i - 1, its journeys starting from every rail route.
- * `--samples` and `--routes` narrow a run for working on the protocol;
- * a narrowed run reports `warn`, never `ok`. The mappings and budgets come from scripts/verify.config.ts.
+ * A p95 over its budget is a `warn`, a report and never a failure: the protocol is statistical evidence. A sample that
+ * never got ready or whose control did nothing is a FAIL. Exit non-zero on a FAIL, on a missing mapping (named before
+ * anything is sampled) and on a missing Chrome: this diagnostic reports, and a lack of Chrome is never a pass.
+ * `--samples` and `--routes` narrow a run; a narrowed run reports `warn`, never `ok`. The test commands run it through
+ * scripts/browser.ts --depth perf, only where `CI` is true: the weekly job calls `pnpm test:t2` on a fresh clone, and the
+ * protocol measures a quiet runner. The mappings and budgets come from scripts/verify.config.ts.
  */
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { budgetsOf, limitsFor } from './lib/budgets.ts';
 import { launch, type Page } from './lib/chrome.ts';
-import { resolveCoverage } from './lib/coverage.ts';
+import { declaredNotRun, resolveCoverage, unconfiguredRoutes } from './lib/coverage.ts';
+import { recordPart } from './lib/tier2.ts';
 import { railRoutes } from './lib/routes.ts';
-import { parseShard, shardOf, WHOLE_PROTOCOL_REFUSAL } from './lib/shard.ts';
 import { summary } from './lib/timing.ts';
 import { DEVICES, Fail, drawerRoutes, journey, journeyStart, liveRefresh, METRICS, prepare, type Condition, type Device, type Metric, type NavConfig, workspaceHomes } from './lib/journey.ts';
 import { holdArgs } from './lib/args.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const args = process.argv.slice(2);
-holdArgs('perf', args, ['--base', '--config', '--homes', '--rail', '--rate', '--routes', '--samples', '--shard']);
+holdArgs('perf', args, ['--base', '--config', '--homes', '--rail', '--rate', '--routes', '--samples']);
 const opt = (k: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : undefined; };
 const base = (opt('--base') ?? process.env.BASE ?? 'http://localhost:3000').replace(/\/$/, '');
 const PROTOCOL_SAMPLES = 20;
@@ -125,12 +124,6 @@ async function startRoutes(routes: string[]): Promise<{ live: string[]; starts: 
 async function main(): Promise<number> {
   const samples = Number(opt('--samples') ?? PROTOCOL_SAMPLES);
   if (!Number.isInteger(samples) || samples < 2) { console.error('--samples must be a whole number of at least 2'); return 1; }
-  const shardText = opt('--shard');
-  if (shardText !== undefined && opt('--routes') !== undefined) { console.error('perf: --shard divides the whole protocol; it cannot be combined with --routes'); return 1; }
-  let shard: ReturnType<typeof parseShard> | undefined;
-  try { if (shardText !== undefined) shard = parseShard(shardText); } catch (e) { console.error(`perf: ${(e as Error).message}`); return 1; }
-  // The whole protocol is hours of a machine's time: it runs split by route, in CI, never on a person's machine.
-  if (opt('--routes') === undefined && process.env.CI !== 'true') { console.error(`perf: ${WHOLE_PROTOCOL_REFUSAL}`); return 1; }
 
   const config = ((await import(pathToFileURL(path.resolve(ROOT, opt('--config') ?? 'scripts/verify.config.ts')).href)) as { default?: NavConfig }).default ?? {};
   const budgets = budgetsOf(config);
@@ -156,13 +149,19 @@ async function main(): Promise<number> {
     return 1;
   }
 
-  // The protocol covers the whole rail; a missing or broken mapping is named before a browser starts.
+  // The protocol covers the whole rail; a missing or broken mapping is named before a browser starts. A route the
+  // project has configured no navigation check for has nothing for the protocol to sample: that is declared
+  // configuration, reported not run with the reason and never a pass — the suite exits 2, so it does not hold the marker.
   const coverage = resolveCoverage('perf', rail.routes, checks, rail.routes);
-  if (coverage.errors.length) {
-    for (const e of coverage.errors) console.log(`FAIL    ${e}`);
-    out({ status: 'FAIL', errors: coverage.errors });
+  const unconfigured = unconfiguredRoutes(rail.routes, checks);
+  const errors = coverage.errors.filter((e) => !declaredNotRun(`${e.split(',')[0]}`));
+  if (errors.length) {
+    for (const e of errors) console.log(`FAIL    ${e}`);
+    out({ status: 'FAIL', errors });
     return 1;
   }
+  const unrun = unconfigured.map((r) => `${r}: no navigation check is configured`);
+  for (const l of unrun) console.log(`not run ${l}`);
   const narrowed = opt('--routes')?.split(',').filter(Boolean);
   const unknown = (narrowed ?? []).filter((r) => !rail.routes.includes(r));
   if (unknown.length) {
@@ -171,10 +170,15 @@ async function main(): Promise<number> {
     out({ status: 'FAIL', errors });
     return 1;
   }
-  const routes = narrowed ?? (shard ? shardOf(rail.routes, shard) : rail.routes);
-  // A shard is a share of the protocol, not a narrowed run; fewer samples than the protocol's, or named routes, are.
+  const routes = (narrowed ?? rail.routes).filter((r) => !unconfigured.includes(r));
   const partial = narrowed !== undefined || samples !== PROTOCOL_SAMPLES;
+  if (!routes.length) {
+    console.log('not run perf: no rail route in this run has a navigation check configured');
+    out({ status: 'not-run', routes, notRun: unrun });
+    return 2;
+  }
 
+  const perfValues: { check: string; page: string; unit: 'ms'; value: number; samples: number[] }[] = [];
   let live: string[];
   let starts: string[];
   let drawn: Record<string, string[]>;
@@ -206,6 +210,8 @@ async function main(): Promise<number> {
           const series: Record<Metric, number[]> = { shell: [], data: [], interactive: [] };
           const drawer: number[] = [];
           const problems: string[] = [];
+          /** A p95 past its budget: reported with its numbers, never a failure (Tier 2). */
+          const overBudget: string[] = [];
           let refused = 0;
           let taken = 0;
           if (start === undefined) problems.push(condition === 'afterLive' ? 'no other rail route registers live data to start from' : 'the rail has no other route to start from');
@@ -234,15 +240,19 @@ async function main(): Promise<number> {
           if (!broken) {
             for (const name of METRICS) {
               const s = stats(series[name]);
-              if (s && s.p95 > limits[name]) problems.push(`${name} p95 ${Math.round(s.p95)} ms over its ${limits[name]} ms budget`);
+              if (s && s.p95 > limits[name]) overBudget.push(`${name} p95 ${Math.round(s.p95)} ms over its ${limits[name]} ms budget`);
             }
           }
+          for (const name of METRICS) {
+            const s = stats(series[name]);
+            if (s) perfValues.push({ check: `perf.${name}`, page: `${route} ${device} ${condition}`, unit: 'ms', value: Math.round(s.p95), samples: series[name] });
+          }
           const result: Result = {
-            route, device, condition, status: broken ? 'FAIL' : problems.length ? 'warn' : 'ok', samples: taken,
+            route, device, condition, status: broken ? 'FAIL' : overBudget.length ? 'warn' : 'ok', samples: taken,
             shell: stats(series.shell), data: stats(series.data), interactive: stats(series.interactive),
             drawerMedianMs: drawer.length ? summary(drawer).median : undefined,
             refused: condition === 'cold' ? refused : undefined,
-            problems,
+            problems: [...problems, ...overBudget],
           };
           results.push(result);
           console.log(text(result));
@@ -252,15 +262,16 @@ async function main(): Promise<number> {
   } finally {
     for (const page of Object.values(shared)) page?.close();
   }
+  recordPart(ROOT, 'perf', perfValues);
 
   const failed = results.some((r) => r.status === 'FAIL');
   const took = (Date.now() - started) / 1000;
   const over = results.filter((r) => r.status === 'warn').length;
-  const status = failed ? 'FAIL' : partial || over ? 'warn' : 'ok';
+  const status = failed ? 'FAIL' : partial || over || unrun.length ? 'warn' : 'ok';
   if (partial) console.log(`warn    a narrowed run (${samples} samples, ${routes.length} of ${rail.routes.length} routes) is not the protocol`);
-  console.log(`${failed ? 'FAIL   ' : over ? 'warn   ' : 'ok     '} perf ${results.length} combinations · ${results.filter((r) => r.status === 'FAIL').length} failed · ${over} over a p95 budget (reported) · ${took.toFixed(0)} s${shard ? ` · shard ${shard.index}/${shard.count}` : ''}`);
-  out({ status, samples, routes, live, took, partial, shard: shardText, results });
-  return failed ? 1 : 0;
+  console.log(`${failed ? 'FAIL   ' : over ? 'warn   ' : 'ok     '} perf ${results.length} combinations · ${results.filter((r) => r.status === 'FAIL').length} failed · ${over} over a p95 budget (reported) · ${took.toFixed(0)} s`);
+  out({ status, samples, routes, live, took, partial, results, notRun: unrun });
+  return failed ? 1 : unrun.length ? 2 : 0;
 }
 
 process.exit(await main());

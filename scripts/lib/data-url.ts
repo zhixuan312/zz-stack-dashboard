@@ -1,18 +1,39 @@
 /**
  * Where a data URL points, for the one decision that has to be right before anything starts: whether the presses and the
- * walk-throughs may run against it. `scripts/verify.ts` refuses a backend that is not this machine, because by the time
+ * walk-throughs may run against it. `scripts/browser.ts` refuses a backend that is not this machine, because by the time
  * a press lands the damage is done.
  */
 
-/** Can this hostname only be this machine — or a name that can only resolve inside it? */
+import { isIP } from 'node:net';
+
+/** Only a local file/socket marker, localhost, or a genuine loopback IP proves a local destination. */
 export function isLocalHost(host: string): boolean {
-  const h = host.toLowerCase().replace(/^\[|\]$/g, '');
-  if (h === 'localhost' || h === '0.0.0.0') return true;
-  if (/^127\./.test(h)) return true;
-  // An IPv6 literal has no dot either, so it is read for what it is: only the loopback (and 127/8 mapped) is this machine.
-  if (/^[0-9a-f:.]+$/.test(h) && (h.match(/:/g)?.length ?? 0) >= 2) return h === '::1' || /^(0:){7}1$/.test(h) || /^::ffff:127\./.test(h);
-  // A name with no dot cannot be a public address: a compose service (`postgres`), a container name, a bare hostname.
-  return !h.includes('.');
+  const bracketed = host.startsWith('[') && host.endsWith(']');
+  const h = (bracketed ? host.slice(1, -1) : host).toLowerCase();
+  if (h === '' || h === 'localhost') return !bracketed;
+  const family = isIP(h);
+  if (bracketed && family !== 6) return false;
+  if (family === 4) return h.startsWith('127.');
+  if (family !== 6) return false;
+  try {
+    // Canonicalize valid IPv6, but refuse unsupported scoped literals rather than throwing out of the safety gate.
+    const canonical = new URL(`http://[${h}]`).hostname.slice(1, -1);
+    return canonical === '::1' || /^::ffff:7f[0-9a-f]{2}:[0-9a-f]{1,4}$/.test(canonical);
+  } catch {
+    return false;
+  }
+}
+
+/** Every libpq failover destination must be local; a socket does not hide a later network host. */
+function hostFromList(value: string, sockets: boolean): string | null {
+  let local = '';
+  for (const host of value.split(',')) {
+    if (!host) return null;
+    if (sockets && host.startsWith('/')) continue;
+    if (!isLocalHost(host)) return host;
+    local = host;
+  }
+  return local;
 }
 
 /**
@@ -23,24 +44,13 @@ export function isLocalHost(host: string): boolean {
 const FILE_SCHEME = /^(?:file|sqlite|sqlite3|duckdb|libsql):/i;
 
 /**
- * The host a data URL names; the empty string when it names no host at all, which is this machine (`file:./dev.db`,
- * `postgres:///app` — `isLocalHost('')` is true); or null when the value is not something this can judge, which its
- * caller refuses rather than skips (the app fails on a value it cannot read long before a press lands).
+ * A destination that must be local for this URL to be safe. An empty string identifies a local file/socket; null is
+ * unproven. PostgreSQL drivers differ: both effective host and hostaddr must be local, because a driver can ignore
+ * hostaddr. Missing network hosts may inherit PGHOST, PGHOSTADDR or a service.
  *
- * Most values are read by `URL`. Four shapes are not, and each matters here because getting it wrong is the difference
- * between refusing a backend and writing to it:
- *
- * - A value written without a scheme parses with its first segment as the *protocol* and no host at all —
- *   `db.prod.example.com:5432/app`. An empty host is a name with no dot, which `isLocalHost` would call local.
- * - A value whose first segment is not a valid protocol at all throws — `10.20.30.40:5432/app`, any bare IP.
- * - A value whose scheme carries an authority with no host (`postgres:///app`) names no host at all, and a value that
- *   names no host is on this machine — unless its query names one, which is where libpq reads a host from and lets it
- *   override the authority: `postgres:///app?host=db.prod.example.com` reaches that host, not this machine.
- * - A file scheme with no host (`file:./dev.db`) is a path on this machine; a file scheme *with* one is not.
- *
- * The first two are read by hand. A value that is not host-shaped (it has a space, say) is null.
+ * Schemeless authorities are read conservatively because a credential may itself contain `/`, `#` or `@`.
  */
-export function dataHost(value: string): string | null {
+export function dataHost(value: string, defaults?: Readonly<Record<string, string | undefined>>): string | null {
   const byHand = (): string | null => {
     // Where the credentials of a DSN written without a scheme end cannot be told from the string alone: a password may
     // hold a `/`, a `#` or an `@` (`user:pa/ss@db.prod.example.com:5432/app`), and so may the query
@@ -48,44 +58,52 @@ export function dataHost(value: string): string | null {
     // nothing before its path is cut off by an `@`, and what follows each `@` — each cut at its path and its port, and
     // one that is not this machine decides: a wrong guess here refuses a backend rather than writing to it.
     const cut = (v: string) => v.split(/[/?#]/)[0].replace(/:\d+$/, '');
-    const parts = value.split('@');
-    const readings = [...(cut(value).includes('@') ? [] : [cut(value)]), ...parts.slice(1).map((_, i) => cut(parts.slice(i + 1).join('@')))];
-    const hosts = readings.filter((h) => /^[A-Za-z0-9._:[\]-]+$/.test(h));
+    const authority = value.split('?')[0];
+    const parts = authority.split('@');
+    const readings = [...(cut(authority).includes('@') ? [] : [cut(authority)]), ...parts.slice(1).map((_, i) => cut(parts.slice(i + 1).join('@')))];
+    const hosts = readings.filter((h) => /^[A-Za-z0-9._:[\]-]+$/.test(h) && (!h.includes(':') || isIP(h.replace(/^\[|\]$/g, '')) === 6));
     return hosts.find((h) => !isLocalHost(h)) ?? hosts[0] ?? null;
   };
   const namesAFile = FILE_SCHEME.test(value);
   try {
     const url = new URL(value);
-    // A host named in the query string decides over the authority, which is how libpq reads it. Read from libpq's own
-    // parser (`conninfo_uri_parse_params`): it stores each keyword's value over the last, so the *last* one it is given
-    // is the one it dials; it rejects a keyword it does not know outright, so the case of the keyword cannot hide one;
-    // and it dials `hostaddr` when both are named, since that is the address and `host` is only how the name is looked
-    // up. So the last of each keyword decides, `hostaddr` first — and a value beginning with `/` is a Unix socket,
-    // which is dropped, so a value naming both a socket and a host is refused rather than allowed.
-    const of = (key: string) => url.searchParams.getAll(key).filter((v) => v && !v.startsWith('/'));
-    const named = of('hostaddr').at(-1) ?? of('host').at(-1);
-    if (named) return named;
+    // URI fields override connection defaults. Check both host and hostaddr: node-postgres ignores hostaddr.
+    // A service may supply an address we cannot inspect, so environment fallback alone cannot prove it local.
+    if (url.href.startsWith('postgres://') || url.href.startsWith('postgresql://')) {
+      let address = defaults?.PGHOSTADDR;
+      let host = url.hostname ? decodeURIComponent(url.hostname) : defaults?.PGHOST;
+      let service = defaults?.PGSERVICE;
+      let explicitAddress = false;
+      for (const [key, part] of url.searchParams) {
+        if (key === 'hostaddr') { address = part; explicitAddress = true; }
+        else if (key === 'host') host = part;
+        else if (key === 'service') service = part || defaults?.PGSERVICE;
+      }
+      if (service && !explicitAddress) return null;
+      const destination = host === undefined ? undefined : host ? hostFromList(host, true) : null;
+      if (destination === null) return null;
+      if (destination !== undefined && !isLocalHost(destination)) return destination;
+      if (address !== undefined) return address ? hostFromList(address, false) : null;
+      return destination ?? null;
+    }
     if (url.hostname) return url.hostname;
-    // An empty hostname, then, is one of three things: a scheme that carries an authority and names no host
-    // (`postgres:///app`), a file scheme with no host — both this machine — or a value `URL` read as a scheme because
-    // it has none, which is a schemeless DSN whose own authority is the host: `db.prod.example.com:5432/app`.
     if (namesAFile) return '';
-    return /^[A-Za-z][A-Za-z0-9+.-]*:\/\//.test(value) ? '' : byHand();
+    return /^[A-Za-z][A-Za-z0-9+.-]*:\/\//.test(value) ? null : byHand();
   } catch {
     return namesAFile ? '' : byHand();
   }
 }
 
 /**
- * The data URLs among `values` that are not on this machine, as `NAME → host`, for the refusal `scripts/verify.ts`
+ * The data URLs among `values` that are not on this machine, as `NAME → host`, for the refusal `scripts/browser.ts`
  * prints. A value whose host cannot be read is one of them: skipping it is how this gate failed open, since a DSN
  * written without a scheme, or a libpq line (`host=db.prod.example.com user=…`), has no host it can read — and a press
  * against a backend reaches it whatever the string looked like. An empty value names no backend at all.
  */
-export function unsafeDataUrls(values: Record<string, string>): string[] {
+export function unsafeDataUrls(values: Record<string, string>, defaults: Readonly<Record<string, string | undefined>> = process.env): string[] {
   return Object.entries(values).flatMap(([name, value]) => {
     if (!value) return [];
-    const host = dataHost(value);
+    const host = dataHost(value, defaults);
     if (host === null) return [`${name} → a value whose host cannot be read`];
     return isLocalHost(host) ? [] : [`${name} → ${host}`];
   });

@@ -10,13 +10,7 @@ import { cn } from '../../../lib/cn';
  * check for 1.6s. A secret is masked until Reveal; Copy still copies the real value, so revealing is never required.
  * A copy the browser refuses is said, and the value is selected (a masked secret shown first) to copy by hand.
  */
-export function CopyField({
-  value,
-  label,
-  secret,
-  className,
-  'data-preview-state': previewState,
-}: {
+type CopyFieldProps = {
   value: string;
   /** The accessible name: "API key", "Request ID". */
   label: string;
@@ -25,24 +19,37 @@ export function CopyField({
   className?: string;
   /** A state drawn still in the Atlas, held rather than timed: `copied` keeps the check, `revealed` shows the secret. */
   'data-preview-state'?: 'copied' | 'revealed';
-}) {
-  const [copied, setCopied] = useState(previewState === 'copied');
-  const [refused, setRefused] = useState(false);
+};
+
+export function CopyField(props: CopyFieldProps) {
+  const embed = useSurface().kind === 'embed';
+  // As with AvatarImage, the value owns its state. Remount before drawing a replacement, never after painting it.
+  return <CopyFieldValue key={`${!!props.secret}:${embed}:${props['data-preview-state'] ?? ''}:${props.value}`} {...props} embed={embed} />;
+}
+
+function CopyFieldValue({ value, label, secret, className, 'data-preview-state': previewState, embed }: CopyFieldProps & { embed: boolean }) {
+  const [feedback, setFeedback] = useState<{ kind: 'idle' | 'copied' | 'refused'; attempt: number }>({
+    kind: previewState === 'copied' ? 'copied' : 'idle',
+    attempt: 0,
+  });
+  const attempt = useRef(0);
+  const copied = feedback.kind === 'copied';
+  const refused = feedback.kind === 'refused';
   const code = useRef<HTMLElement>(null);
   const [revealed, setShown] = useState(!secret || previewState === 'revealed');
   // An embed never reveals a secret: the conversation is not a safe place for it, so it stays masked and Copy remains.
-  const embed = useSurface().kind === 'embed';
   const shown = revealed && !(secret && embed);
+  useEffect(() => () => { attempt.current++; }, []);
   useEffect(() => {
-    if (!copied || previewState) return;
-    const t = setTimeout(() => setCopied(false), 1600);
+    if (feedback.kind !== 'copied' || previewState) return;
+    const t = setTimeout(() => setFeedback({ kind: 'idle', attempt: feedback.attempt }), 1600);
     return () => clearTimeout(t);
-  }, [copied, previewState]);
+  }, [feedback, previewState]);
   // Selected once it is drawn as itself: a selected mask would be copied as the mask.
   const selectable = !secret || (shown && !embed);
   useEffect(() => {
     if (refused && selectable && code.current) window.getSelection()?.selectAllChildren(code.current);
-  }, [refused, selectable]);
+  }, [feedback, refused, selectable]);
   // A masked secret keeps a word prefix of at most two parts (zzm_live_, sk_test_), so live and test still read apart,
   // but never a part of the random value that happens to follow an underscore in it; it always shows eight dots, so the
   // mask says nothing about the length, and the last four only of a value long enough that four say nothing about it.
@@ -66,6 +73,8 @@ export function CopyField({
       <button
         type="button"
         onClick={async () => {
+          const current = ++attempt.current;
+          setFeedback({ kind: 'idle', attempt: current });
           // Only a write that resolved turns the button into a check. `navigator.clipboard` is absent outside a secure
           // context, and `writeText` rejects with NotAllowedError when the frame is sandboxed or the document is not
           // focused; claiming the copy either way told a person their new key was on the clipboard when it was not, on
@@ -73,12 +82,13 @@ export function CopyField({
           try {
             if (!navigator.clipboard) throw new Error('no clipboard');
             await navigator.clipboard.writeText(value);
-            setRefused(false);
-            setCopied(true);
+            if (current !== attempt.current) return;
+            setFeedback({ kind: 'copied', attempt: current });
           } catch {
+            if (current !== attempt.current) return;
             // The button keeps saying "Copy": nothing was copied, so nothing says it was, and the line below says why.
             if (secret && !embed) setShown(true);
-            setRefused(true);
+            setFeedback({ kind: 'refused', attempt: current });
           }
         }}
         aria-label={copied ? 'Copied' : `Copy ${label}`}

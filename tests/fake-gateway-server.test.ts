@@ -126,7 +126,7 @@ describe('the fake gateway as the sweep uses it', () => {
   });
 
   it('refuses a mode it does not have, naming the ones it does', async () => {
-    const p = spawn('node', ['scripts/fake-gateway/server.ts', '--mode', 'nope'], { stdio: ['ignore', 'pipe', 'pipe'] });
+    const p = spawn('node', ['scripts/fake-gateway/server.ts', '--mode', 'nope'], { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, ZZ_GATEWAY: '' } });
     servers.push(p);
     let err = '';
     p.stderr!.on('data', (d: Buffer) => { err += String(d); });

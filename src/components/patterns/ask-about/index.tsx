@@ -8,10 +8,11 @@ import { Tooltip } from '../../ui/tooltip/index';
 
 /**
  * Hand a card to the agent: one press posts a question about exactly what the card shows into the conversation.
- * It exists only where an agent is listening (an MCP host); on the console it renders nothing, so no dead control
- * is ever shown. The question is written for the person to read in the thread, so it names the card's facts.
- * On the console it hands the card to the assistant panel. It renders only after hydration: whether an agent listens is
- * known in the browser, and a part of the page that hydrates late must match the HTML the server sent without it.
+ * It exists only where an agent is listening: in an MCP host it posts into the host's conversation, and on the console,
+ * where the shell has an assistant, it hands the card to the assistant panel. Where nothing listens it renders nothing,
+ * so no dead control is ever shown. The question is written for the person to read in the thread, so it names the card's
+ * facts. It renders only after hydration: whether an agent listens is known in the browser, and a part of the page that
+ * hydrates late must match the HTML the server sent without it.
  */
 const subscribe = () => () => {};
 export function AskAbout({ question, className }: { question: string; className?: string }) {

@@ -1,8 +1,8 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { Suspense, use, type ComponentProps } from 'react';
 import { nav, type NavGroup } from '../app.config';
-import { CommandPalette } from '../components/patterns/command-palette/index';
 import { Rail } from '../components/patterns/rail/index';
 import { Skeleton } from '../components/ui/skeleton/index';
 import type { ChromeAccess } from '../lib/collection';
@@ -48,7 +48,7 @@ type RailProps = Omit<ComponentProps<typeof Rail>, 'nav' | 'user' | 'viewAs'> & 
  * The rail's shape while the person's own rail is on its way: the frame's space, held open so the page never shifts and
  * no destination is offered that this person may not have. It is deliberately a skeleton rather than the frame itself —
  * a fallback that drew the real rail would put a second copy of it in every page's HTML, which is what the HTML budget
- * in `pnpm verify` refuses.
+ * in the test run refuses.
  */
 export function RailPending() {
   return (
@@ -69,6 +69,11 @@ export function RailPending() {
     </div>
   );
 }
+
+// The palette is a dialog no page draws until a person asks for it, so it is a chunk of its own, fetched once the page
+// has hydrated: in every route's first load it was the last few hundred bytes /engineering had under its cap, in a
+// project `create` made. openCommand (./open) keeps a press that lands before it has mounted.
+const CommandPalette = dynamic(() => import('../components/patterns/command-palette/index').then((m) => m.CommandPalette));
 
 export function ConsolePalette({ access, nav: given }: { access?: Access; nav?: NavGroup[] }) {
   if (access === undefined) return <CommandPalette nav={given ?? nav} />;

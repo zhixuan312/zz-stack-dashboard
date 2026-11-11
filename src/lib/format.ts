@@ -189,6 +189,9 @@ export function formatPercent(fraction: number | null, digits = 1): string {
  */
 export type NumberFormat = 'count' | 'compact' | 'cost' | 'cost-compact' | 'duration' | 'percent';
 
+/** Bytes as a person reads them: "820 B", "12 KB", "3.4 MB". A payload's size, never a count of rows. */
+export const formatBytes = (b: number) => (b >= 1_000_000 ? `${(b / 1_000_000).toFixed(1)} MB` : b >= 1000 ? `${Math.round(b / 1000)} KB` : `${b} B`);
+
 export const FORMATTERS: Record<NumberFormat, (n: number | null) => string> = {
   count: formatCount,
   compact: formatCompact,

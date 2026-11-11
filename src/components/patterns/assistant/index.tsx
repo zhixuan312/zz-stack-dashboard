@@ -49,9 +49,9 @@ function readTitle(): string {
   return document.querySelector('[data-scroll-region] h1')?.textContent?.trim() ?? '';
 }
 
-type Preview = { title: string; tone: 'neutral' | 'critical'; changes: ProposalChange[] };
+type Preview = { title: string; tone: 'neutral' | 'critical'; changes: ProposalChange[]; outcomeVersion?: number };
 /** The slice of an AI SDK tool part the panel reads. */
-type ToolPart = { type: string; toolCallId: string; state: string; errorText?: string; approval?: { id: string; approved?: boolean; reason?: string } };
+type ToolPart = { type: string; toolCallId: string; state: string; output?: unknown; errorText?: string; approval?: { id: string; approved?: boolean; reason?: string } };
 
 /** The page a question was asked on, as the column sends it with the message. */
 const pageOf = (m: UIMessage) => (m.metadata as { page?: { title?: string } } | undefined)?.page?.title;
@@ -60,11 +60,14 @@ const textOf = (m: UIMessage) => m.parts.map((p) => (p.type === 'text' ? p.text 
 const isMutation = (p: { type: string }) => /^tool-(create|update|remove)_/.test(p.type);
 
 /** The card's state for a tool part's state, and the reason a closed one carries. */
-function stateOf(part: ToolPart): { state: ProposalState; note?: string } | null {
+function stateOf(part: ToolPart, outcomeVersion?: number): { state: ProposalState; note?: string } | null {
   switch (part.state) {
     case 'approval-requested': return { state: 'pending' };
     case 'approval-responded': return part.approval?.approved ? { state: 'applying' } : { state: 'dismissed' };
-    case 'output-available': return { state: 'applied' };
+    case 'output-available': {
+      const output = part.output as { status?: unknown; warning?: unknown } | undefined;
+      return { state: 'applied', note: outcomeVersion === 1 && output?.status === 'applied' && typeof output.warning === 'string' ? output.warning : undefined };
+    }
     case 'output-error': return { state: 'failed', note: part.errorText };
     case 'output-denied': return part.approval?.reason ? { state: 'expired', note: part.approval.reason } : { state: 'dismissed' };
     default: return null;
@@ -74,7 +77,7 @@ function stateOf(part: ToolPart): { state: ProposalState; note?: string } | null
 /** A mutation tool part drawn as a Proposal from the server's preview; nothing when there is no preview or state to draw. */
 function ProposalOf({ message, part, onDecide }: { message: UIMessage; part: ToolPart; onDecide: (approvalId: string, approved: boolean) => void }) {
   const preview = message.parts.find((p) => p.type === 'data-proposal' && (p as { id?: string }).id === part.toolCallId) as { data: Preview } | undefined;
-  const shown = stateOf(part);
+  const shown = stateOf(part, preview?.data.outcomeVersion);
   if (!preview || !shown) return null;
   // Only a waiting change can be answered: the SDK matches a response to a part still asking, so Dismiss or Try again
   // on one that ran or failed would do nothing.

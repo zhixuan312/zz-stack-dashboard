@@ -44,10 +44,10 @@ export function FormSection({
   /** Beside the title, on its row on a phone too: the same contract as `CardHeader`'s `actions`. */
   actions?: ReactNode;
   children: ReactNode;
-  /** The values differ from what is saved: show the save bar, and ask before the person leaves the page. */
+  /** Values differ from the last confirmed record: show the draft bar and ask before leaving. */
   dirty?: boolean;
   saving?: boolean;
-  /** Why the last save failed, and what to do. Shown above the fields. */
+  /** Why the last save needs attention, including a refusal or an unconfirmed outcome. Shown above the fields. */
   error?: ReactNode;
   /**
    * The reader may see but not change these: the fields are disabled and the section reads "Read-only" beside a lock, so
@@ -83,7 +83,7 @@ export function FormSection({
   );
   const inner = (
     <>
-      {error ? <Banner tone="critical" title="Not saved">{error}</Banner> : null}
+      {error ? <Banner tone="critical" title="Save needs attention">{error}</Banner> : null}
       {readOnly ? (
         <p className="flex items-center gap-2 rounded-md bg-surface-sunk px-3 py-2 text-xs text-ink-2"><Lock className="size-3.5 shrink-0 text-ink-3" />Read-only</p>
       ) : null}
@@ -119,7 +119,7 @@ export function FormSection({
           >
             <div className="overflow-hidden">
               <div className="flex flex-wrap items-center gap-3 rounded-b-lg border-t border-line bg-surface-raised/90 px-(--card-pad) py-3 backdrop-blur-md">
-                <p className="flex items-center gap-2 text-sm text-ink-2"><span aria-hidden className="size-1.5 rounded-full bg-accent" />Unsaved changes</p>
+                <p className="flex items-center gap-2 text-sm text-ink-2"><span aria-hidden className="size-1.5 rounded-full bg-accent" />Draft changes</p>
                 <div className="ml-auto flex items-center gap-2">
                   <Button variant="ghost" size="sm" onClick={onDiscard} disabled={saving} tabIndex={dirty ? 0 : -1}>Discard</Button>
                   <Button type="submit" variant="primary" size="sm" busy={saving} tabIndex={dirty ? 0 : -1}>{saveLabel}</Button>

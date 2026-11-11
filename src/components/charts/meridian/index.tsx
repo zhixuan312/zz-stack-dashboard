@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 
 /**
  * The Meridian: one time cursor shared by every chart and tile on a page. Point at a day in any time chart (or move
@@ -15,8 +15,20 @@ const MeridianCtx = createContext<Ctx | null>(null);
  * reproduces what an agent or a person was looking at. The person's own pointer takes over from there.
  */
 export function Meridian({ dates, day, children }: { dates: string[]; day?: string | null; children: ReactNode }) {
-  const [index, setIndex] = useState<number | null>(() => (day && dates.includes(day) ? dates.indexOf(day) : null));
-  const value = useMemo(() => ({ dates, index, setIndex, shared: true }), [dates, index]);
+  const addressDay = day ?? null;
+  const [cursor, setCursor] = useState(() => ({ day: addressDay, selected: addressDay }));
+  // A new address takes over once. Otherwise keep the person's date, not its position in a frame that can change.
+  const selected = cursor.day !== addressDay ? addressDay : cursor.selected;
+  const position = selected === null ? -1 : dates.indexOf(selected);
+  const index = position < 0 ? null : position;
+  if (cursor.day !== addressDay || (cursor.selected !== null && index === null)) {
+    setCursor({ day: addressDay, selected: index === null ? null : selected });
+  }
+  const setIndex = useCallback((i: number | null) => {
+    const selected = i === null ? null : dates[i];
+    setCursor((current) => current.selected === selected ? current : { ...current, selected });
+  }, [dates]);
+  const value = useMemo(() => ({ dates, index, setIndex, shared: true }), [dates, index, setIndex]);
   return <MeridianCtx.Provider value={value}>{children}</MeridianCtx.Provider>;
 }
 
@@ -24,7 +36,11 @@ export function Meridian({ dates, day, children }: { dates: string[]; day?: stri
 export function useMeridian(dates: string[]): Ctx {
   const shared = useContext(MeridianCtx);
   const [index, setIndex] = useState<number | null>(null);
-  return shared && shared.dates.length === dates.length ? shared : { dates, index, setIndex, shared: false };
+  // The same days, not merely the same number of them: two charts of equal length over different windows (this week and
+  // last) would otherwise share one position, and pointing at the fifth day of one would light the fifth day of the other.
+  // The ends identify a window: a range that begins and ends on the same days is the range.
+  const same = Boolean(shared) && shared!.dates.length === dates.length && shared!.dates[0] === dates[0] && shared!.dates[shared!.dates.length - 1] === dates[dates.length - 1];
+  return same ? shared! : { dates, index, setIndex, shared: false };
 }
 
 /** For tiles and captions: the shared cursor if there is one, without creating a private one. */

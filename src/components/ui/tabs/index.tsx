@@ -31,12 +31,18 @@ export function TabList({ className, children, ...rest }: ComponentProps<typeof 
       else if (on.offsetLeft + on.offsetWidth > el.scrollLeft + el.clientWidth) el.scrollTo({ left: on.offsetLeft + on.offsetWidth - el.clientWidth + 8, behavior: 'smooth' });
     };
     measure();
-    const mo = new MutationObserver(() => { measure(); reveal(); });
+    const mo = new MutationObserver(() => { measure(); reveal(); observeTabs(); });
     mo.observe(el, { subtree: true, attributes: true, attributeFilter: ['data-state'] });
     // The list and each tab: a count arriving on the active tab widens it without resizing the strip, which scrolls.
     const ro = new ResizeObserver(measure);
     ro.observe(el);
-    el.querySelectorAll('[role="tab"]').forEach((t) => ro.observe(t));
+    // Re-observed on every change: a tab added after mount (a tab bar built from data that arrives later) was never
+    // measured, so its width never reached the strip's own calculation.
+    const observed = new Set<Element>();
+    const observeTabs = () => {
+      for (const t of el.querySelectorAll('[role="tab"]')) if (!observed.has(t)) { observed.add(t); ro.observe(t); }
+    };
+    observeTabs();
     return () => { mo.disconnect(); ro.disconnect(); };
   }, []);
   return (

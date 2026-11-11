@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { parseCalendarDate } from './calendar-date.ts';
+import { WEEKDAY_NAMES_MONDAY_FIRST } from './insight.ts';
 
 /** A named set of records the pages and the assistant read and change through one interface. */
 type Op = 'create' | 'update' | 'remove';
@@ -109,9 +111,10 @@ export type AnyCollection = Collection<any, any>;
 
 /**
  * What a server action answers: done, with whatever it hands back, or the sentence that says why not. A thrown error's
- * message does not reach the browser in a production build; a result does.
+ * message does not reach the browser in a production build; a result does. A postcommit warning accompanies success;
+ * it never invites repeating the committed write.
  */
-export type ActionResult<T = object> = ({ ok: true } & T) | { ok: false; error: string };
+export type ActionResult<T = object> = ({ ok: true; warning?: string } & T) | { ok: false; error: string };
 
 /**
  * One store per tenant and name per process, on globalThis, so a route handler, a server action and a page share it.
@@ -216,7 +219,7 @@ export function queryRows<T extends Record<string, unknown>>(rows: T[], key: key
 
 const AGGS = ['count', 'sum', 'avg', 'min', 'max', 'p95'];
 const BUCKETS = ['day', 'week', 'month', 'weekday'];
-const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const WEEKDAYS = WEEKDAY_NAMES_MONDAY_FIRST;
 const DEFAULT_TOP = 8;
 const MAX_TOP = 50;
 
@@ -264,7 +267,7 @@ function valueAt(row: Record<string, unknown>, path: string): unknown {
 /** The date a value starts with, as YYYY-MM-DD: its first ten characters, or null when they are not a date. */
 function dayOf(v: unknown): string | null {
   const d = typeof v === 'string' ? v.slice(0, 10) : '';
-  return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : null;
+  return parseCalendarDate(d) ? d : null;
 }
 
 /** A date's bucket key: the day, the week's Monday, `YYYY-MM`, or the weekday's English name. Worked out in UTC, as the data's days are. */
@@ -280,7 +283,6 @@ function bucketOf(v: unknown, bucket: string): string | null {
   throw new Error(`Unsupported bucket ${JSON.stringify(bucket)}`);
 }
 
-/** One measure over `rows`: a count of those that meet its own conditions, or a figure over the numbers of its field, null when there is none. */
 /**
  * The 95th percentile by nearest rank, the value at ceil(0.95 × n) of the values in order, or null for none: the one
  * rule for a p95 a tile draws and a prepared query answers, so the two agree on the same rows.
@@ -289,6 +291,7 @@ export function p95(xs: readonly number[]): number | null {
   return xs.length ? [...xs].sort((a, b) => a - b)[Math.ceil(0.95 * xs.length) - 1] : null;
 }
 
+/** One measure over `rows`: a count of those that meet its own conditions, or a figure over the numbers of its field, null when there is none. */
 function measure(rows: Record<string, unknown>[], m: AggregateQuery['measures'][number]): number | null {
   const own = m.where?.length ? rows.filter((r) => m.where!.every((w) => matches(r, w))) : rows;
   if (m.agg === 'count') return own.length;
@@ -446,20 +449,30 @@ export function arrayCollection<T extends Record<string, unknown>, K extends key
   };
   if (allow.includes('create')) {
     c.create = async (input) => {
-      const row = { ...def.fields.parse(input), [key]: `${name}_${store().next++}` } as unknown as T;
+      const row = copy({ ...def.fields.parse(input), [key]: `${name}_${store().next}` }) as unknown as T;
       Object.assign(row, def.derive?.(row));
+      const result = copy(row);
       rows().push(row);
+      store().next++;
       emit();
-      return copy(row);
+      return result;
     };
   }
   if (allow.includes('update')) {
     c.update = async (ids, patch) => {
       const set = patchOf(def.fields).parse(patch);
       const hit = pick(ids);
-      for (const r of hit) Object.assign(r, set, def.derive?.({ ...r, ...set }));
+      // Derivation and copying can throw too. Stage the whole batch, including nested values, before the first stored
+      // row changes: a rejected write must leave no partial change behind and emit no misleading revision.
+      const next = hit.map((row) => {
+        const changed = { ...copy(row), ...copy(set) };
+        Object.assign(changed, def.derive?.(changed));
+        return changed;
+      });
+      const result = copy(next);
+      for (let i = 0; i < hit.length; i++) Object.assign(hit[i], next[i]);
       emit();
-      return copy(hit);
+      return result;
     };
   }
   if (allow.includes('remove')) {

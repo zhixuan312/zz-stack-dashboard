@@ -8,6 +8,14 @@ const SIZE = { sm: 'size-6 text-2xs', md: 'size-8 text-xs', lg: 'size-10 text-sm
    covering a letter; any deeper and it cuts the second initial ("AO" reads "AC"). */
 const OVERLAP = { sm: '-ml-0.5', md: '-ml-1', lg: '-ml-1.5' } as const;
 
+/** A source owns its failure state; a different source starts a fresh attempt, including before hydration. */
+function AvatarImage({ src, fallback }: { src: string; fallback: string }) {
+  const [failed, setFailed] = useState(false);
+  const loaded = (img: HTMLImageElement | null) => { if (img?.complete && img.naturalWidth === 0) setFailed(true); };
+  // eslint-disable-next-line @next/next/no-img-element -- a decorative 20-40px picture from any origin the product's users have; next/image would need every origin listed in next.config.
+  return failed ? fallback : <img ref={loaded} src={src} alt="" onError={() => setFailed(true)} className="size-full object-cover" />;
+}
+
 /**
  * A person or an organisation: their picture, or their initials on a soft tint of one chart hue derived from the
  * name, so the same person always gets the same colour. Soft ground, strong glyph: the initials are the hue mixed
@@ -16,9 +24,6 @@ const OVERLAP = { sm: '-ml-0.5', md: '-ml-1', lg: '-ml-1.5' } as const;
 export function Avatar({ name, src, size = 'md', className }: { name: string; src?: string; size?: keyof typeof SIZE; className?: string }) {
   // Whole characters of the words, so a name with spaces around it or an emoji first keeps both initials intact.
   const initials = name.trim().split(/\s+/).map((w) => [...w][0] ?? '').slice(0, 2).join('').toUpperCase();
-  // A picture that does not load gives way to the initials, also when it failed before the page hydrated.
-  const [failed, setFailed] = useState(false);
-  const loaded = (img: HTMLImageElement | null) => { if (img?.complete && img.naturalWidth === 0) setFailed(true); };
   const slot = ([...name].reduce((a, c) => a + c.charCodeAt(0), 0) % 6) + 1;
   return (
     <span
@@ -26,8 +31,7 @@ export function Avatar({ name, src, size = 'md', className }: { name: string; sr
       className={cn('relative inline-grid shrink-0 place-items-center overflow-hidden rounded-full font-semibold ring-2 ring-surface', SIZE[size], className)}
       style={{ background: `color-mix(in oklab, var(--series-${slot}) 22%, var(--surface))`, color: `color-mix(in oklab, var(--series-${slot}) 52%, var(--ink))` }}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element -- a decorative 20-40px picture from any origin the product's users have; next/image would need every origin listed in next.config. */}
-      {src && !failed ? <img ref={loaded} src={src} alt="" onError={() => setFailed(true)} className="size-full object-cover" /> : initials}
+      {src ? <AvatarImage key={src} src={src} fallback={initials} /> : initials}
     </span>
   );
 }

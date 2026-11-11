@@ -7,7 +7,7 @@ import { cn } from '../../../lib/cn';
 
 /**
  * One task at a time, over a dimmed page. Focus moves in on open and returns to the trigger on close; Escape and the
- * scrim close it unless the task is in progress. On phones it rises from the bottom as a sheet.
+ * scrim close it by default; callers can prevent those dismissal events. On phones it rises from the bottom as a sheet.
  */
 export const Dialog = D.Root;
 export const DialogTrigger = D.Trigger;

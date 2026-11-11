@@ -4,6 +4,7 @@ import { cn } from '../../../lib/cn';
 import { formatDateTime, formatRelative } from '../../../lib/format-date';
 import { Avatar } from '../../ui/avatar/index';
 import { AgentMark } from '../../ui/agent-mark/index';
+import { TONE_WORD } from '../../ui/status-dot/index';
 
 /**
  * One event: who did what to what, and when. `via` names the agent when an assistant acted for `actor`; `system` marks the
@@ -13,8 +14,6 @@ import { AgentMark } from '../../ui/agent-mark/index';
 export type ActivityEvent = { id: string; at: string; actor: string; system?: boolean; unknown?: boolean; via?: string; verb: string; object: string; href?: string; tone?: 'positive' | 'warning' | 'critical' };
 
 const DOT = { positive: 'bg-positive', warning: 'bg-warning', critical: 'bg-critical' } as const;
-/** What the tone means, in a word: the dot is the only thing carrying it, so it cannot be a colour alone (issue #94). */
-const TONE = { positive: 'Went well', warning: 'Needs attention', critical: 'Failed' } as const;
 
 /**
  * What happened, who did it, when: one line per event, newest first, on a quiet timeline. The actor is a person, the
@@ -27,10 +26,11 @@ export function ActivityFeed({ events, now, className }: { events: ActivityEvent
         <li key={e.id} className="relative flex gap-3 pb-4 last:pb-0">
           {i < events.length - 1 ? <span aria-hidden className="absolute top-7 bottom-0 left-3 w-px bg-line" /> : null}
           <span className="relative mt-0.5 shrink-0">
-            {e.via ? <AgentMark size="md" /> : e.system ? <span className="grid size-6 place-items-center rounded-full bg-fill-track"><span role={e.tone ? 'img' : undefined} aria-label={e.tone ? TONE[e.tone] : undefined} title={e.tone ? TONE[e.tone] : undefined} className={cn('size-2 rounded-full', e.tone ? DOT[e.tone] : 'bg-ink-3')} /></span> : e.unknown ? <span data-actor-unknown className="block size-6 rounded-full border border-dashed border-line-strong" /> : <Avatar name={e.actor} size="sm" />}
+            {e.via ? <AgentMark size="md" /> : e.system ? <span className="grid size-6 place-items-center rounded-full bg-fill-track"><span role={e.tone ? 'img' : undefined} aria-label={e.tone ? TONE_WORD[e.tone] : undefined} title={e.tone ? TONE_WORD[e.tone] : undefined} className={cn('size-2 rounded-full', e.tone ? DOT[e.tone] : 'bg-ink-3')} /></span> : e.unknown ? <span data-actor-unknown className="block size-6 rounded-full border border-dashed border-line-strong" /> : <Avatar name={e.actor} size="sm" />}
           </span>
           <div className="min-w-0 flex-1 pt-0.5">
-            <p className="text-sm text-ink-2">
+            {/* An actor named by an email address is one word to the line breaker: it breaks where it must, not past the line. */}
+            <p className="text-sm text-ink-2 [overflow-wrap:anywhere]">
               <span className="font-medium text-ink">{e.via ? e.via : e.actor}</span> {e.verb} {e.href ? <Link href={e.href} className="row-link font-medium text-ink">{e.object}<ArrowRight aria-hidden className="ml-1 inline size-3.5 align-middle" /></Link> : <span className="text-ink">{e.object}</span>}
               {e.via ? <span className="text-ink-3"> · for {e.actor}</span> : null}
             </p>

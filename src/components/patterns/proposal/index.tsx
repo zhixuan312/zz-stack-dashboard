@@ -13,9 +13,9 @@ export type ProposalState = 'pending' | 'applying' | 'applied' | 'dismissed' | '
  * A change an agent wants to make, waiting for a person. The agent can read anything and do nothing without consent:
  * every write it proposes arrives as this card, with what changes (before → after), why, and what it affects.
  * Approve runs it once; Dismiss closes it. A removal is proposed with the critical tone: its button reads "Approve and remove".
- * Uncontrolled, the card keeps its own pending, applying, applied and failed flow; controlled (`state`), pending shows
- * buttons, failed shows them when the caller can run the change again (it passes `onApprove`), and the caller owns
- * every other state.
+ * Uncontrolled, `onApprove` is required and the card keeps its own pending, applying, applied and failed flow;
+ * controlled (`state`), pending shows buttons, failed shows them when the caller can run the change again (it passes
+ * `onApprove`), and the caller owns every other state.
  */
 export function Proposal({
   agent = 'Claude',
@@ -42,16 +42,17 @@ export function Proposal({
   impact?: ReactNode;
   /** Said under the changes once the proposal is closed, for example why it expired. */
   note?: ReactNode;
-  onApprove?: () => Promise<void> | void;
   onDismiss?: () => void;
-  state?: ProposalState;
   className?: string;
-}) {
+} & (
+  | { state?: undefined; onApprove: () => Promise<void> | void }
+  | { state: ProposalState; onApprove?: () => Promise<void> | void }
+)) {
   const [own, setOwn] = useState<ProposalState>('pending');
   const state = controlled ?? own;
   const approve = async () => {
     setOwn('applying');
-    try { await onApprove?.(); setOwn('applied'); } catch { setOwn('failed'); }
+    try { await onApprove!(); setOwn('applied'); } catch { setOwn('failed'); }
   };
   const settled = state === 'applied' || state === 'dismissed' || state === 'expired';
   // A proposal that failed offers the same choice it did before it ran: the card says nothing changed, and the person

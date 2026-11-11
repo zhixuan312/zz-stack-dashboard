@@ -43,6 +43,13 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const HANG_BOUND_MS = 5000;
 
 /**
+ * The link check's guard, not a budget: a link that accepts and never answers would otherwise wait forever. A functional
+ * suite does not judge time (docs/testing.md), so this sits far beyond any real answer — a route on this machine answers
+ * in well under a second, even on a loaded one — and only ends a wait that has nothing else to end it.
+ */
+const LINK_HANG_GUARD_MS = 60_000;
+
+/**
  * The page's controls and how each is named: its accessible name and the roots it sits in. A control is found again by
  * that name (and which of the controls with it), never by its place in the walk: a later load can draw the controls in
  * another order or fewer of them for a while, a table still loading or rows a concurrent write changed (#65). A name that
@@ -92,6 +99,17 @@ const ARM = (name: string, nth: number, key: string, keyNth: number) => `(() => 
   if (!top) return { covered: hit ? hit.tagName.toLowerCase() + '.' + String(hit.className).slice(0, 40) : 'nothing' };
   window.__changes = 0; window.__href = location.href;
   window.open = () => { window.__changes++; return null; };
+  // A control that writes a file answers by downloading it, and the page changes nothing when it works: a link with
+  // 'download' pressed by the control (an Export builds one and clicks it) is that answer. A press on a link in the page
+  // is seen by the listener; one the control makes with .click() on a detached element never reaches the document, so
+  // the anchor's own click is counted too. Installed once per document, counting into the counter the press armed.
+  if (!window.__download) {
+    window.__download = true;
+    const counted = (a) => { if (a && a.hasAttribute('download')) window.__changes++; };
+    document.addEventListener('click', (e) => counted(e.target instanceof Element ? e.target.closest('a[download]') : null), true);
+    const click = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function () { counted(this); return click.call(this); };
+  }
   const tipOnly = (n) => { const e = n.nodeType === 1 ? n : n.parentElement; return !!e && !!(e.closest('[role="tooltip"]') || e.closest('[data-radix-popper-content-wrapper]')?.querySelector('[role="tooltip"]')); };
   const roots = () => [document.body, ...deepAll(document.body).filter((n) => n.shadowRoot).map((n) => n.shadowRoot)];
   window.__mo?.disconnect();
@@ -101,8 +119,12 @@ const ARM = (name: string, nth: number, key: string, keyNth: number) => `(() => 
     if (m.type === 'attributes' && m.target === el && ['data-state', 'class', 'style', 'aria-describedby'].includes(m.attributeName)) continue;
     window.__changes++;
   } });
-  setTimeout(() => roots().forEach((r) => window.__mo.observe(r, { subtree: true, childList: true, attributes: true, characterData: true })), 40);
-  return { x, y };
+  // A timer's nominal delay does not prove it ran. Input starts only after the observer is actually attached,
+  // otherwise a busy renderer can respond to a press before the check starts watching and be called dead.
+  return new Promise((resolve) => setTimeout(() => {
+    roots().forEach((r) => window.__mo.observe(r, { subtree: true, childList: true, attributes: true, characterData: true }));
+    resolve({ x, y });
+  }, 40));
 })()`;
 
 async function press(page: Page, x: number, y: number, touch: boolean) {
@@ -154,10 +176,15 @@ const walk = async (route: string, width: number) => {
     let path: string | null;
     try { path = linkPath(href, base + route); } catch { failures.push(`${route}: link ${href} is not a URL`); continue; }
     if (path === null || checkedLinks.has(path)) continue;
-    // As the persona the page was opened as: a link that person may follow answers them, not a request with no one signed in.
-    const status = (await fetch(base + path, { redirect: 'manual', headers: cookie ? { cookie: `${cookie.name}=${cookie.value}` } : {} })).status;
+    // As the persona the page was opened as: a link that person may follow answers them, not a request with no one signed
+    // in. A link that never answers is a dead link and a failure, ended by the hang guard — never by a budget the walk
+    // would be judging the machine against.
+    const status = await fetch(base + path, { redirect: 'manual', headers: cookie ? { cookie: `${cookie.name}=${cookie.value}` } : {}, signal: AbortSignal.timeout(LINK_HANG_GUARD_MS) })
+      .then((r) => r.status)
+      .catch(() => 0);
     checkedLinks.set(path, status);
-    if (status >= 400) failures.push(`${route}: link ${href}${path === href ? '' : ` (${path})`} answers ${status}`);
+    if (!status) failures.push(`${route}: link ${href}${path === href ? '' : ` (${path})`} did not answer within ${LINK_HANG_GUARD_MS / 1000} s`);
+    else if (status >= 400) failures.push(`${route}: link ${href}${path === href ? '' : ` (${path})`} answers ${status}`);
   }
   for (let i = 0; i < controls.length; i++) {
     // Which of the controls named alike this is, in the order the first load listed them; and, for a name that has
@@ -169,14 +196,28 @@ const walk = async (route: string, width: number) => {
     const arm = () => page.eval<Armed>(ARM(controls[i], nth, keys[i], keyNth)).catch((): Armed => null);
     let armed = await arm();
     // Something left open or a toast in the way: start the page again and try once more. A control not drawn yet on the
-    // new load (a list still loading) is waited for up to the hang bound before it is called gone.
+    // new load (a list still loading), or still under a toast the previous press raised, is waited for up to the hang
+    // bound before it is called gone: several browsers run beside each other when a team runs this suite, and a re-render that
+    // lands a moment late left two controls reported as covered or missing on a page that has both.
     if (!armed || armed.covered) {
       await fresh();
       armed = await arm();
-      for (let waited = 0; !armed && waited < HANG_BOUND_MS; waited += 200) { await sleep(200); armed = await arm(); }
+      for (let waited = 0; (!armed || armed.covered) && waited < HANG_BOUND_MS; waited += 200) { await sleep(200); armed = await arm(); }
     }
-    // Tagged by this suite a moment ago and gone after a fresh load: say so, never skip it.
-    if (!armed) { failures.push(`${route} @${width}: "${controls[i]}" was listed but could not be found again`); continue; }
+    // A control is listed only while it is not already chosen (`pressable`, above). A radio or a tab that a press a
+    // moment ago chose is therefore gone from the list by design: pressing it again changes nothing, which is not a dead
+    // control. That is the one way a listed control may be absent on the fresh load, and it is only that one — anything
+    // else absent is still reported.
+    if (!armed) {
+      const settled = await page.eval<boolean>(`(() => {${CONTROLS}
+        const all = pressable(deepAll(document.body));
+        return all.filter((b) => nameOf(b) === ${JSON.stringify(controls[i])})[${nth}] === undefined
+          && chosen(deepAll(document.body).find((b) => nameOf(b) === ${JSON.stringify(controls[i])}) || document.body);
+      })()`).catch(() => false);
+      if (settled) { continue; }
+      failures.push(`${route} @${width}: "${controls[i]}" was listed but could not be found again`);
+      continue;
+    }
     if (armed.covered) { failures.push(`${route} @${width}: "${controls[i]}" is covered by ${armed.covered}`); continue; }
     await sleep(100);
     const choosers = page.fileChoosers();

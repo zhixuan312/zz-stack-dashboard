@@ -1,4 +1,4 @@
-import { act, fireEvent, render, renderHook, screen } from '@testing-library/react';
+import { act, render, renderHook, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { usePaged } from '@/components/ui/pagination';
 import { PageControl } from '@/console/paged';
@@ -51,8 +51,8 @@ describe('PageControl', () => {
     const { container } = render(<Roster list={rows} />);
     expect(container.querySelectorAll('ul > li')).toHaveLength(10);
     expect(screen.getByRole('navigation', { name: 'Pagination' })).toHaveTextContent('1–10 of 23 people');
-    fireEvent.keyDown(screen.getByRole('button', { name: /per page/ }), { key: 'Enter' });
-    expect(screen.getAllByRole('menuitem').map((m) => m.textContent)).toEqual(['10 per page']);
+    // One size is not a choice: since 0.37.0 the pager draws no page-size menu rather than a menu with one entry.
+    expect(screen.queryByRole('button', { name: /per page/ })).toBeNull();
   });
 
   it('draws nothing for a list that fits on one page', () => {

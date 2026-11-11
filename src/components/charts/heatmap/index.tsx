@@ -164,9 +164,15 @@ function Hours({ values, timezone = 'UTC', scale, format, unit, label, className
   );
   const group = width > 0 && width < 560 ? 3 : 1;
   const cols = 24 / group;
-  const grid = values.map((row) => Array.from({ length: cols }, (_, c) => row.slice(c * group, c * group + group).reduce((a, b) => a + b, 0)));
-  // The cells ranked are the cells drawn: grouped in threes, a block is ranked as one.
-  const { step, top } = ramp(grid.flat(), scale);
+  // The grid and its ranks follow the values and the grouping, not the pointer: a hover re-renders this chart, and
+  // rebuilding a year of cells on each one was the cost of every move across it.
+  const { grid, step, top } = useMemo(() => {
+    const cells = values.map((row) => Array.from({ length: cols }, (_, c) => row.slice(c * group, c * group + group).reduce((a, b) => a + b, 0)));
+    // The cells ranked are the cells drawn: grouped in threes, a block is ranked as one.
+    return { grid: cells, ...ramp(cells.flat(), scale) };
+    // A cell's width is the container's; the values and the grouping are the data.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [values, group, scale]);
   const hourLabel = (c: number) => String(c * group).padStart(2, '0');
   const range = (c: number) => (group === 1 ? `${hourLabel(c)}:00` : `${hourLabel(c)}:00–${String(c * group + group).padStart(2, '0')}:00`);
 

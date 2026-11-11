@@ -43,7 +43,9 @@ export type Column<R> = {
   width?: string;
   /**
    * Its place in the card a row becomes on phones: the `title` (one column, the record's name), a `status` at the end
-   * of the title line, a `fact` in the line under it (two or three at most), or `hidden`. Unset means hidden.
+   * of the title line, a `fact` in the line under it, or `hidden`. Unset means hidden. Every column declared a `fact`
+   * appears: a table whose four measures are read together keeps all four on a phone, and one that has more than the
+   * card should show says so with `hidden` on the columns it drops (#137).
    */
   mobile?: 'title' | 'status' | 'fact' | 'hidden';
   /** The cell as a phone card shows it, when the column's header is not there to explain it: "Used 1 min ago". */
@@ -62,8 +64,8 @@ export type TableState = { sort: string; dir: string; page: string };
  * a tree it could never show.
  *
  * `check` is the select-all column; `title`, `status` and `fact` are the roles a column declares (`Column.mobile`) and
- * anything else is hidden on a phone. The card is the title and its status on the first line and up to three facts,
- * in column order, flowing on the second.
+ * anything else is hidden on a phone. The card is the title and its status on the first line and every `fact`, in
+ * column order, flowing on the second.
  */
 type Mobile = 'check' | 'title' | 'status' | 'fact' | 'hidden';
 
@@ -102,8 +104,8 @@ const PHONE_CELLS = '@max-[640px]:[&_td:not([data-mobile=hidden])]:!p-0 @max-[64
 /** Where a role sits in the card, and how it reads there.
  *
  * `!block` (above) is load-bearing: `hideBelow` drops a column when the TABLE is narrow, and on a phone the table is always
- * narrow — but a card has room for three small facts, so a column the table dropped for width comes back here. The
- * card's own rule is the role, not the width. */
+ * narrow — but a card has room for the facts its columns declare, so a column the table dropped for width comes back
+ * here. The card's own rule is the role, not the width. */
 const PHONE_ROLES = [
   '@max-[640px]:[&_td[data-mobile=check]]:order-0 @max-[640px]:[&_td[data-mobile=check]]:mr-1.5',
   '@max-[640px]:[&_td[data-mobile=title]]:order-1 @max-[640px]:[&_td[data-mobile=title]]:flex-1 @max-[640px]:[&_td[data-mobile=title]]:font-medium @max-[640px]:[&_td[data-mobile=title]]:!text-left',
@@ -163,6 +165,7 @@ export function DataTable<R>({
   columns,
   rowKey,
   rowHref,
+  onRowOpen,
   caption,
   noun = 'rows',
   title,
@@ -194,6 +197,8 @@ export function DataTable<R>({
   rowKey: (row: R) => string;
   /** Each row opens a record: the title column becomes a link and the whole row takes the pointer. */
   rowHref?: (row: R) => string;
+  /** Open a record through a host instead of navigating this frame; the title becomes a keyboard-accessible button. */
+  onRowOpen?: (row: R) => void;
   /** For screen readers: what the table lists. */
   caption: string;
   /** What a row is, for the range line and the empty states: "requests". */
@@ -275,16 +280,17 @@ export function DataTable<R>({
     onSelectedChange?.(n);
   };
 
-  const open = (e: MouseEvent, href?: string) => {
-    if (!href) return;
+  const open = (e: MouseEvent, row: R, href?: string) => {
+    if (!href && !onRowOpen) return;
     if ((e.target as HTMLElement).closest('a,button,input,[role="checkbox"],[role="menuitem"]')) return;
     if (window.getSelection()?.toString()) return;
-    leave(() => router.push(href));
+    if (onRowOpen) onRowOpen(row);
+    else leave(() => router.push(href!));
   };
 
   const titleColumn = columns.find((c) => c.mobile === 'title') ?? columns[0];
   const status = columns.find((c) => c.mobile === 'status');
-  const facts = columns.filter((c) => c.mobile === 'fact').slice(0, 3);
+  const facts = columns.filter((c) => c.mobile === 'fact');
 
   let body: ReactNode;
   if (error) {
@@ -337,7 +343,7 @@ export function DataTable<R>({
                 const k = rowKey(r);
                 const href = rowHref?.(r);
                 return (
-                  <tr key={k} role="row" aria-selected={sel.has(k) || undefined} onClick={(e) => open(e, href)} className={cn('group/row', href && 'cursor-pointer hover:bg-fill-hover', sel.has(k) && 'bg-accent-tint hover:bg-accent-tint')}>
+                  <tr key={k} role="row" aria-selected={sel.has(k) || undefined} onClick={(e) => open(e, r, href)} className={cn('group/row', (href || onRowOpen) && 'cursor-pointer hover:bg-fill-hover', sel.has(k) && 'bg-accent-tint hover:bg-accent-tint')}>
                     {selectable ? (
                       <td role="cell" data-check data-mobile="check" className="!pr-0">
                         <Checkbox aria-label={`Select ${k}`} checked={sel.has(k)} onCheckedChange={() => toggle(k)} />
@@ -345,13 +351,13 @@ export function DataTable<R>({
                     ) : null}
                     {columns.map((c) => {
                       const role = roleOf(c);
-                      // The title is the row's link wherever it is shown, phone included: the whole card takes the
-                      // pointer too (the row's own click), but the link is what a keyboard and a screen reader follow.
+                      // The title opens the record wherever it is shown, phone included: the whole card takes the
+                      // pointer too, but the title's link or host-action button is what a keyboard follows.
                       // The value is called once: it is both what we draw and what the title carries when the column
                       // truncates. A cut value is cut everywhere on the page — a slug's tail is the part that identifies
                       // it — and this card's own spec has said so since before the component did it.
                       const value = c.cell(r);
-                      const content = c === titleColumn && href ? <Link href={href}>{value}</Link> : value;
+                      const content = c === titleColumn && onRowOpen ? <button type="button" onClick={() => onRowOpen(r)}>{value}</button> : c === titleColumn && href ? <Link href={href}>{value}</Link> : value;
                       return (
                         <td key={c.key} role="cell" data-mobile={role} data-num={c.numeric ? 'num' : c.align === 'right' ? 'true' : undefined} data-hide-below={c.hideBelow} title={c.title ? c.title(r) : c.truncate && (typeof value === 'string' || typeof value === 'number') ? String(value) : undefined} className={cellClass(c) || undefined}>
                           {/* The dot that separates two facts, on a phone only — the table has a column for each of

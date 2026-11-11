@@ -4,6 +4,9 @@ import { ToggleGroup } from 'radix-ui';
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '../../../lib/cn';
 
+/** The track\'s own padding, in px (`p-0.5`): the thumb is inset by it at each end. */
+const PAD = 2;
+
 export type SegmentedOption<V extends string> = { value: V; label: React.ReactNode; title?: string };
 
 /**
@@ -27,19 +30,41 @@ export function Segmented<V extends string>({
   className?: string;
 }) {
   const track = useRef<HTMLDivElement>(null);
-  const [thumb, setThumb] = useState<{ x: number; w: number } | null>(null);
-  // The thumb is read only in a ResizeObserver callback, which the browser runs after layout. A read in the commit, in an
-  // effect or in a frame callback runs before that layout is clean, so it forced a whole-page layout inside the tap's
-  // task. A fresh observer on every change delivers a first observation of each option after the next layout; that one
-  // carries the measurement, and later resizes (a font arriving, a density switch, a label changing) re-measure.
+  // Where each option sits, as the browser reported it when the observer delivered. The observer is the measurement and
+  // it lives as long as the option set, never one per change: a fresh observer re-observes every button, and delivering
+  // the first observation of an element the page has just laid out means laying the whole page out again inside the
+  // tap's own task — measured at 26 ms of a 55 ms frame on the period tap, and it was the frame that dropped. A change
+  // of what the options are, or their order, is what starts a fresh observation, since that is when a position moves.
+  const [spots, setSpots] = useState<{ left: number; width: number }[]>([]);
+  const order = options.map((o) => o.value).join('\u0000');
   useEffect(() => {
-    const ro = new ResizeObserver(() => {
-      const el = track.current?.querySelector<HTMLElement>('[data-state="on"]');
-      if (el) setThumb({ x: el.offsetLeft, w: el.offsetWidth });
+    const el = track.current;
+    if (!el) return;
+    const buttons = [...el.querySelectorAll<HTMLElement>('button')];
+    // The geometry is read here, in the callback, and never in the state updater: the updater runs during a render,
+    // where a read would force the whole page's layout in the tap's task (the read this component was fixed for once).
+    const ro = new ResizeObserver((entries) => {
+      const found = new Map<number, { left: number; width: number }>();
+      for (const e of entries) {
+        const i = buttons.indexOf(e.target as HTMLElement);
+        if (i < 0) continue;
+        const b = e.target as HTMLElement;
+        found.set(i, { left: b.offsetLeft, width: b.offsetWidth });
+      }
+      if (!found.size) return;
+      setSpots((was) => {
+        const next = buttons.map((_, i) => found.get(i) ?? was[i] ?? null);
+        if (next.length === was.length && next.every((s, i) => s && was[i] && s.left === was[i].left && s.width === was[i].width)) return was;
+        return next as { left: number; width: number }[];
+      });
     });
-    track.current?.querySelectorAll('button').forEach((b) => ro.observe(b));
+    for (const b of buttons) ro.observe(b);
     return () => ro.disconnect();
-  }, [value, options.length]);
+  }, [order]);
+  // The thumb is drawn from those spots and the option that is on, at render: changing the option asks no element for
+  // its geometry, and the spots are measured again only when the options move or a button changes size.
+  const at = options.findIndex((o) => o.value === value);
+  const spot = at >= 0 ? spots[at] : undefined;
   return (
     <ToggleGroup.Root
       ref={track}
@@ -48,15 +73,16 @@ export function Segmented<V extends string>({
       onValueChange={(v) => v && onChange(v as V)}
       aria-label={label}
       className={cn(
+        // The thumb's own inset is this padding: `PAD` below says the same 2px, so a change to one must change both.
         'scroll-fade-x relative inline-flex w-fit min-w-0 max-w-full items-center overflow-x-auto rounded-md bg-surface-sunk p-0.5 ring-1 ring-line ring-inset [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
         className,
       )}
     >
-      {thumb ? (
+      {spot ? (
         <span
           aria-hidden
           className="absolute top-0.5 bottom-0.5 rounded-sm bg-surface shadow-control ring-1 ring-line transition-[transform,width] duration-(--dur-enter) ease-out"
-          style={{ transform: `translateX(${thumb.x - 2}px)`, width: thumb.w, left: 2 }}
+          style={{ transform: `translateX(${spot.left - PAD}px)`, width: spot.width, left: PAD }}
         />
       ) : null}
       {options.map((o) => (

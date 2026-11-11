@@ -25,7 +25,9 @@ type Fixture = { base: string; proc: ChildProcess };
  *  flags a suite needs beyond `--port 0`, such as `--mode`. The rejection names everything it printed, stdout and stderr
  *  both, because a fixture that could not start says why on the second. */
 export function startFakeGateway(...extra: string[]): Promise<Fixture> {
-  const proc = spawn('node', ['scripts/fake-gateway/server.ts', '--port', '0', ...extra], { stdio: ['ignore', 'pipe', 'pipe'] });
+  // A fixture takes any port: the test run sets ZZ_GATEWAY to the address the app's build-time rewrite points at, and
+  // this process is not the one serving it.
+  const proc = spawn('node', ['scripts/fake-gateway/server.ts', '--port', '0', ...extra], { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, ZZ_GATEWAY: '' } });
   return new Promise<Fixture>((resolve, reject) => {
     let out = '';
     // A fixture that never printed is killed with the rejection: the suite never gets the process to kill it itself.

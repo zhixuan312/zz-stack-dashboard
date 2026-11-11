@@ -25,10 +25,10 @@
  * — a CDP keyDown WITHOUT `text` does not activate a button at all, which reads as a dead control — and press by role,
  * not one key for everything.
  */
-import { answerProblem, DRAWS_NOT_FOUND, missingRoutes, NOT_FOUND_PROBE } from './lib/answered.ts';
+import { answerProblem, DRAWS_NOT_FOUND, missingRoutes } from './lib/answered.ts';
 import { launch } from './lib/chrome.ts';
 import { DEEP_SOURCE } from './lib/deep.ts';
-import { discover } from './lib/routes.ts';
+import { discover, NOT_FOUND_PROBE } from './lib/routes.ts';
 import { settle } from './lib/settle.ts';
 import { detailRoutes, personaCookie } from './lib/team-config.ts';
 import { holdArgs } from './lib/args.ts';
@@ -167,11 +167,12 @@ const walk = async (route: string) => {
       s = (await measure()) ?? s;
     }
     if (i === 0 || (!first && s)) first = first || s.name;
-    if (reached.has(s.id)) { wrapped = true; break; }
+    if (reached.has(s.id)) { wrapped = s.id === order[0]; break; }
     reached.add(s.id); order.push(s.id); names.set(s.id, s.name);
     if (!s.ring) problems.push(`no focus ring: ${s.name}`);
     if (!s.onTop) problems.push(`hidden under ${s.covered}: ${s.name}`);
   }
+  if (order.length && !wrapped) problems.push('Tab did not come back to the first stop; the forward walk did not complete');
   // A control counts as reached when it, or a control inside it, took focus: a radio group is entered at its checked
   // radio and moved through with the arrow keys, as ARIA's radio pattern asks.
   const { missed, gone } = await page.eval<{ missed: { kb: string; name: string }[]; gone: string[] }>(MISSED);
@@ -180,13 +181,15 @@ const walk = async (route: string) => {
   const back: string[] = [];
   if (wrapped && order.length) {
     const seen = new Set([order[0]]);
+    let returned = false;
     for (let i = 0; i < 400; i++) {
       await press(SHIFT_TAB);
       const w = await page.eval<{ id: string; name: string } | null>(WHO);
       if (!w) continue;
-      if (seen.has(w.id)) break;
+      if (seen.has(w.id)) { returned = w.id === order[0]; break; }
       seen.add(w.id); back.push(w.id); names.set(w.id, w.name);
     }
+    if (!returned) problems.push('Shift+Tab did not come back to the first stop; the reverse walk did not complete');
     const want = order.slice(1).reverse();
     if (back.join() !== want.join()) {
       const list = (ids: string[]) => ids.map((k) => names.get(k) ?? `#${k}`).join(' < ');
@@ -201,7 +204,7 @@ const walk = async (route: string) => {
   for (const g of gone) problems.push(`could not be found again: ${g}`);
   const unique = [...new Set(problems)];
   if (unique.length) { failures += unique.length; console.log(`FAIL ${route} (${reached.size} of ${total} stops)\n  ${unique.slice(0, 12).join('\n  ')}`); }
-  else console.log(`ok   ${route} (${reached.size} stops, every one ringed and on top, ${wrapped && order.length ? 'and the same in reverse' : 'the reverse walk not run: Tab did not come back round'})`);
+  else console.log(`ok   ${route} (${reached.size} stops, every one ringed and on top${order.length ? ', and the same in reverse' : '; no stop to walk'})`);
 };
 
 for (const route of ROUTES) {

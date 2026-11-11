@@ -54,7 +54,9 @@ export const Select = forwardRef<HTMLButtonElement, {
         )}
       >
         {leading ? <span className="flex shrink-0 text-ink-3">{leading}</span> : null}
-        <span className="min-w-0 flex-1 truncate data-placeholder:text-ink-3 [&[data-placeholder]]:text-ink-3">
+        {/* The placeholder is coloured by its own span below: Radix puts `data-placeholder` on that `S.Value`, never on
+            this wrapper, so a `data-placeholder:` utility here would match nothing. */}
+        <span className="min-w-0 flex-1 truncate">
           <S.Value placeholder={<span className="text-ink-3">{placeholder}</span>} />
         </span>
         <S.Icon asChild>

@@ -11,6 +11,8 @@ import { cn } from '../../../lib/cn';
 export const Popover = P.Root;
 export const PopoverTrigger = P.Trigger;
 export const PopoverClose = P.Close;
+/** What the panel is positioned against, when the control that opens it is not a toggling trigger: a Combobox's field. */
+export const PopoverAnchor = P.Anchor;
 
 /** The surface, exported so a preview draws exactly what the popover draws. */
 export const POPOVER_CONTENT = 'z-(--layer-popover) w-72 max-w-[calc(100vw-16px)] rounded-lg bg-surface-raised p-4 text-sm text-ink shadow-overlay';

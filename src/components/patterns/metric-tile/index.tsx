@@ -9,7 +9,7 @@ import { Delta, type DeltaFormat } from '../../ui/delta/index';
 import { Tooltip } from '../../ui/tooltip/index';
 import { Sparkline } from '../../charts/sparkline/index';
 import { useMeridianIndex, usePointMeridian } from '../../charts/meridian/index';
-import { StatusDot } from '../../ui/status-dot/index';
+import { StatusDot, TONE_WORD } from '../../ui/status-dot/index';
 import { comparison } from '../../../logic/derivations';
 
 /**
@@ -29,6 +29,7 @@ const COMPACT = 'grid grid-cols-1 items-center gap-y-0.5 px-4 pt-3 @min-[calc(14
 const COMPACT_NAME = '@min-[calc(14rem-2px)]:col-start-1 @min-[calc(14rem-2px)]:row-start-1';
 const COMPACT_CHANGE = '@min-[calc(14rem-2px)]:col-start-2 @min-[calc(14rem-2px)]:row-start-1 @min-[calc(14rem-2px)]:justify-self-end';
 const COMPACT_LINE = '@min-[calc(14rem-2px)]:col-span-2 @min-[calc(14rem-2px)]:row-start-2';
+
 
 /**
  * One number the page exists to show, with its change and its shape. The figure is set at the figure size with
@@ -219,17 +220,20 @@ export function MetricTile({
                 type="button"
                 data-finding
                 onClick={() => point(finding.day!)}
-                aria-label={`${finding.text}. Point at ${formatDate(finding.day)}`}
+                // The dot's words are part of the name here: a button's own `aria-label` replaces what it contains, so the
+                // tone would otherwise be lost to a reader who cannot see the colour.
+                aria-label={`${TONE_WORD[finding.tone]}: ${finding.text}. Point at ${formatDate(finding.day)}`}
                 className={cn('hit -mx-1 mt-1 flex max-w-full min-w-0 items-start gap-1.5 rounded-sm px-1 text-left text-xs text-ink-2 transition-colors duration-(--dur-hover) hover:text-ink', row && 'max-sm:col-start-1 max-sm:row-start-3')}
               >
                 {/* A finding is short and its words are the point: it wraps rather than losing its end. Its dot is the
-                    caller's to say: neutral for a fact, the warning dot for one that needs a look. */}
-                <StatusDot tone={finding.tone} className="mt-[0.3em]" />
+                    caller's to say: neutral for a fact, the warning dot for one that needs a look, and it names that in
+                    words, since the dot is the only mark carrying it. */}
+                <StatusDot tone={finding.tone} label={TONE_WORD[finding.tone]} className="mt-[0.3em]" />
                 <span className="min-w-0 text-pretty">{finding.text}</span>
               </button>
             ) : (
               <p data-finding className={cn('mt-1 flex min-w-0 items-start gap-1.5 text-xs text-ink-2', row && 'max-sm:col-start-1 max-sm:row-start-3')}>
-                <StatusDot tone={finding.tone} className="mt-[0.3em]" />
+                <StatusDot tone={finding.tone} label={TONE_WORD[finding.tone]} className="mt-[0.3em]" />
                 <span className="min-w-0 text-pretty">{finding.text}</span>
               </p>
             )

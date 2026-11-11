@@ -26,7 +26,7 @@
  *
  * It reads no environment. Whether the assistant is on is the served product's to say: `POST /api/assistant` answers
  * 404 while it is off, and the script then prints one line saying it did not run, and exits 0, as it does when the
- * configuration declares no persona. Neither `pnpm verify` nor `pnpm verify --full` runs it.
+ * configuration declares no persona. No test tier runs it.
  */
 import fs from 'node:fs';
 import path from 'node:path';

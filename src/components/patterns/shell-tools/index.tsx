@@ -8,11 +8,26 @@ import { cn } from '../../../lib/cn';
 import { formatDateTime, formatRelative } from '../../../lib/format-date';
 import { Kbd } from '../../ui/kbd/index';
 import { Popover, PopoverContent, PopoverTrigger } from '../../ui/popover/index';
-import { StatusDot } from '../../ui/status-dot/index';
-import { openCommand, usePaletteKey } from '../command-palette/index';
+import { StatusDot, TONE_WORD } from '../../ui/status-dot/index';
+import { openCommand, usePaletteKey } from '../command-palette/open';
 
 /** One thing that needs a person: what happened, where to act on it, and whether they have seen it. */
-export type Alert = { id: string; title: string; detail?: string; at: string; href: string; tone: 'critical' | 'warning' | 'positive' | 'neutral'; unread?: boolean };
+export type Alert = {
+  id: string;
+  title: string;
+  detail?: string;
+  at: string;
+  href: string;
+  tone: 'critical' | 'warning' | 'positive' | 'neutral';
+  unread?: boolean;
+  /**
+   * What kind of thing this alert is, in a short label: "Incidents", "Verifications". Alerts that share one are drawn
+   * under one heading with their own unread count, in the order the kinds first appear, so a failing check never reads
+   * with the weight of an incident (#123). An alert with no `group` is listed as it always was.
+   */
+  group?: string;
+};
+
 
 /** The alerts this tab has opened, kept for the session so a reload does not bring them back as new. */
 const READ_KEY = `${slug}.alerts-read`;
@@ -68,6 +83,15 @@ export function ShellTools({ alerts = [], now }: { alerts?: Alert[]; /** The dat
 /** The alerts panel's body, as drawn in the popover; exported so a preview draws exactly what the bell opens. */
 export function AlertsPanel({ alerts, now, read = new Set(), onOpen, onMarkAll }: { alerts: Alert[]; now: Date; read?: Set<string>; onOpen?: (id: string) => void; onMarkAll?: () => void }) {
   const unread = alerts.filter((a) => a.unread && !read.has(a.id)).length;
+  // The alerts under the heading of their kind, the kinds in the order they first appear. An alert with no kind stands
+  // first, under no heading, as the alert of no particular sort always did.
+  const grouped: [string | null, Alert[]][] = [];
+  for (const a of alerts) {
+    const name = a.group ?? null;
+    const at = grouped.findIndex(([n]) => n === name);
+    if (at < 0) grouped.push([name, [a]]);
+    else grouped[at][1].push(a);
+  }
   return (
     <>
       {/* The head wraps: in a narrow card the count and "Mark all read" drop under the title instead of running past it. */}
@@ -81,23 +105,40 @@ export function AlertsPanel({ alerts, now, read = new Set(), onOpen, onMarkAll }
         ) : null}
       </div>
       {alerts.length ? (
-        <ul className="max-h-96 overflow-y-auto p-1.5">
-          {alerts.map((a) => {
-            const isNew = a.unread && !read.has(a.id);
+        <div className="max-h-96 overflow-y-auto p-1.5">
+          {grouped.map(([name, items]) => {
+            // One heading per kind, in the order the kinds first appear, each with its own unread count. The kinds are the
+            // point: interleaved by time, a failing check read with the same weight as an incident (#123).
+            const fresh = items.filter((a) => a.unread && !read.has(a.id)).length;
             return (
-              <li key={a.id}>
-                <Link href={a.href} onClick={() => onOpen?.(a.id)} className="grid grid-cols-[14px_minmax(0,1fr)] gap-x-3 rounded-md px-2.5 py-2.5 hover:bg-fill-hover">
-                  <span className="mt-1.5 grid size-3.5 place-items-center"><StatusDot tone={a.tone} live={isNew && a.tone !== 'neutral'} /></span>
-                  <span className="min-w-0">
-                    <span className={cn('block text-sm', isNew ? 'font-medium text-ink' : 'text-ink-2')}>{a.title}</span>
-                    {a.detail ? <span className="t-caption mt-0.5 block">{a.detail}</span> : null}
-                    <time dateTime={a.at} title={formatDateTime(a.at)} className="t-caption t-num mt-1 block">{formatRelative(a.at, now)}</time>
-                  </span>
-                </Link>
-              </li>
+              <section key={name ?? ''} data-alert-group={name ?? undefined} aria-label={name ?? undefined} className="not-first:mt-1">
+                {name ? (
+                  <p className="flex items-center gap-2 px-2.5 pt-2 pb-1 text-2xs font-semibold tracking-wide text-ink-3 uppercase">
+                    {name}
+                    {fresh ? <span className="t-num normal-case tracking-normal text-warning-ink">{fresh} new</span> : null}
+                  </p>
+                ) : null}
+                <ul>
+                  {items.map((a) => {
+                    const isNew = a.unread && !read.has(a.id);
+                    return (
+                      <li key={a.id}>
+                        <Link href={a.href} onClick={() => onOpen?.(a.id)} className="grid grid-cols-[14px_minmax(0,1fr)] gap-x-3 rounded-md px-2.5 py-2.5 hover:bg-fill-hover">
+                          <span className="mt-1.5 grid size-3.5 place-items-center"><StatusDot tone={a.tone} label={TONE_WORD[a.tone]} live={isNew && a.tone !== 'neutral'} /></span>
+                          <span className="min-w-0">
+                            <span className={cn('block text-sm', isNew ? 'font-medium text-ink' : 'text-ink-2')}>{a.title}</span>
+                            {a.detail ? <span className="t-caption mt-0.5 block">{a.detail}</span> : null}
+                            <time dateTime={a.at} title={formatDateTime(a.at)} className="t-caption t-num mt-1 block">{formatRelative(a.at, now)}</time>
+                          </span>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
             );
           })}
-        </ul>
+        </div>
       ) : (
         <p className="px-4 py-8 text-center text-sm text-ink-3">Nothing needs you right now.</p>
       )}

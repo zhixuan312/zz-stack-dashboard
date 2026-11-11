@@ -1,0 +1,115 @@
+[
+ {
+  "id": "file:.agents/skills/zz-meridian/SKILL.md",
+  "status": "resolved",
+  "reason": "Took 0.39.0's text: the copy on disk was an earlier draft of the same release documentation, not a project rule.",
+  "files": {
+   ".agents/skills/zz-meridian/SKILL.md": "sha256-506b7b489e6b0d3a7e75e854939027265b0df62c6f6dbfc3b033a97d2178d901"
+  }
+ },
+ {
+  "id": "file:.agents/skills/zz-meridian/references/customize.md",
+  "status": "resolved",
+  "reason": "Took 0.39.0's text: the copy on disk was an earlier draft of the same release documentation, not a project rule.",
+  "files": {
+   ".agents/skills/zz-meridian/references/customize.md": "sha256-3c738c1306953f69c93e816175539300a93cba931332886aa98e8b93fecc01d1"
+  }
+ },
+ {
+  "id": "file:.agents/skills/zz-meridian/references/existing-project.md",
+  "status": "resolved",
+  "reason": "Took 0.39.0's text: the copy on disk was an earlier draft of the same release documentation, not a project rule.",
+  "files": {
+   ".agents/skills/zz-meridian/references/existing-project.md": "sha256-060dbee6ff8441a009efcf4e655de7f7fb63aaaeb745cdbf85a7f5adfc1bf8ab"
+  }
+ },
+ {
+  "id": "file:.agents/skills/zz-meridian/references/ownership.md",
+  "status": "resolved",
+  "reason": "Took 0.39.0's text: the copy on disk was an earlier draft of the same release documentation, not a project rule.",
+  "files": {
+   ".agents/skills/zz-meridian/references/ownership.md": "sha256-3024ae14ca8cc2a1d899ed4558f3bae8fee214099301080038f5313aa173274b"
+  }
+ },
+ {
+  "id": "file:.agents/skills/zz-meridian/references/update.md",
+  "status": "resolved",
+  "reason": "Took 0.39.0's text: the copy on disk was an earlier draft of the same release documentation, not a project rule.",
+  "files": {
+   ".agents/skills/zz-meridian/references/update.md": "sha256-5bffa469016d8675015b05a1798a59727b68e9475c631b2615f363c9a9951b0a"
+  }
+ },
+ {
+  "id": "file:.agents/skills/zz-meridian/references/validation.md",
+  "status": "resolved",
+  "reason": "Took 0.39.0's text: the copy on disk was an earlier draft of the same release documentation, not a project rule.",
+  "files": {
+   ".agents/skills/zz-meridian/references/validation.md": "sha256-3e4bda156d853613361da264bb577fb3b78bb15ddf1bd3acd6b82124afab1ca7"
+  }
+ },
+ {
+  "id": "file:.claude/skills/zz-meridian/SKILL.md",
+  "status": "resolved",
+  "reason": "Took 0.39.0's text: the copy on disk was an earlier draft of the same release documentation, not a project rule.",
+  "files": {
+   ".claude/skills/zz-meridian/SKILL.md": "sha256-506b7b489e6b0d3a7e75e854939027265b0df62c6f6dbfc3b033a97d2178d901"
+  }
+ },
+ {
+  "id": "file:.claude/skills/zz-meridian/references/customize.md",
+  "status": "resolved",
+  "reason": "Took 0.39.0's text: the copy on disk was an earlier draft of the same release documentation, not a project rule.",
+  "files": {
+   ".claude/skills/zz-meridian/references/customize.md": "sha256-3c738c1306953f69c93e816175539300a93cba931332886aa98e8b93fecc01d1"
+  }
+ },
+ {
+  "id": "file:.claude/skills/zz-meridian/references/existing-project.md",
+  "status": "resolved",
+  "reason": "Took 0.39.0's text: the copy on disk was an earlier draft of the same release documentation, not a project rule.",
+  "files": {
+   ".claude/skills/zz-meridian/references/existing-project.md": "sha256-060dbee6ff8441a009efcf4e655de7f7fb63aaaeb745cdbf85a7f5adfc1bf8ab"
+  }
+ },
+ {
+  "id": "file:.claude/skills/zz-meridian/references/ownership.md",
+  "status": "resolved",
+  "reason": "Took 0.39.0's text: the copy on disk was an earlier draft of the same release documentation, not a project rule.",
+  "files": {
+   ".claude/skills/zz-meridian/references/ownership.md": "sha256-3024ae14ca8cc2a1d899ed4558f3bae8fee214099301080038f5313aa173274b"
+  }
+ },
+ {
+  "id": "file:.claude/skills/zz-meridian/references/update.md",
+  "status": "resolved",
+  "reason": "Took 0.39.0's text: the copy on disk was an earlier draft of the same release documentation, not a project rule.",
+  "files": {
+   ".claude/skills/zz-meridian/references/update.md": "sha256-5bffa469016d8675015b05a1798a59727b68e9475c631b2615f363c9a9951b0a"
+  }
+ },
+ {
+  "id": "file:.claude/skills/zz-meridian/references/validation.md",
+  "status": "resolved",
+  "reason": "Took 0.39.0's text: the copy on disk was an earlier draft of the same release documentation, not a project rule.",
+  "files": {
+   ".claude/skills/zz-meridian/references/validation.md": "sha256-3e4bda156d853613361da264bb577fb3b78bb15ddf1bd3acd6b82124afab1ca7"
+  }
+ },
+ {
+  "id": "file:scripts/test-run.ts",
+  "status": "resolved",
+  "reason": "Took Meridian's 0.39.0 runner: it implements the three commands, the Tier 2 report and the rule that only Tier 1 blocks, and the team file it replaces called scripts/verify.ts, which 0.39.0 removed.",
+  "files": {
+   "scripts/test-run.ts": "sha256-ff65157afeb52037674f038d128dfa9ba1260da7644188ff8eca2730adf8e019"
+  }
+ },
+ {
+  "id": "migration:open-command-moved",
+  "status": "resolved",
+  "reason": "Both tests import openCommand from @/components/patterns/command-palette/open, where 0.37.0 moved it.",
+  "files": {
+   "tests/member-chrome.test.tsx": "sha256-1a3f12b5226db1c878bd7fe41df7643f359b04415a981c5d1c284147ba0ef36b",
+   "tests/workspace-chrome.test.tsx": "sha256-c63fefb9547dbbf52a08c6ed93fba2fb1607dec8112a73ad302bffe307bbe9c7"
+  }
+ }
+]

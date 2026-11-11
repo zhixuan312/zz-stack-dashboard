@@ -35,7 +35,7 @@ export function phoneRate(index: number): number {
 
 /**
  * How many times the phone is slowed beyond the host's own rate: `--rate <n>` on a suite's command line, or MERIDIAN_RATE,
- * which `pnpm verify --rate <n>` sets for every suite it runs; 1 without either. It reproduces a slower machine on this
+ * which `--rate <n>` sets for a suite; 1 without it. It reproduces a slower machine on this
  * one: the weekly runner measured about 1.6 times this laptop's times at the same rate, so `--rate 1.6` is the runner.
  * Below 1 would be a phone faster than the standard's, which is a different device, so it is refused.
  */

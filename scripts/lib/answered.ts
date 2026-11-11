@@ -11,9 +11,7 @@
  * any a run names with `--missing`. Every other route answers below 400 and draws no not-found screen.
  */
 import config from '../verify.config.ts';
-
-/** The address `discover()` adds so every suite meets the product's not-found screen. */
-export const NOT_FOUND_PROBE = '/this-page-does-not-exist';
+import { NOT_FOUND_PROBE } from './routes.ts';
 
 /** What a page draws when it is the not-found screen. A product's own not-found screen carries it too. */
 export const NOT_FOUND_SCREEN = '[data-missing-page]';

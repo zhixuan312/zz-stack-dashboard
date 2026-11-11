@@ -24,6 +24,7 @@ export type HostContext = {
 type Pending = { resolve: (v: unknown) => void; reject: (e: Error) => void };
 
 export class HostBridge {
+  private disposed = false;
   private seq = 0;
   private pending = new Map<number, Pending>();
   private listeners = new Set<(ctx: HostContext) => void>();
@@ -38,7 +39,10 @@ export class HostBridge {
    *  component, so a bridge that is never disposed keeps a listener — and everything it closes over — alive for the
    *  life of the page. React runs an effect twice in development, so this is not only a production concern. */
   dispose() {
+    if (this.disposed) return;
+    this.disposed = true;
     window.removeEventListener('message', this.onMessage);
+    for (const pending of this.pending.values()) pending.reject(new Error('the host bridge was disposed'));
     this.pending.clear();
     this.listeners.clear();
     this.toolListeners.clear();
@@ -71,8 +75,8 @@ export class HostBridge {
   }
 
   request<T = unknown>(method: string, params?: unknown, timeout = 8000): Promise<T> {
+    if (this.disposed) return Promise.reject(new Error('the host bridge was disposed'));
     const id = ++this.seq;
-    this.target.postMessage({ jsonrpc: '2.0', id, method, params }, '*');
     return new Promise<T>((resolve, reject) => {
       // The timer belongs to this request: an answer clears it, so a settled call holds neither its closure nor a timer
       // for the rest of the bound — which for a tool call is 30 seconds of every call in flight.
@@ -81,10 +85,18 @@ export class HostBridge {
         resolve: (v) => { clearTimeout(timer); resolve(v as T); },
         reject: (e) => { clearTimeout(timer); reject(e); },
       });
+      try {
+        this.target.postMessage({ jsonrpc: '2.0', id, method, params }, '*');
+      } catch (error) {
+        this.pending.delete(id);
+        clearTimeout(timer);
+        reject(error);
+      }
     });
   }
 
   notify(method: string, params?: unknown) {
+    if (this.disposed) return;
     this.target.postMessage({ jsonrpc: '2.0', method, params }, '*');
   }
 
@@ -92,9 +104,10 @@ export class HostBridge {
   async initialize(name: string, version: string, attempts = 4) {
     const params = { protocolVersion: PROTOCOL, clientInfo: { name, version }, appCapabilities: { availableDisplayModes: ['inline', 'fullscreen'] } };
     let r: { hostContext?: HostContext } | undefined;
-    for (let i = 0; i < attempts && !r; i++) {
+    for (let i = 0; i < attempts && !r && !this.disposed; i++) {
       r = await this.request<{ hostContext?: HostContext }>('ui/initialize', params, 1200 * (i + 1)).catch(() => undefined);
     }
+    if (this.disposed) throw new Error('the host bridge was disposed');
     if (!r) throw new Error('the host did not answer ui/initialize');
     this.update(r.hostContext ?? {});
     this.notify('ui/notifications/initialized');

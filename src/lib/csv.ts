@@ -19,13 +19,21 @@ export const csvRow = (keys: string[], row: CsvRow): string => keys.map((k) => c
 
 export function toCsv(rows: CsvRow[]): string {
   if (!rows.length) return '';
-  const keys = Object.keys(rows[0]);
+  // Every key any row carries, not only the first row's: a column a later row is the only one to hold would otherwise be
+  // dropped from the file with nothing said — the export would be missing a value its source had.
+  const keys = [...new Set(rows.flatMap((r) => Object.keys(r)))];
   return [csvHeader(keys), ...rows.map((r) => csvRow(keys, r))].join('\r\n') + '\r\n';
 }
 
-/** Hand the browser a file to save. Client only. */
+/**
+ * A byte order mark for the start of a CSV file. Excel on Windows opened by double-click reads a file without one in the
+ * system code page, so an accented name or a Chinese title arrives as mojibake; the Blob's charset is lost on disk.
+ */
+export const CSV_BOM = '\uFEFF';
+
+/** Hand the browser a file to save. Client only. A CSV starts with `CSV_BOM`, so the rows `toCsv` built stay without one. */
 export function downloadFile(filename: string, text: string, type = 'text/csv;charset=utf-8') {
-  const url = URL.createObjectURL(new Blob([text], { type }));
+  const url = URL.createObjectURL(new Blob([type.startsWith('text/csv') ? CSV_BOM + text : text], { type }));
   const a = Object.assign(document.createElement('a'), { href: url, download: filename });
   document.body.append(a);
   a.click();

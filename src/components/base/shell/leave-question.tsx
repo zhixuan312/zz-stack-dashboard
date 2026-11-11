@@ -14,7 +14,7 @@ export function LeaveQuestion({ onStay, onLeave }: { onStay: () => void; onLeave
       <DialogContent
         size="sm"
         title="Leave without saving?"
-        description="This page has changes that are not saved. If you leave, they are lost."
+        description="This page has a local draft. Stay to review it, or leave without confirming it. Leaving does not undo a request already sent."
         footer={
           <>
             <Button variant="ghost" onClick={onStay}>Stay</Button>

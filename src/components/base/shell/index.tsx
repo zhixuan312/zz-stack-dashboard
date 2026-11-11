@@ -1,6 +1,6 @@
 'use client';
 
-import { Children, Suspense, createContext, use, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type HTMLAttributes, type ReactNode, type Ref, type RefObject } from 'react';
+import { Children, Suspense, createContext, use, useCallback, useContext, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, type HTMLAttributes, type ReactNode, type Ref, type RefObject } from 'react';
 import { Dialog } from 'radix-ui';
 import { Menu, X } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
@@ -53,7 +53,7 @@ const ShellCtx = createContext<{ openNav: () => void; tools: ReactNode; assistan
  */
 const LeaveCtx = createContext<{ hold: () => () => void; leave: (go: () => void) => void }>({ hold: () => () => {}, leave: (go) => go() });
 
-/** A component calls this to say it holds unsaved changes while `dirty` is true. Saved, discarded or unmounted, it stops holding at once. */
+/** Holds navigation while a local draft differs from its last confirmed record; this is not proof that a request did not commit. */
 export function useUnsavedChanges(dirty: boolean) {
   const { hold } = useContext(LeaveCtx);
   // An effect, not a render-time write: a page the router keeps hidden has its effects cleaned up, so it holds nothing while hidden.
@@ -199,18 +199,30 @@ function StillOnNavigation({ main }: { main: RefObject<HTMLElement | null> }) {
  * there is answered when it arrives, and each press is answered once.
  */
 function Drawer({ rail, asked, root }: { rail: ReactNode; asked: number; root: RefObject<HTMLElement | null> }) {
-  const nav = useNavDrawer(asked, root);
+  const { open, setOpen, content, focusFirst, setSheet } = useNavDrawer(asked, root);
+  // The sheet opens in the press; the rail follows in the next render. The rail is a second render of the navigation
+  // tree, and committing it with the sheet put script and style of both in one frame: 51 to 63 ms at the runner's
+  // profile in run 42646698631, against a 50 ms floor (`/`, `buttonOpen navigation`). Split, neither frame passes 33 ms.
+  // The sheet is a frame with its ground and its close button; the destinations arrive under them a frame later.
+  const shown = useDeferredValue(open);
+  // Focus the first destination once it is in the sheet, not the close button that is there before it.
+  useLayoutEffect(() => {
+    if (!open || !shown) return;
+    const id = requestAnimationFrame(focusFirst);
+    return () => cancelAnimationFrame(id);
+  }, [open, shown, focusFirst]);
   return (
-    <Dialog.Root open={nav.open} onOpenChange={nav.setOpen}>
+    <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Portal>
         <Dialog.Overlay className="scrim-in fixed inset-0 z-(--layer-rail) bg-scrim lg:hidden" />
         <Dialog.Content
+          ref={setSheet}
           aria-describedby={undefined}
-          {...nav.content}
+          {...content}
           className="sheet-in fixed inset-y-0 left-0 z-(--layer-rail) flex w-(--rail-width) max-w-[86vw] border-r border-line bg-ground shadow-overlay lg:hidden"
         >
           <Dialog.Title className="sr-only">Navigation</Dialog.Title>
-          {rail}
+          {shown ? rail : null}
           <Dialog.Close
             aria-label="Close navigation"
             className="absolute top-4 -right-12 grid size-9 place-items-center rounded-full bg-surface-raised text-ink-2 shadow-overlay"
@@ -534,22 +546,27 @@ const SPLIT = {
   '2/3': 'lg:grid-cols-3 lg:[&>*:first-child]:col-span-2',
   '1/3': 'lg:grid-cols-3 lg:[&>*:last-child]:col-span-2',
 } as const;
-/* A row of tiles counts its columns from its own width, and never leaves a hole: three tiles are three or one. */
+/*
+ * A row of tiles counts its columns from its own width, and never leaves a hole: one tile spans the row, three tiles are
+ * three or one. Five or more run in rows of two, then three, and base.css spans the last tile over what its row leaves.
+ */
 const TILES = {
+  1: '',
   2: '@min-[34rem]:grid-cols-2',
   3: '@min-[48rem]:grid-cols-3',
   4: '@min-[34rem]:grid-cols-2 @min-[62rem]:grid-cols-4',
+  5: '@min-[34rem]:grid-cols-2 @min-[48rem]:grid-cols-3',
 } as const;
 export type Split = keyof typeof SPLIT | 'tiles';
 
 /** One row of cards. Cards in a row are the same height; every card is a direct child. */
 export function Row({ split = 'full', className, ...rest }: HTMLAttributes<HTMLDivElement> & { split?: Split }) {
   if (split === 'tiles') {
-    const n = Math.min(Math.max(Children.toArray(rest.children).length, 2), 4) as 2 | 3 | 4;
+    const n = Children.toArray(rest.children).length;
     return (
       <div className="@container min-w-0">
         {/* One instrument, not a row of equal cards: the tiles share one card's edge and fill (base.css `[data-split='tiles']`). */}
-        <div data-split="tiles" className={cn('grid min-w-0 grid-cols-1 overflow-hidden rounded-lg border border-line bg-surface shadow-card *:min-w-0', TILES[n], className)} {...rest} />
+        <div data-split="tiles" className={cn('grid min-w-0 grid-cols-1 overflow-hidden rounded-lg border border-line bg-surface shadow-card *:min-w-0', TILES[Math.min(n, 5) as keyof typeof TILES], className)} {...rest} />
       </div>
     );
   }

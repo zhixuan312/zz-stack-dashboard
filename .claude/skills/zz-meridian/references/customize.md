@@ -218,6 +218,13 @@ Rules that make every page look like it belongs:
 - **A file picker** is a visible `Button` that calls `input.click()` on an `<input type="file">` with `tabIndex={-1}`
   and `aria-hidden`, so the keyboard reaches the button and never the hidden input; give the press a state of its own
   ("Choosing the files…") until the change event arrives. The presses count a file chooser that opens as an answer.
+- **A choice among records is a `Combobox`; a short fixed list is a `Select`.** Use `Combobox` from
+  `src/components/ui/combobox` when the options are records (a person, a ticket), when there are more than about
+  fifteen, or when the list is loaded from a server — it filters as the person types, with a loading state and
+  "No match for …" while the options arrive, and `allowCustom` with a `customPattern` where a value may be typed that is
+  not in the list. A priority, a region or a retention period is a `Select`: fewer than about fifteen, fixed, and every
+  option worth seeing at once. Both take their wiring from the same `Field`, so the label, hint, error, required and
+  invalid state need no code of their own.
 - **A page spec** next to each route (`README.md`: summary, Structure, States, Surfaces, Agents), so the next person, or
   agent, knows what the page is for. `node scripts/check.ts` requires Structure and States, and under `## Agents` a
   `### What the agent reads` part for every page in `optional:app/(dashboard)/` and `optional:app/embed/`. A page with a

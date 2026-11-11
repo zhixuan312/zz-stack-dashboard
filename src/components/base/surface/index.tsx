@@ -69,7 +69,10 @@ export function ConsoleSurface({ ask, children }: { ask?: (text: string) => void
  */
 export function SurfaceOverride({ surface, children }: { surface: Partial<Surface>; children: ReactNode }) {
   const base = useContext(Ctx);
-  return <Ctx.Provider value={{ ...base, share: () => {}, ...surface }}>{children}</Ctx.Provider>;
+  // Memoised on the parts that make it: an Atlas page mounts many specimens, and a fresh context value on every render
+  // re-rendered every consumer beneath this one.
+  const value = useMemo(() => ({ ...base, share: () => {}, ...surface }), [base, surface]);
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
 /** The embed surface: starts the host bridge, applies the host's theme and style variables, and reports its height. */
@@ -85,11 +88,30 @@ export function EmbedSurface({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const d = document.documentElement;
+    const attributes = new Map(['data-surface', 'data-theme', 'data-display-mode', 'data-platform'].map((name) => [name, d.getAttribute(name)]));
+    const styles = new Map<string, [string, string]>();
+    const setStyle = (name: string, value: string) => {
+      if (!styles.has(name)) styles.set(name, [d.style.getPropertyValue(name), d.style.getPropertyPriority(name)]);
+      d.style.setProperty(name, value);
+    };
+    const restoreDocument = () => {
+      for (const [name, value] of attributes) {
+        if (value === null) d.removeAttribute(name);
+        else d.setAttribute(name, value);
+      }
+      for (const [name, [value, priority]] of styles) {
+        if (value) d.style.setProperty(name, value, priority);
+        else d.style.removeProperty(name);
+      }
+    };
     d.setAttribute('data-surface', 'embed');
-    const sys = matchMedia('(prefers-color-scheme: dark)');
-    const applyTheme = (t?: 'light' | 'dark') => d.setAttribute('data-theme', t ?? (sys.matches ? 'dark' : 'light'));
+    // An explicit host choice wins; otherwise CSS follows system changes without freezing a sampled choice.
+    const applyTheme = (t?: 'light' | 'dark') => {
+      if (t) d.setAttribute('data-theme', t);
+      else d.removeAttribute('data-theme');
+    };
     applyTheme();
-    if (!HostBridge.framed()) return () => d.removeAttribute('data-surface');
+    if (!HostBridge.framed()) return restoreDocument;
     const b = new HostBridge();
     bridge.current = b;
     const apply = (ctx: HostContext) => {
@@ -98,13 +120,13 @@ export function EmbedSurface({ children }: { children: ReactNode }) {
       if (ctx.displayMode) setMode(ctx.displayMode);
       d.setAttribute('data-display-mode', ctx.displayMode ?? 'inline');
       if (ctx.platform) d.setAttribute('data-platform', ctx.platform);
-      for (const [k, v] of Object.entries(ctx.styles?.variables ?? {})) if (k.startsWith('--') && v) d.style.setProperty(k, v);
+      for (const [k, v] of Object.entries(ctx.styles?.variables ?? {})) if (k.startsWith('--') && v) setStyle(k, v);
       const s = ctx.safeAreaInsets;
-      if (s) for (const side of ['top', 'right', 'bottom', 'left'] as const) d.style.setProperty(`--safe-${side}`, `${s[side]}px`);
+      if (s) for (const side of ['top', 'right', 'bottom', 'left'] as const) setStyle(`--safe-${side}`, `${s[side]}px`);
     };
     const off = b.onContext(apply);
-    b.initialize(app.name, '1.0.0').then(() => setConnected(true)).catch(() => setConnected(false));
-    return () => { off(); b.dispose(); bridge.current = null; d.removeAttribute('data-surface'); };
+    b.initialize(app.name, '1.0.0').then(() => { if (bridge.current === b) setConnected(true); }).catch(() => { if (bridge.current === b) setConnected(false); });
+    return () => { off(); b.dispose(); bridge.current = null; restoreDocument(); };
   }, []);
 
   /* Report the body's height whenever it changes: an inline view never scrolls inside the host. */
@@ -119,6 +141,12 @@ export function EmbedSurface({ children }: { children: ReactNode }) {
   const value = useMemo<Surface>(() => {
     // The bridge is read when a call happens, never during render: `connected` only turns true once it exists.
     const bridgeOf = () => (connected ? bridge.current : null);
+    const openInHost = (b: HostBridge, url: string) => {
+      if (bridge.current !== b) return;
+      void b.openLink(url).catch(() => {
+        if (bridge.current === b) toast({ tone: 'neutral', title: 'The host did not open the page', description: url });
+      });
+    };
     return {
       kind: 'embed',
       connected,
@@ -127,27 +155,41 @@ export function EmbedSurface({ children }: { children: ReactNode }) {
       expand: (p) => {
         const b = bridgeOf();
         if (!b) return void window.open(p, '_blank', 'noopener');
-        b.requestDisplayMode('fullscreen').then((r) => r.mode === 'fullscreen' ? setMode('fullscreen') : b.openLink(new URL(p, location.origin).href)).catch(() => b.openLink(new URL(p, location.origin).href));
+        const fallback = () => openInHost(b, new URL(p, location.origin).href);
+        void b.requestDisplayMode('fullscreen').then((r) => {
+          if (bridge.current !== b) return;
+          if (r.mode === 'fullscreen') setMode('fullscreen');
+          else fallback();
+        }, fallback);
       },
       ask: connected
         ? (text) => {
             const q = shared.current.refused && shared.current.head ? `${text} (${shared.current.head})` : text;
-            void bridgeOf()?.message(q).catch(() => toast({ tone: 'neutral', title: 'The chat did not take the question', description: `Ask it there: "${text}"` }));
+            const b = bridgeOf();
+            void b?.message(q).catch(() => {
+              if (bridge.current === b) toast({ tone: 'neutral', title: 'The chat did not take the question', description: `Ask it there: "${text}"` });
+            });
           }
         : undefined,
-      callTool: connected ? (name, args) => bridgeOf()!.callTool(name, args) : undefined,
+      callTool: connected ? (name, args) => bridgeOf()?.callTool(name, args) ?? Promise.reject(new Error('The host is no longer connected.')) : undefined,
       share: (text, structured) => {
         const b = bridgeOf();
         if (!b) return;
         const entry = { head: text.split('\n')[0], refused: false };
         shared.current = entry;
         // A refused update is tried once more; if the host refuses again, Ask carries the view's first line instead.
-        const send = () => b.modelContext(text, structured);
-        void send().catch(() => new Promise((r) => setTimeout(r, 1000)).then(send)).catch(() => { entry.refused = true; });
+        const current = () => bridge.current === b && shared.current === entry;
+        void b.modelContext(text, structured).catch(() => {
+          if (!current()) return;
+          setTimeout(() => {
+            if (!current()) return;
+            void b.modelContext(text, structured).catch(() => { if (current()) entry.refused = true; });
+          }, 1000);
+        });
       },
       openLink: (u) => {
         const b = bridgeOf();
-        return b ? void b.openLink(new URL(u, location.origin).href) : void window.open(u, '_blank', 'noopener');
+        return b ? openInHost(b, new URL(u, location.origin).href) : void window.open(u, '_blank', 'noopener');
       },
     };
   }, [connected, mode, host]);

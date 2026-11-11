@@ -8,7 +8,7 @@ import path from 'node:path';
 
 const ROOT = path.resolve(import.meta.dirname, '../..');
 
-// The gate, verify and the live check run `next` in the project: Meridian's own runs send no Next.js telemetry, whatever
+// The test commands, the diagnostics and the live check run `next` in the project: Meridian's own runs send no Next.js telemetry, whatever
 // the project's next.config says.
 process.env.NEXT_TELEMETRY_DISABLED ??= '1';
 
