@@ -30,6 +30,7 @@ import { bin } from './lib/bin.ts';
 import { FIRST_LOAD_CAP_KB, budgetsOf, type BudgetsConfig } from './lib/budgets.ts';
 import { consumerSmokeKind } from './lib/consumer-smoke.ts';
 import { lintTargets } from './lib/lint.ts';
+import { deepBrowserNotRun } from './lib/report-lines.ts';
 import { clearParts, reportOrWarn, type Seed, type Value } from './lib/tier2.ts';
 import { summaryLine } from './lib/summary.ts';
 
@@ -372,11 +373,13 @@ async function affected(tier: 't1' | 't2'): Promise<number> {
   const lintFiles = lintTargets(present);
   if (lintFiles.length && run(`lint: eslint on ${lintFiles.length} changed file${lintFiles.length === 1 ? '' : 's'}`, bin('eslint'), [...lintFiles, '--ignore-pattern', '.meridian/']) !== 0) failed.push('the lint check');
 
-  // The selection: every changed test and source file is a filter; a document is not, so the tests that name it are.
+  // The selection: every changed test and source file is a filter, and so is every test whose source names the path.
+  // A document has no import edge; neither does a script a test execs or a config it reads — `vitest related`'s import
+  // graph selected neither, so a change to `scripts/brand.ts` could leave `cli-brand-atlas-config` unrun.
   const filters = new Set<string>();
   for (const f of present) {
     if (isTestFile(f) || isCode(f)) filters.add(f);
-    else for (const t of testsNaming(f)) filters.add(t);
+    for (const t of testsNaming(f)) filters.add(t);
   }
   // A deleted source file has no importers to compute: an import graph that cannot see a change is not evidence that
   // nothing needs checking, so the whole tier runs. A deleted test is gone, and has nothing to run.
@@ -430,6 +433,9 @@ async function affected(tier: 't1' | 't2'): Promise<number> {
   // the 20-sample protocol where CI is true. test:t1 never runs them, and says so by leaving the marker alone.
   const notRun: string[] = [];
   const declared: string[] = [];
+  // A machine with no Chrome cannot run the browser fixtures: that is missing evidence, reported as not run, and a run
+  // that leaves it out is never "every check passed".
+  notRun.push(...deepBrowserNotRun(deepNeeded, deepRan));
   let browserTier2: Value[] = [];
   if (withTier2 && (ranWhole || touchesBrowserAll(changed))) {
     const perf = process.env.CI === 'true' && ranWhole;

@@ -30,8 +30,8 @@ import { settled } from './server-tree.tsx';
  *   a `FormSection`'s head, never the page's masthead.
  *
  * Each page is rendered as Next renders it: its own default export, with the gate let through (`tests/page-gate.test.ts`
- * holds the gate), its async parts awaited, and every read answered by the fake gateway `pnpm verify` serves, spawned
- * here as the superadmin, who may open every page. A dynamic page is opened at the first of verify's `detailRoutes`
+ * holds the gate), its async parts awaited, and every read answered by the fake gateway `pnpm test:t2` serves, spawned
+ * here as the superadmin, who may open every page. A dynamic page is opened at the first of the browser suites' `detailRoutes`
  * its route matches, so a new detail page needs an address there before it can be held to this.
  */
 vi.mock('@/data/access', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/data/access')>()) }));

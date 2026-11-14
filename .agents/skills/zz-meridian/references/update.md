@@ -27,7 +27,9 @@ recorded, what the running release has, what is on disk now), and acts on the re
 - **Applied**: untouched replacements, additions and untouched removals. Generated files come from the replayed target,
   so no generator runs in the project.
 - **Staged**: every file the team changed, deleted or collided with, as exact copies for a three-way merge.
-- **Never touched**: files in the keep register, and team-owned files. The only team files an update edits are
+- **Never touched**: files in the keep register, team-owned files, and a file the recorded release shipped that a
+  created project never received — `create` removes the Atlas and its tests after copying, so an update leaves them out
+  rather than reading their absence as a deletion to restore. The only team files an update edits are
   `package.json` (missing dependencies and scripts, older ones of the same major, and entries still exactly as the earlier release wrote them; a version or script the team chose stays theirs and becomes a migration), the managed block in `AGENTS.md`, and the lockfile
   that the install rewrites. Everything else in `MERGE.md` is advice.
 

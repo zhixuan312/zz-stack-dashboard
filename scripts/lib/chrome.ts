@@ -24,9 +24,37 @@ const COMMAND_TIMEOUT_MS = 30_000;
  */
 const dpr = () => Number(process.env.DPR ?? 1);
 
+/** One uncaught exception, as the DevTools protocol reports it: its text, the script's address, and its stack. */
+export type ExceptionDetails = {
+  text?: string;
+  url?: string;
+  stackTrace?: { callFrames?: { functionName?: string; url?: string }[] };
+  exception?: { description?: string };
+};
+
+/**
+ * Whether an uncaught exception is React's streamed-Suspense completion script racing its own placeholder, rather than
+ * the page's code: `$RS` reads the `P:<id>` placeholder of a nested segment that React's deferred `$RV` flush has
+ * already removed while the document is still parsing, under CPU load. Its frames are the inline script in the page's
+ * own HTML, never an application chunk, and the throw leaves the content complete and the page interactive, so it is not
+ * an error the product raised (issue #143; the behaviour is React Fizz's and is not yet reported upstream).
+ *
+ * Only the call the captures showed is tolerated: `$RS` (and React's unminified `completeSegment`). `$RC` and `$RX`
+ * belong to other paths, and a `parentNode` throw there stays an error.
+ */
+export function isStreamedPlaceholderRace(details: ExceptionDetails): boolean {
+  const description = details.exception?.description ?? details.text ?? '';
+  if (!/^(?:Uncaught(?: \(in promise\))? )?TypeError: Cannot read propert(?:y|ies) of (?:null|undefined) \(reading 'parentNode'\)/.test(description)) return false;
+  const frames = details.stackTrace?.callFrames ?? [];
+  if (frames.length === 0 || !/^(?:\$RS|completeSegment)$/.test(frames[0]!.functionName ?? '')) return false;
+  return frames.every((frame) => !/\.m?js(?:[?#]|$)/.test(frame.url ?? '') && !/\/_next\//.test(frame.url ?? ''));
+}
+
 export type Page = {
   /** Uncaught exceptions and console errors since the last open(). */
   errors: string[];
+  /** Exceptions tolerated as React's streamed-placeholder race (issue #143): visible, never a page error, never a failure. Absent on a fake page. */
+  tolerated?: string[];
   /** How many native file choosers the page has opened: intercepted, so none is shown, and counted, since opening one changes nothing in the DOM. */
   fileChoosers: () => number;
   /**
@@ -134,6 +162,9 @@ async function attach(proc: ChildProcess, dir: string, handle: Launched): Promis
   let id = 0;
   const pending = new Map<number, (m: any) => void>();
   const errors: string[] = [];
+  const tolerated: string[] = [];
+  /** One line a process, so a run says the race happened without repeating it for every page. */
+  let announcedRace = false;
   let choosers = 0;
   let status = 0;
   let top = '';
@@ -147,7 +178,17 @@ async function attach(proc: ChildProcess, dir: string, handle: Launched): Promis
     // raises itself is the page's behaviour, and a check should meet it as it is.
     if (m.method === 'Page.javascriptDialogOpening' && m.params.type === 'beforeunload') ws.send(JSON.stringify({ id: ++id, method: 'Page.handleJavaScriptDialog', params: { accept: true } }));
     if (m.id && pending.has(m.id)) { pending.get(m.id)!(m); pending.delete(m.id); return; }
-    if (m.method === 'Runtime.exceptionThrown') errors.push('exception: ' + (m.params.exceptionDetails?.exception?.description ?? m.params.exceptionDetails?.text ?? '').split('\n')[0]);
+    if (m.method === 'Runtime.exceptionThrown') {
+      const details = m.params.exceptionDetails ?? {};
+      const line = 'exception: ' + (details.exception?.description ?? details.text ?? '').split('\n')[0];
+      if (isStreamedPlaceholderRace(details)) {
+        tolerated.push(line);
+        if (!announcedRace) {
+          announcedRace = true;
+          console.error('known issue: React streamed a $RS placeholder race; tolerated, not a page error (issue #143)');
+        }
+      } else errors.push(line);
+    }
     if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error') errors.push('console.error: ' + m.params.args.map((a: any) => a.value ?? a.description ?? '').join(' ').slice(0, 200));
   });
   // A Chrome that crashed fails every command waiting on it, and every later one, at once and by name, not each after its own 30 s.
@@ -174,6 +215,7 @@ async function attach(proc: ChildProcess, dir: string, handle: Launched): Promis
   await send('Page.setInterceptFileChooserDialog', { enabled: true });
   const page: Page = {
     errors,
+    tolerated,
     fileChoosers: () => choosers,
     status: () => status,
     send,

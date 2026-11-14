@@ -5,7 +5,7 @@
  * A state is chosen by the session value, `zz_console=<person>+<state>`, which every console read forwards, the
  * browser's through the app's rewrite and the server's through `src/data/gateway.ts` (reconciliation 79). So one sweep
  * draws a page in every state beside the audit, the presses and the keyboard walk, which send a value with no `+` and
- * read the process-wide mode, `normal` in `pnpm verify`, throughout. The spec's five states have one mode each: loading
+ * read the process-wide mode, `normal` in `pnpm test:t2`, throughout. The spec's five states have one mode each: loading
  * is `slow`, empty `empty`, a transport error `error`, a failed aggregate and a partial success both `partial`.
  *
  * `partial` is one part unavailable and the others answered: the first `Part` a response holds, in its own key order

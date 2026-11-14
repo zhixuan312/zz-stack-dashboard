@@ -19,7 +19,7 @@ import { browserIn, servedIn, startFakeGateway } from './fake-gateway-start.ts';
 
 /**
  * Platform's pages in the states no other test drew (Task I-126, AC-2.9): People and Usage on a fresh deployment, each
- * drawn from the fake gateway's own answer in the `empty` state, asked as `pnpm verify`'s sweep asks it, with the
+ * drawn from the fake gateway's own answer in the `empty` state, asked as `pnpm test:t2`'s sweep asks it, with the
  * session value `superadmin+empty` (scripts/fake-gateway/states-partial.ts). Each says it is empty in words, draws no
  * figure where the answer holds none, and is not drawn as a failure.
  */

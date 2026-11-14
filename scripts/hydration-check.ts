@@ -1,5 +1,5 @@
 /**
- * No page disagrees with its own server HTML, however slowly it hydrates. One of verify's `browserChecks`.
+ * No page disagrees with its own server HTML, however slowly it hydrates. One of the browser suites' `browserChecks`.
  *
  *   node scripts/hydration-check.ts [--base http://localhost:3100] [--rate 20] [--loads 2]
  *

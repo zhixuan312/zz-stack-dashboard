@@ -17,7 +17,7 @@ import { navOf } from '@/views/workspaces';
  * An address that leads nowhere, said inside the shell so the rail stays where it was: the not-found screen's words and
  * its one way back. `gate` answers it for an address the person may not open, so a refused page reads exactly as one
  * that does not exist. It takes nothing, so it can say nothing of what was asked for. `data-missing-page` is what
- * `pnpm verify --as` looks for on such an address, and what the page-view recorder reads as no page.
+ * the browser suites' `personas` look for on such an address, and what the page-view recorder reads as no page.
  */
 export function MissingPage() {
   return (

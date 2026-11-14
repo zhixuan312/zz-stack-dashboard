@@ -1,5 +1,5 @@
 /**
- * What `pnpm verify` needs to know about this project that it cannot discover from `app/`. Edit it; verify reads it.
+ * What `pnpm test:t2` needs to know about this project that it cannot discover from `app/`. Edit it; the browser suites read it.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -56,11 +56,11 @@ type Persona = {
   deniedProbe?: Record<string, string>;
 };
 
-/** Every field of this file that `scripts/verify.ts` reads, as ZZ Meridian 0.18.0's own configuration declares them. */
+/** Every field of this file that `scripts/browser.ts` reads, as ZZ Meridian's own configuration declares them. */
 export type VerifyConfig = {
   /**
    * Detail pages checked beside every static route, one per state worth seeing (a normal record, a failed one, a missing
-   * one). `pnpm verify --full` checks them with every static route.
+   * one). `pnpm test:t2` checks them with every static route.
    */
   detailRoutes: string[];
   /**
@@ -69,7 +69,7 @@ export type VerifyConfig = {
    */
   missingRoutes?: string[];
   /**
-   * For a product whose pages read and write a live API. verify presses every control it finds, Approve, Revoke and
+   * For a product whose pages read and write a live API. The browser suites press every control it finds, Approve, Revoke and
    * Delete included, so those presses must reach a fake, never production. `script` starts a server on `--port 0` that
    * answers every route the pages call (writes answer success and are forgotten) and prints `listening on <url>`; verify
    * starts it first and builds and serves the app with the environment variable `env` set to that URL. Leave it out only
@@ -117,7 +117,7 @@ export type VerifyConfig = {
    */
   browserChecks?: (string | { script: string; browsers: number })[];
   /**
-   * The product's own browser checks that judge a time, run by `pnpm verify --timed` alone and one at a time, after the
+   * The product's own browser checks that judge a time, run by `pnpm test:release` alone and one at a time, after the
    * live data and before Web Vitals, each with `--base <url>` like `browserChecks`. A check that judges a time under the
    * load of `--full` judges the load; move it here, and keep in `browserChecks` the half that judges no time.
    */
@@ -318,7 +318,7 @@ const config: VerifyConfig = {
   // (reconciliation 80). Work's task 4 asks the assistant, which `fakeModel` below answers.
   // None of them judges a time: they run beside the audit, the presses and the keyboard walk, under their load.
   browserChecks: ['scripts/approve-banners.ts', 'scripts/live-check.ts', 'scripts/selection-check.ts', 'scripts/hydration-check.ts', 'scripts/workspace-switch.ts', { script: 'scripts/states-check.ts', browsers: 4 }, 'scripts/journeys.ts'],
-  // The checks that judge a time, which `pnpm verify --timed` runs alone and one at a time. Wave 2's acceptance showed
+  // The checks that judge a time, which `pnpm test:release` runs alone and one at a time. Wave 2's acceptance showed
   // why: beside the other suites two `slow` rows reached their state at 5.1 to 5.8 s (Harbormaster #3482), and alone
   // all 88 within 4.53 s (#3486).
   // `primary-data` times each route's own data beside its largest paint, as each persona, on the timed suites' phone,

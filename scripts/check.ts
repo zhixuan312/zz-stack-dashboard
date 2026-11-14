@@ -9,6 +9,7 @@
  * - Every token a specification names in backticks, and every var(--x) or (--x) a component uses, exists.
  * - No literal colour (hex of 3, 4, 6 or 8 digits; rgb, hsl, oklch, oklab, lab, lch, color) and no Tailwind default
  *   palette in the layers: colours come from roles.
+ * - A day is cut to its calendar day in the reporting timezone (`dayOf`/`dayOfValue`), never to a value's first ten characters.
  * - One implementation: the fixtures a collection serves are read through src/data/collections.ts, not imported again.
  * - In the template, `connection()` is called only where the request is meant to be read: the console layout and the
  *   not-found page; pages and views reach the sample through src/data, never src/system/fixtures; and a writer path
@@ -18,7 +19,7 @@
  * - Markdown stays inert: no raw-HTML plugin in the dependencies or the source.
  * - The agent context holds: docs/brief.md has its five sections, and every path and package script the managed block in
  *   AGENTS.md, the skill and the brief name exists.
- * - An update session is resolved, `.meridian/keep.json` names files that are managed and present, and `app.logo` is an
+ * - An update session is resolved, `.meridian/keep.json` names managed files (a kept file that is absent is a deletion the team kept), and `app.logo` is an
  *   SVG under public/. A managed file whose bytes are not the release's and that keep.json does not keep is named on a
  *   `drift:` line, a warning the gate carries: nothing else says so between releases.
  * - Every nav item's `needs` has the shape the rail can read: 'public', a grant `object:read|create|update|remove`, or an
@@ -32,7 +33,7 @@ import path from 'node:path';
 import { importTarget, projectAliases } from './lib/aliases.ts';
 import { checkBrief, scanReferences } from './lib/context-check.ts';
 import { navTrailProblems, navUnderProblems } from './lib/nav-under.ts';
-import { blankedText, noDirectQuery, presentationDoesNotRead, resolveSpec as resolveProjectSpec, valueImports, walk as walkIn } from './lib/layer-rules.ts';
+import { blankedText, dayCutFiles, dayCutProblems, noDirectQuery, presentationDoesNotRead, resolveSpec as resolveProjectSpec, valueImports, walk as walkIn } from './lib/layer-rules.ts';
 import { APP_DIR, agentPageSpec, agentSection, specRoute, viewToolPages } from './lib/routes.ts';
 import { keepProblems, unresolved, parseJournal, parseKeep, parseResolutions, verifiedRetirements, type Hash, type Retirement } from './lib/update-session.ts';
 import { cards } from './registry.ts';
@@ -137,7 +138,7 @@ for (const p of PAGE_SPECS) {
 
 // ── Token names in specifications ────────────────────────────────────────────────────────────────────
 const TOKEN_LIKE = /`((?:ground|frame|surface|line|fill|ink|accent|on-accent|on-critical|positive|warning|critical|series|chart|shadow|highlight|glow|edge|text|weight|leading|tracking|space|radius|control|row-height|card-pad|stack-gap|rail|assistant-width|data-width|stage-width|reading-width|form-width|field-width|gutter|layer|dur|stagger|ease|stretch)(?:-[a-z0-9-]+)?)`/g;
-const NOT_TOKENS = new Set(['leading', 'trailing', 'fill', 'text-wrap', 'text-pretty', 'text-balance', 'line-clamp', 'ease-out', 'ease-in-out', 'ease-spring', 'layer-1', 'text-left', 'text-right', 'text-center', 'surface-sunk/60', 'fill-hover', 'glow', 'edge', 'chart', 'series', 'shadow', 'surface', 'line', 'ink', 'accent', 'frame', 'ground']);
+const NOT_TOKENS = new Set(['leading', 'trailing', 'fill', 'text', 'text-wrap', 'text-pretty', 'text-balance', 'line-clamp', 'ease-out', 'ease-in-out', 'ease-spring', 'layer-1', 'text-left', 'text-right', 'text-center', 'surface-sunk/60', 'fill-hover', 'glow', 'edge', 'chart', 'series', 'shadow', 'surface', 'line', 'ink', 'accent', 'frame', 'ground']);
 const SPECS = [...cards().map((c) => `${c.dir}/README.md`), ...PAGE_SPECS, ...walk('docs', /\.md$/), 'README.md', 'CONTRIBUTING.md'].filter((f) => fs.existsSync(path.join(ROOT, f)));
 for (const f of SPECS) {
   const md = read(f).replace(/```[\s\S]*?```/g, '');
@@ -253,6 +254,12 @@ for (const f of LAYERS) {
     if (!defined.has(m) && !LOCAL.test(m)) problems.push(`${f}: uses --${m}, which is not defined`);
   }
 }
+
+// ── A day is the reporting timezone's day ────────────────────────────────────────────────────────────
+// A date is cut to its calendar day by `dayOf`/`dayOfValue`, never to ten characters — an instant's UTC day (issue #144).
+const dayCut = dayCutFiles(LAYERS);
+for (const p of dayCutProblems(dayCut, read)) problems.push(`${p.file}:${p.line}: ${p.message}`);
+judged.push(['the day cut', dayCut.length]);
 
 // ── One implementation: a collection's rows are read through the collection ──────────────────────────
 // The covered fixtures are the names src/data/collections.ts passes as `rows:` (read from the file, so a product's own
@@ -408,7 +415,7 @@ let drift: string[] = [];
   }
   if (fs.existsSync(path.join(ROOT, '.meridian/keep.json'))) {
     try {
-      problems.push(...keepProblems(parseKeep(read('.meridian/keep.json')), { managed: new Set(Object.keys(effective?.files ?? {})), retired: retirements, exists: (p) => fs.existsSync(path.join(ROOT, p)) }).map((m) => `.meridian/keep.json: ${m}`));
+      problems.push(...keepProblems(parseKeep(read('.meridian/keep.json')), { managed: new Set(Object.keys(effective?.files ?? {})), retired: retirements }).map((m) => `.meridian/keep.json: ${m}`));
     } catch (e) {
       problems.push(`.meridian/keep.json: ${(e as Error).message}`);
     }

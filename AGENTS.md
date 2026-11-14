@@ -9,7 +9,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 <!-- END:nextjs-agent-rules -->
 
 <!-- BEGIN:zz-meridian-agent-rules -->
-# Built on ZZ Meridian 0.39.0
+# Built on ZZ Meridian 0.39.2
 
 Follow the zz-meridian skill in `.agents/skills/zz-meridian/SKILL.md`.
 Read `optional:docs/brief.md` for this team's product, users, data and decisions.
@@ -24,8 +24,7 @@ When it is absent, use the skill's brief template with the person's answers; do 
 - Test runs, and the only test commands: `pnpm test:t1` (the Tier 1 tests affected since the last green run),
   `pnpm test:t2` (the affected Tier 2 tests too) and `pnpm test:release` (every Tier 1 and Tier 2 test, lint and the
   type check). The tool picks the tests; never name one. Label every plan phase Tier 1, 2 or 3: Tier 1 phases use
-  `test:t1`, Tier 2 and Tier 3 phases use `test:t2`. A release in this repository is dispatching
-  `.github/workflows/release.yml` from master; `test:release` passes before it.
+  `test:t1`, Tier 2 and Tier 3 phases use `test:t2`. `test:release` passes before a release.
 - Agents in the product read through authorized collections and write only through an approved Proposal.
 <!-- END:zz-meridian-agent-rules -->
 

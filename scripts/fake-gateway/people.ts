@@ -8,7 +8,7 @@
  * `platform-teams.ts`'s and `platform-people.ts`'s.
  *
  * Two of them can be signed in, and the `zz_console` cookie's value says which: `ME`, a superadmin
- * in two teams, and `MEMBER`, one person in one team. `pnpm verify --as` signs a browser in as either
+ * in two teams, and `MEMBER`, one person in one team. The browser suites' `personas` sign a browser in as either
  * (`personas` in scripts/verify.config.ts).
  */
 import type { Me } from '../../src/lib/api-shapes.ts';
@@ -49,7 +49,7 @@ export const NO_SESSION = 'signed-out';
 /**
  * Who a request is from, by its `Cookie` header; null when it carries a session this fixture does not know.
  *
- * DELIBERATE: no `zz_console` cookie is the superadmin, not nobody. The default `pnpm verify` signs nobody in, and
+ * DELIBERATE: no `zz_console` cookie is the superadmin, not nobody. The default `pnpm test:t2` signs nobody in, and
  * every page it opens has to keep reading what it read when this fixture had one person.
  */
 export function signedIn(header: string | undefined): Me | null {

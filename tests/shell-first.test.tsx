@@ -61,7 +61,7 @@ import config from '../scripts/verify.config.ts';
 
 type Access = { only: string[]; user: { name: string; role: string }; team: string | null; caller: string };
 
-/** The rails `pnpm verify --as` expects of the fake's two people, read from its own personas. */
+/** The rails the browser suites' `personas` expect of the fake's two people, read from its own personas. */
 const { superadmin, member } = config.personas!;
 const SUPERADMIN: Access = { only: [...superadmin.expectedRoutes], user: { name: 'Ava', role: 'atlas' }, team: 'atlas', caller: 'ava@example.com' };
 const MEMBER: Access = { only: [...member.expectedRoutes], user: { name: 'Maya', role: 'atlas' }, team: 'atlas', caller: 'maya@example.com' };

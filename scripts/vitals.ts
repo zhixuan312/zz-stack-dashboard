@@ -26,9 +26,10 @@
  * left out as "not a product page" until it was measured once: every card page shifted 0.3 to 0.6 against the 0.1
  * floor, and nothing had been looking. `--list` prints the routes a run would visit and exits without a browser.
  *
- * Run it against a production build (`next start`), never `next dev`. Fails (exit 1) when a page's LCP is 2.5 s or more,
- * INP 200 ms or more, CLS 0.1 or more, or drops a frame. A page that meets a floor by less than a fifth of it (LCP over
- * 2 s, a frame over 40 ms) is a `warn` line and exits 0: a pass by a hair here is a red on a slower machine. The frames are a floor and not a figure to read: a person
+ * Run it against a production build (`next start`), never `next dev`. Every floor is Tier 2: a page over LCP 2.5 s,
+ * INP 200 ms, CLS 0.1 or one dropped frame is a `warn` line with its numbers, recorded for the run's table, and never a
+ * failure; so is a page that meets a floor by less than a fifth of it (LCP over 2 s, a frame over 40 ms). Only a page
+ * that answered as something other than the route exits 1. The frames are a floor and not a figure to read: a person
  * tapping the phone drawer is the app's most repeated gesture, and one 50 ms frame in it is the whole cost of the
  * drawer arriving late. It was reported and not failed until the rail stopped measuring itself inside that tap.
  */
@@ -40,6 +41,7 @@ import { DEEP_SOURCE } from './lib/deep.ts';
 import { frameCause, loafOf, type LoafEntry } from './lib/frame-cause.ts';
 import { measurePhone } from './lib/phone.ts';
 import { thin } from './lib/timing.ts';
+import { vitalsSummary } from './lib/report-lines.ts';
 import { discover } from './lib/routes.ts';
 import config from './verify.config.ts';
 import { holdArgs } from './lib/args.ts';
@@ -147,7 +149,7 @@ async function measure(route: string): Promise<Measured> {
   return { answer, lcp: v.lcp, cls: v.cls, moved, inp, slowest, tapped, frames, dropped, droppedBy, cause, longest, taps };
 }
 
-let failures = 0, warnings = 0;
+let failures = 0, overFloor = 0, nearFloor = 0;
 for (const route of ROUTES) {
   let m = await measure(route);
   // One dropped frame among two hundred is inside the noise of the machine this measures on, and the frame is not always
@@ -164,7 +166,8 @@ for (const route of ROUTES) {
   // page that answers as something other than the route (a failure of the page, not of its speed) fails the run.
   const bad = !!m.answer;
   if (bad) failures++;
-  else if (missed.length || near.length) warnings++;
+  else if (missed.length) overFloor++;
+  else if (near.length) nearFloor++;
   recordPart(ROOT, 'vitals', [
     { check: 'vitals.lcp', page: route, unit: 's', value: m.lcp / 1000 },
     { check: 'vitals.inp', page: route, unit: 'ms', value: m.inp },
@@ -175,5 +178,5 @@ for (const route of ROUTES) {
 }
 await page.send('Emulation.setCPUThrottlingRate', { rate: 1 });
 page.close();
-console.log(`\nvitals: ${ROUTES.length - failures} of ${ROUTES.length} pages under LCP 2.5 s, INP 200 ms, CLS 0.1 and no dropped frame on a mid-range phone${warnings ? `; ${warnings} within 20% of a floor` : ''}`);
+console.log(`\n${vitalsSummary(ROUTES.length, failures, overFloor, nearFloor)}`);
 process.exit(failures ? 1 : 0);

@@ -54,7 +54,7 @@ import { browserIn, servedIn, startFakeGateway } from './fake-gateway-start.ts';
 
 /**
  * Every ceiling drawn above it (Task I-127, AC-2.7): each page drawn from the fake gateway's own answer in the `extreme`
- * state, asked as `pnpm verify`'s sweep asks it, with the session value `superadmin+extreme`, so what is drawn here is
+ * state, asked as `pnpm test:t2`'s sweep asks it, with the session value `superadmin+extreme`, so what is drawn here is
  * what `scripts/states-check.ts` draws in a browser. Every table pages at ten (reconciliation 78) and says its total; a
  * second page holds other rows than the first, the same ones each time it is drawn; a list cut to a count says how many
  * it shows; and a series regrouped past 26 weeks is titled by the grain it arrives in. Task I-139 holds every other

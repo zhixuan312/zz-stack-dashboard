@@ -34,7 +34,7 @@ const { gatewayGet } = await import('../src/data/gateway.ts');
 /**
  * The fixture's own modes, which are what every state the console draws is checked against.
  *
- * `pnpm verify` runs `normal` only, so a mode that throws is a mode nothing notices — and this one
+ * `pnpm test:t2` runs `normal` only, so a mode that throws is a mode nothing notices — and this one
  * threw out of the request handler and killed the gateway process: every page after it reported
  * "cannot reach the platform", and the shape that caused it was the only thing the report did not
  * show. A transform reads an answer by its own idea of that route's shape, so a route that grows a
@@ -260,7 +260,7 @@ describe('every mode answers both people', () => {
     return gateway.base;
   }
 
-  /** Each person by the cookie `pnpm verify --as` sends for them; the superadmin also as the default run asks, with none. */
+  /** Each person by the cookie the browser suites' `personas` send for them; the superadmin also as the default run asks, with none. */
   const PEOPLE: [name: string, role: string, cookie: string | null][] = [
     ['no cookie', 'superadmin', null],
     ['superadmin', 'superadmin', config.personas!.superadmin.cookie.value],

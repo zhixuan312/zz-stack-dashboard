@@ -8,7 +8,7 @@
  * said nothing: a page saw the newer snapshot only if a focus refetch happened to ask, which is how
  * scripts/approve-banners.ts came to wait on one that ZZ Meridian's 0.18.0 stream no longer causes.
  *
- * A rename is the asking session's because `verify` runs scripts/live-check.ts beside every other suite against one
+ * A rename is the asking session's because the browser suites run scripts/live-check.ts beside every other suite against one
  * fake: a rename every session saw was a changed name in states-check's captures, with no unavailable words beside it.
  *
  * Spawned rather than imported, as fake-gateway-server.test.ts is: the timer and the hook are what the server does

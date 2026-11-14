@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState, type KeyboardEvent } from 'react';
 import { Readout } from '../readout';
 import { cn } from '../../../lib/cn';
+import { dayOf } from '../../../lib/format-date';
 import { heldTicks } from '../scale';
 import { useSize } from '../use-size';
 
@@ -66,7 +67,8 @@ export function IntervalTimeline({
     const shown = width === 0 ? levels : width < 640 ? [levels[0], levels[Math.floor(levels.length / 2)], levels[levels.length - 1]] : levels;
     return [...new Set(shown)];
   }, [from, to, valid, width]);
-  const nowAt = now === undefined ? null : at(now);
+  // A moment outside the window is not drawn: the line belongs to the plot, and an open run must not run off it.
+  const nowAt = now === undefined ? null : (() => { const p = at(now); return p !== null && p >= 0 && p <= 100 ? p : null; })();
 
   // Every run in the order it starts, so one Tab stop on the plot steps through them: a keyboard user reads the same
   // runs the pointer finds, each named by its row, its times and its length.
@@ -84,7 +86,7 @@ export function IntervalTimeline({
   };
   const pointing = active !== null && active < ordered.length ? ordered[active] : null;
   // An instant as the axis reads it, and a run's length in words: both are used by the axis and by every run's name.
-  const read = useCallback((iso: string) => (tick ? tick(iso) : iso.slice(0, 10)), [tick]);
+  const read = useCallback((iso: string) => (tick ? tick(iso) : dayOf(iso)), [tick]);
   const words = useCallback((run: TimelineRun) => {
     const a = ms(run.from), b = run.to === null ? null : ms(run.to);
     const s = a === null || b === null ? null : Math.max(0, Math.round((b - a) / 1000));
@@ -98,8 +100,11 @@ export function IntervalTimeline({
     <div ref={box} className={cn('flex flex-col gap-2', className)}>
       {valid ? (
         <>
-          <div aria-hidden className="relative ml-[minmax(0,1fr)] h-4">
-            {nowAt !== null ? <span data-now className="absolute top-0 bottom-0 w-px bg-accent" /> : null}
+          <div aria-hidden className="grid grid-cols-[minmax(0,1fr)_minmax(0,3fr)] gap-x-3">
+            <span />
+            <div className="relative h-4">
+              {nowAt !== null ? <span data-now className="absolute inset-y-0 w-px bg-accent" style={{ left: `${nowAt}%` }} /> : null}
+            </div>
           </div>
           <ul aria-label={label} className="flex flex-col gap-2">
             {rows.map((row) => (
@@ -148,7 +153,7 @@ export function IntervalTimeline({
                       words are the only place a reader learns which run it is. It sits in this row's own plot, so its `at`
                       is a pixel of the width that plot was drawn at, not a share of the chart. */}
                   {pointing && pointing.k >= 0 && rows.findIndex((r) => r.key === pointing.row.key) === rows.indexOf(row) ? (
-                    <Readout at={((at(pointing.run.to ?? now ?? pointing.run.from) ?? 0) / 100) * width} after={false} top={0} visible>
+                    <Readout percent={at(pointing.run.to ?? now ?? pointing.run.from) ?? 0} after={false} top={0} visible>
                       <p className="t-eyebrow mb-0.5 break-words">{pointing.row.label}</p>
                       <p className="text-xs text-ink">{pointing.run.label}</p>
                       <p className="t-num text-2xs text-ink-2">{words(pointing.run)}</p>

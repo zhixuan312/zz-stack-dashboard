@@ -29,7 +29,7 @@ import { browserIn, serverReadIn, startFakeGateway } from './fake-gateway-start.
 
 /**
  * Work's pages in the states no other test drew (Task I-126, AC-2.9), each drawn from the fake gateway's own answer in
- * that state, asked as `pnpm verify`'s sweep asks it: the session value `<person>+<state>` (scripts/fake-gateway/
+ * that state, asked as `pnpm test:t2`'s sweep asks it: the session value `<person>+<state>` (scripts/fake-gateway/
  * states-partial.ts). So what is drawn here is what `scripts/states-check.ts` draws in a browser. A route's loading state
  * is its `loading.tsx`, which is what a person sees while the console's server reads; a page whose reads are the
  * browser's is drawn with its read unanswered.

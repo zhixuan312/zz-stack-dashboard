@@ -1,6 +1,6 @@
 /**
  * Every rail route and every detail route drawn in a browser in each of the spec's five states and above every ceiling,
- * as each person: one of verify's `browserChecks` (Tasks I-126 and I-127; spec AC-2.9, AC-2.7 and AC-1.8).
+ * as each person: one of the browser suites' `browserChecks` (Tasks I-126 and I-127; spec AC-2.9, AC-2.7 and AC-1.8).
  *
  *   node scripts/states-check.ts [--base http://localhost:3100] [--as superadmin,member] [--states normal,empty]
  *                                [--routes /,/record] [--workers 4]   (under verify: VERIFY_BROWSERS)
@@ -28,7 +28,7 @@
  *   slow     loading, a refusal or the content in the first frame the main region paints, and an explicit state on
  *            screen before the page is read: the content, a refusal or an error. Whether, never when: `SETTLE_MS` is
  *            the window a page is given to settle in, not a bound, since this runs under the other suites' load. The
- *            five-second bound is scripts/states-timed.ts's, which verify runs alone in its timed tier.
+ *            five-second bound is scripts/states-timed.ts's, which `pnpm test:release` runs alone with the timed suites.
  *   partial  every part that answered still drawn: the normal page's headings the page lost are one run, the part that
  *            failed, and not all of them; and, where the page changed at all, words saying what is unavailable.
  *   extreme  a busy platform, every answer past its ceiling (scripts/fake-gateway/states-extreme.ts): the route's own
@@ -38,8 +38,7 @@
  *            teams made (`EXTREME_EXPECTS`).
  *
  * In every state no page is still loading once read, none is the console's error page, and none raised an uncaught
- * exception — but for the one the streaming runtime throws, tolerated only while that same load proves it recovered
- * (`toleratedStreamingThrow`, zhixuan312/zz-meridian#143). In `normal`, `empty` and `partial` no figure the answer sent
+ * exception. In `normal`, `empty` and `partial` no figure the answer sent
  * as null is drawn as a zero: each page is opened a second time with the fake answering every such figure as a number
  * no fixture holds (`__nulls`), and a zero that
  * turns into a number between the two is a zero the page made up. As the member, no page body in any state holds the
@@ -65,7 +64,7 @@ const chosenStates = named('states-check', args, '--states', STATES);
 const states = STATES.filter((s) => !chosenStates || chosenStates.has(s));
 const chosenPeople = named('states-check', args, '--as', Object.keys(config.personas ?? {}));
 export const people = Object.entries(config.personas ?? {}).filter(([name]) => !chosenPeople || chosenPeople.has(name));
-// The pool is the number of browsers verify holds for this check (`VERIFY_BROWSERS`, from its `browserChecks` entry in
+// The pool is the number of browsers the browser suites hold for this check (`VERIFY_BROWSERS`, from its `browserChecks` entry in
 // scripts/verify.config.ts); run by hand, `--workers` or four.
 const workers = Math.max(1, Number(opt('--workers', process.env.VERIFY_BROWSERS ?? '4')) || 4);
 
@@ -92,7 +91,7 @@ const LEAKS = [
  * How long a page has to settle once opened: the window it is read in, which is no bound on any state. It holds a page
  * whose server read and then a browser read of its own each take the fake's slowest `slow` delay, and one such delay
  * more for a loaded machine: a document's Approve is busy for its browser read after the page drew (Harbormaster #3909
- * read one still busy at 12 s, 8 s by construction, under a full verify's load).
+ * read one still busy at 12 s, 8 s by construction, under a full browser run's load).
  */
 export const SETTLE_MS = 3 * SLOW_MS;
 
@@ -152,8 +151,6 @@ type Seen = {
   tables: Table[]; years: number; legend: string[];
   frames: Frames;
   exceptions: string[];
-  /** Streamed segments still held in their hidden place-holder: a page that did not finish placing them. */
-  buffers: number;
   /** Whether two matching reads were seen inside the window; an unsettled page is never compared with another. */
   settled: boolean;
   /** What was still moving when the window ran out: the words, a script, or the page's own loading state. */
@@ -176,8 +173,7 @@ async function visit(page: Page, t: Target, value: string): Promise<Seen> {
       const spec = ${JSON.stringify({ ready: t.ready, text: t.text })};
       return { now: performance.now(), text: main()?.innerText ?? '', body: document.body.innerText, loading: loading(), busy: busy(), content: content(spec), refusal: refusal(), alert: alert(), errorPage: errorPage(),
         tables: tables(), years: years(), legend: legend(),
-        headings: [...document.querySelectorAll('main h2, main h3')].filter(shown).map((h) => h.textContent.trim()).filter(Boolean), frames: window.__states,
-        buffers: document.querySelectorAll('div[hidden][id^="S:"]').length };
+        headings: [...document.querySelectorAll('main h2, main h3')].filter(shown).map((h) => h.textContent.trim()).filter(Boolean), frames: window.__states };
     })()`);
     let seen = await read();
     // Settled is two reads in a row, a quarter of a second apart, with nothing loading, the same words in the main
@@ -369,34 +365,6 @@ type Row = { who: string; state: State; t: Target; problems: string[]; said: str
 const rows: Row[] = [];
 const normals = new Map<string, Seen>();
 
-/** The parts of a load this file's one tolerance reads: what was thrown, and whether the page finished placing it. */
-export type StreamLoad = Pick<Seen, 'exceptions' | 'buffers' | 'loading' | 'errorPage' | 'text' | 'settled'>;
-
-/** React's streaming helper, swapping a placeholder a deferred boundary flush has already removed. Exact, nothing else. */
-const RS_THROW = /^exception: TypeError: Cannot read properties of null \(reading 'parentNode'\)$/;
-let tolerated = 0;
-
-/**
- * The one uncaught error this check tolerates, and only while the same load proves it recovered. React's inline
- * streaming helper `$RS` throws when the placeholder it was told to fill has already been removed; the content still
- * arrives, because the deferred flush holds the buffered element and places its children itself. It is a defect in
- * React's streaming runtime, not in this product — zhixuan312/zz-meridian#143 — so the tolerance names that issue and is
- * deleted in the same change that moves to the React/Next version that fixes it.
- *
- * Narrow on purpose: the message must be exactly that one, the stack must name `$RS`, and nothing else may have thrown.
- * The recovery proof is that load's own: no streamed segment left in its hidden place-holder, nothing still loading, not
- * the console's error page, and the content it draws — compared with the healthy read where the state draws that
- * content, and otherwise only required to be there at all. If recovery fails, the load fails.
- */
-export function toleratedStreamingThrow(x: StreamLoad, health?: Pick<Seen, 'text'>): boolean {
-  const thrown = x.exceptions.filter((e) => e.startsWith('exception:'));
-  const fromRs = x.exceptions.some((e) => e.startsWith('behind:') && /\$RS\b/.test(e));
-  if (thrown.length !== 1 || !RS_THROW.test(thrown[0]) || !fromRs) return false;
-  const settled = x.settled && x.buffers === 0 && !x.loading && !x.errorPage;
-  const drawn = health ? digitless(x.text) === digitless(health.text) : x.text.trim().length > 0;
-  return settled && drawn;
-}
-
 /** What one route, person and state drew, judged. */
 function judge(who: string, state: State, t: Target, x: Seen, standing: Seen | null): Row {
   const persona = config.personas![who];
@@ -409,12 +377,7 @@ function judge(who: string, state: State, t: Target, x: Seen, standing: Seen | n
   const problems: string[] = [];
   const said: string[] = [];
   if (!x.settled) problems.push(`did not settle within the ${SETTLE_MS / 1000} s a page is given (still ${x.changing})`);
-  if (x.exceptions.length) {
-    // Held to the healthy read's content where that state draws the route's own; every other state is held to "something
-    // was drawn" and keeps its own rule below.
-    if (toleratedStreamingThrow(x, state === 'extreme' ? normal : undefined)) { tolerated++; said.push('tolerated $RS'); }
-    else problems.push(`raised ${x.exceptions.slice(0, 2).join(' | ')}`);
-  }
+  if (x.exceptions.length) problems.push(`raised ${x.exceptions.slice(0, 2).join(' | ')}`);
   if (x.errorPage) problems.push('drew the console\'s error page');
   if (x.loading) problems.push(`still loading ${SETTLE_MS / 1000} s after it opened (${x.busy})`);
   if (who === 'member') {
@@ -511,6 +474,6 @@ if (import.meta.main) {
 
   for (const r of rows) for (const p of r.problems) failures.push(`${r.t.path} as ${r.who} in ${r.state}: ${p}`);
   for (const f of failures) console.log(`FAIL  ${f}`);
-  console.log(`\nstates: ${rows.length} route, person and state rows; ${rows.filter((r) => r.problems.length).length} failed; tolerated $RS: ${tolerated}; slowest settle: ${(Math.max(0, ...rows.map((r) => r.settleMs)) / 1000).toFixed(1)} s`);
+  console.log(`\nstates: ${rows.length} route, person and state rows; ${rows.filter((r) => r.problems.length).length} failed; slowest settle: ${(Math.max(0, ...rows.map((r) => r.settleMs)) / 1000).toFixed(1)} s`);
   process.exit(failures.length || !rows.length ? 1 : 0);
 }

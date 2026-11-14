@@ -41,7 +41,7 @@ export function canonicalSurface(surface: string | null): string | null {
 }
 
 /** A report filed `at` hours into the week `week` weeks before the running one, and resolved `resolvedAfter` hours
- *  later. Every report is in a week that has ended, so the cohorts hold the same reports whatever day verify runs. */
+ *  later. Every report is in a week that has ended, so the cohorts hold the same reports whatever day the browser suites run. */
 const HOUR = 3_600_000;
 /** The running week's start, as the status fixture's weeks have it. */
 const RUNNING = Date.parse(PLATFORM_STATUS.measures.find((m) => m.key === 'malformed_per_1000')!.weeks.at(-1)!.window.from);

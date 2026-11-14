@@ -70,7 +70,7 @@ export type NavGroup = { label?: string; items: NavItem[] };
  * addresses are gone and draw the missing page (AC-1.12). The rail draws exactly the destinations the server answered,
  * with nothing in the browser to narrow them.
  *
- * A tool reads this to know which routes exist: `scripts/lib/routes.ts` walks it for verify's navigation smoke and
+ * A tool reads this to know which routes exist: `scripts/lib/routes.ts` walks it for the browser suites' navigation smoke and
  * `--full`'s mapping.
  */
 export const nav: NavGroup[] = [

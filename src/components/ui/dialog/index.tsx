@@ -57,7 +57,7 @@ export function DialogContent({
             <D.Title className="t-section">{title}</D.Title>
             {description ? <D.Description className="t-small mt-1.5 text-ink-2">{description}</D.Description> : null}
           </div>
-          <D.Close aria-label="Close" className="press -mt-0.5 -mr-2 grid size-8 place-items-center rounded-md text-ink-3 hover:bg-fill-hover hover:text-ink">
+          <D.Close aria-label="Close" className="press hit -mt-0.5 -mr-2 grid size-8 place-items-center rounded-md text-ink-3 hover:bg-fill-hover hover:text-ink">
             <X className="size-4" />
           </D.Close>
         </div>

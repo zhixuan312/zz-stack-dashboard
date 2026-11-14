@@ -299,7 +299,15 @@ async function main(): Promise<number> {
   let problems: string[] = [];
   try {
     await prepare(page);
-    const { starts, drawn } = await drawerRoutes(page, base, rail.routes);
+    const { starts, drawn, redirected } = await drawerRoutes(page, base, rail.routes);
+    // Every route answered by one page outside the console is a wall in front of the whole product, not a route that never
+    // becomes ready: name the redirect before any route is judged, since no rail route can be the fault.
+    if (redirected !== undefined) {
+      const reason = `every rail route redirected to ${redirected}: is sign-in on for this build?`;
+      console.log(`FAIL    navigate: ${reason}`);
+      summary({ mode, status: 'FAIL', routes, errors: [reason] });
+      return 1;
+    }
     // A project that configures a check somewhere has said where its presses go: a route it leaves out is a gap in its
     // own coverage, and one with no other route to start a journey from is a red, as it always was.
     const configured = checks.length > 0;

@@ -3691,6 +3691,7 @@
     }
   ],
   "retired": [],
+  "keptDeletions": [],
   "validation": [
     {
       "command": "pnpm install",

@@ -14,7 +14,7 @@ const WINDOW = 'A window holds complete days of the reporting time zone, so toda
 
 const events: Source = {
   collection: 'audit', date: 'at',
-  filters: { kind: { ops: ['eq'] }, team: { ops: ['eq'] } }, facets: ['kind', 'team'], buckets: ['day', 'week', 'month', 'weekday'],
+  filters: { kind: { ops: ['eq'], type: 'text' }, team: { ops: ['eq'], type: 'text' } }, facets: ['kind', 'team'], buckets: ['day', 'week', 'month', 'weekday'],
   measures: { events: { label: 'Events', unit: 'events', definition: 'Recorded events in the window, page views left out, platform maintenance included.', agg: 'count' } },
   drill: { columns: ['id', 'at', 'kind', 'team', 'actor', 'subject', 'ok', 'refusalOwner'], address: () => PAGE },
   none: { team: 'no team' },

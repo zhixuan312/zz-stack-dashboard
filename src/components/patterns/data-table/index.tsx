@@ -311,8 +311,11 @@ export function DataTable<R>({
     );
   } else {
     const roleOf = (c: Column<R>): Mobile => (c === titleColumn ? 'title' : c === status ? 'status' : facts.includes(c) ? 'fact' : 'hidden');
+    // On a phone the head is visually hidden but stays in the accessibility tree: each th is sr-only, and the row is
+    // display: contents so its grid box and border draw nothing (a bare sr-only row left a 36px band). A sortable head
+    // hands its label over as text and draws no button there, so the clipped head is never a tab stop nobody can see.
     body = (
-      <Table caption={caption} aria-busy={loading || busy || undefined} className={cn('@max-[640px]:block @max-[640px]:[&>thead]:hidden @max-[640px]:[&>tbody]:block', CELLS, selectable && SELECT, PHONE_ROWS, PHONE_CELLS, PHONE_ROLES, '[&>tbody]:transition-opacity [&>tbody]:duration-(--dur-hover)', busy && '[&>tbody]:opacity-60')}>
+      <Table caption={caption} aria-busy={loading || busy || undefined} className={cn('@max-[640px]:block @max-[640px]:[&_th]:sr-only @max-[640px]:[&>thead>tr]:contents @max-[640px]:[&>tbody]:block', CELLS, selectable && SELECT, PHONE_ROWS, PHONE_CELLS, PHONE_ROLES, '[&>tbody]:transition-opacity [&>tbody]:duration-(--dur-hover)', busy && '[&>tbody]:opacity-60')}>
         <TableHead>
           <tr role="row">
             {selectable ? (
@@ -321,7 +324,7 @@ export function DataTable<R>({
               </th>
             ) : null}
             {columns.map((c) => (
-              <TableHeader key={c.key} align={c.align ?? (c.numeric ? 'right' : 'left')} hideBelow={c.hideBelow} grow={c.grow} className={c.width} sort={c.sortValue ? dirOf(c) : undefined} onSort={c.sortValue ? () => toggleSort(c) : undefined}>
+              <TableHeader key={c.key} align={c.align ?? (c.numeric ? 'right' : 'left')} hideBelow={c.hideBelow} grow={c.grow} className={c.width} sort={c.sortValue ? dirOf(c) : undefined} onSort={c.sortValue ? () => toggleSort(c) : undefined} clipOnPhone>
                 {c.header}
               </TableHeader>
             ))}
@@ -394,6 +397,9 @@ export function DataTable<R>({
       {title ? <CardHeader title={title} description={description} actions={actions} divided={!toolbar} /> : null}
       {toolbar ? <div className="px-(--card-pad) py-3.5 md:border-b md:border-line">{toolbar}</div> : null}
       {body}
+      {/* The footer stays while any offered size could split the rows: hiding it at total <= size unmounted the size
+          control the person had just used, with no way back to a smaller page. The page navigation itself is hidden at
+          one page by Pagination. */}
       {!error && total > (manual ? size : Math.min(size, ...pageSizes)) ? (
         <div className="border-t border-line px-(--card-pad) py-2.5">
           <Pagination

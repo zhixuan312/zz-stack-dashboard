@@ -50,7 +50,7 @@ import { runs } from '../scripts/fake-gateway/work-runs.ts';
 
 /**
  * What every view tells the assistant is the data's (decision 0011): each context is built from the fake gateway's own
- * fixtures, the ones `pnpm verify` serves the pages, and its figures are checked against those rows. A context whose
+ * fixtures, the ones `pnpm test:t2` serves the pages, and its figures are checked against those rows. A context whose
  * number disagreed with its page would have the assistant quote a figure the person cannot find on the screen.
  *
  * Every context is also held to its budget. A view's context is the whole state every turn, so it may not grow with

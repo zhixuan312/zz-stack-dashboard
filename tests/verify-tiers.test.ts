@@ -4,10 +4,10 @@ import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
 /**
- * The console's verify configuration in ZZ Meridian 0.18.0's tiers (Task I-142; AC-8.7, AC-2.9, AC-8.3).
+ * The console's browser-suite configuration in ZZ Meridian's tiers (Task I-142; AC-8.7, AC-2.9, AC-8.3).
  *
- * `pnpm verify --full` runs `browserChecks` beside the audit, the presses and the keyboard walk, and judges no time;
- * `pnpm verify --timed` runs `timedChecks` alone and one at a time. So a check that judges a time is in `timedChecks`
+ * `pnpm test:t2` runs `browserChecks` beside the audit, the presses and the keyboard walk, and judges no time;
+ * `pnpm test:release` runs `timedChecks` alone and one at a time. So a check that judges a time is in `timedChecks`
  * and nowhere else, and the half of one that judges no time stays in `browserChecks`. The fake model's one step asks
  * the assistant the Work guide's task 4 phrase through the search the Knowledge page hands it, and Access's toggle
  * probe reads the row its Revoke changes, which 0.18.0 reads whole.
@@ -29,14 +29,14 @@ const handedOn = (page: string) => [...viewTools.map((v) => `view_${v.name}`), `
 /** Each browser check's script: an entry is a script, or a script with the browsers it holds at once (ZZ Meridian 0.26.0). */
 const BROWSER = (config.browserChecks ?? []).map((c) => (typeof c === 'string' ? c : c.script));
 
-describe("the console's verify tiers", () => {
+describe("the console's browser-suite tiers", () => {
   it('runs the checks that judge a time in timedChecks alone, and nowhere else', () => {
     expect(config.timedChecks).toEqual(['scripts/primary-data.ts', 'scripts/states-timed.ts']);
     for (const script of config.timedChecks!) expect(BROWSER, script).not.toContain(script);
   });
 
   it('keeps the halves that judge no time in browserChecks, which --full runs', () => {
-    // The states check pools its browsers, so its entry says how many verify holds for it, and the check is told the same.
+    // The states check pools its browsers, so its entry says how many the browser suites hold for it, and the check is told the same.
     expect(config.browserChecks).toContainEqual({ script: 'scripts/states-check.ts', browsers: 4 });
     expect(BROWSER).toContain('scripts/journeys.ts');
     for (const script of [...BROWSER, ...config.timedChecks!]) expect(fs.existsSync(path.join(import.meta.dirname, '..', script)), script).toBe(true);

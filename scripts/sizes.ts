@@ -39,6 +39,7 @@ import { gzipSync } from 'node:zlib';
 
 import { FIRST_LOAD_CAP_KB, budgetsOf, type BudgetsConfig } from './lib/budgets.ts';
 import { distDirOf } from './lib/next-config.ts';
+import { verdictTag } from './lib/report-lines.ts';
 import { firstLoad, firstLoadProblems, htmlGrowthProblems, htmlNodeMismatch, htmlProblems, htmlRoutes, KIB, kib, sizeBaselineOwned } from './lib/sizes.ts';
 import verifyConfig from './verify.config.ts';
 import { holdArgs } from './lib/args.ts';
@@ -185,7 +186,7 @@ async function main(): Promise<number> {
   const largestPage = Object.entries(html.sizes).sort((a, b) => b[1] - a[1])[0];
   lines.push(html.status === 'not run'
     ? `not run html ${html.reason}`
-    : `${html.status === 'warn' ? 'warn   ' : 'ok     '} html ${Object.keys(html.sizes).length} pages gzipped${largestPage ? `, largest ${largestPage[0]} ${(largestPage[1] / KIB).toFixed(1)} KiB` : ''}`
+    : `${verdictTag(html.status)} html ${Object.keys(html.sizes).length} pages gzipped${largestPage ? `, largest ${largestPage[0]} ${(largestPage[1] / KIB).toFixed(1)} KiB` : ''}`
       + (html.unjudged ? ` · growth not judged (${html.unjudged})`
         : ` · growth ${html.growth === 'checked' ? (html.overAllowance ? `over ${budgets.htmlGrowthPct}% of the baseline` : `within ${budgets.htmlGrowthPct}% of the baseline`) : 'not-configured (no html in scripts/verify.baseline.json: node scripts/sizes.ts --write-baseline --base <url>)'}`)
       + ` · cap ${html.overCap ? 'exceeded' : 'held'}`

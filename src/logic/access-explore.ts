@@ -9,7 +9,7 @@ import type { PreparedQuery, Source } from '@/lib/explore';
 
 const tokens: Source = {
   collection: 'tokens', date: 'createdAt',
-  filters: { state: { ops: ['eq'], values: ['live', 'revoked'] }, application: { ops: ['eq'] } },
+  filters: { state: { ops: ['eq'], type: 'text', values: ['live', 'revoked'] }, application: { ops: ['eq'], type: 'text' } },
   facets: ['state', 'application'], buckets: ['week', 'month'],
   measures: { tokens: { label: 'Tokens', unit: 'tokens', definition: 'The caller\'s own platform tokens issued in the window, live or revoked.', agg: 'count' } },
   drill: { columns: ['id', 'label', 'state', 'application', 'createdAt', 'lastUsedAt'], address: () => '/access' },

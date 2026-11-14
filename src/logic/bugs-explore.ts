@@ -13,7 +13,7 @@ import { BUG_IMPACTS, BUG_STATES } from './platform-bugs-context';
 import { platformCalls } from './tools/sources';
 
 const DAYS = ['day', 'week', 'month', 'weekday'] as const;
-const eq = { ops: ['eq'] as ['eq'] };
+const eq = { ops: ['eq'] as ['eq'], type: 'text' as const };
 const WINDOW = 'A window holds complete days of the reporting time zone, so today is in none.';
 const CHOICE = 'A report is filed by choice: a count of reports is not a count of distinct defects, and fewer is not better.';
 const FORM = 'As the queue answers the caller: a member reads each report by its public title, which names only the surface it concerns, never its own words or its team.';

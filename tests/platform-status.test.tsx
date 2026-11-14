@@ -34,7 +34,7 @@ import PlatformStatusLoading from '../app/(dash)/platform/loading';
 /**
  * The Platform workspace's Status page: what needs attention, the paired figures, the reader's own team's share, the
  * scoreboard, the doors and what is running, all drawn from the read the page makes on the console's server. The figures
- * come from the fake gateway's own answer, the one `pnpm verify` serves the page, and each state is that answer with
+ * come from the fake gateway's own answer, the one `pnpm test:t2` serves the page, and each state is that answer with
  * one part changed, as the gateway would answer it.
  */
 // The fake states the six a route states; every hand-off below reads an answer, so it is completed once here.

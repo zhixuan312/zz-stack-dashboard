@@ -49,7 +49,7 @@ import { settled } from './server-tree.tsx';
 import { browserReads, browserStub } from './browser.ts';
 
 /**
- * Record as the person reads it (Task I-105, AC-5.3), drawn from the fake gateway's own answers, the ones `pnpm verify`
+ * Record as the person reads it (Task I-105, AC-5.3), drawn from the fake gateway's own answers, the ones `pnpm test:t2`
  * serves the page: the lead as of its cutoff, the period control reading another period in the browser, the six slices
  * each labelled with its period, the year of days, the record paged at ten, and every state. The fixture's periods
  * move with the day it is run, so every date and count here is read off its own answer.

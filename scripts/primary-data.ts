@@ -1,6 +1,6 @@
 /**
  * The time until a page's own data can be read, beside its largest paint, per route and per person, on a mid-range
- * phone: one of verify's `timedChecks`, which `pnpm verify --timed` runs alone and one at a time, after the live data and
+ * phone: one of the browser suites' `timedChecks`, which `pnpm test:release` runs alone and one at a time, after the live data and
  * before Web Vitals, since a time taken beside the other suites measures their load.
  *
  *   node scripts/primary-data.ts [--base http://localhost:3100] [--routes /,/record] [--as superadmin,member]

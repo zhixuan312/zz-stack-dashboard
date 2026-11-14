@@ -21,13 +21,9 @@
     "registry": "node scripts/registry.ts",
     "check": "node scripts/check.ts",
     "contrast": "node scripts/contrast.ts",
-    "audit": "node scripts/audit.ts",
-    "interactions": "node scripts/interactions.ts",
     "shot": "node scripts/shot.ts",
     "brand": "node scripts/brand.ts",
-    "fake-gateway": "node scripts/fake-gateway/server.ts",
-    "keyboard": "node scripts/keyboard.ts",
-    "vitals": "node scripts/vitals.ts"
+    "fake-gateway": "node scripts/fake-gateway/server.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "4.0.82",

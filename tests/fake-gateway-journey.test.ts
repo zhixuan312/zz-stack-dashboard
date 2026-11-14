@@ -12,7 +12,7 @@ import { asking, startFakeGateway } from './fake-gateway-start.ts';
  * A journey's writes are its own (reconciliation 80): a session value `<person>+journey` keeps the writes that session
  * makes, and that session's next reads show them; every other session forgets every write, as the fixture always has.
  *
- * One fixture process, as `pnpm verify` runs one: a journey session writes each of the five writes a guide's task makes
+ * One fixture process, as `pnpm test:t2` runs one: a journey session writes each of the five writes a guide's task makes
  * (an approval, a close, a bug's resolution, a person added, a token issued) and reads them back, while a plain session
  * of the same person, and the other person's journey, read exactly what they read before any of it.
  */

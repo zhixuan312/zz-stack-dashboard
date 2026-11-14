@@ -13,7 +13,7 @@ import { answered } from '../scripts/fake-gateway/envelope.ts';
 import { ME as SUPERADMIN } from '../scripts/fake-gateway/people.ts';
 
 /**
- * A team's page draws the team's own read: the fake gateway's answer for atlas, the one `pnpm verify` serves, as the
+ * A team's page draws the team's own read: the fake gateway's answer for atlas, the one `pnpm test:t2` serves, as the
  * console's server hands it. Its tiles, its calls by week and its members are that read's, and each write it makes is
  * the console's existing settings route, called as Settings called it, with the gateway's refusal said beside the
  * control that made it.

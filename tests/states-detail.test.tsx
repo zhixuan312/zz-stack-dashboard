@@ -48,7 +48,7 @@ import { browserIn, serverReadIn, startFakeGateway } from './fake-gateway-start.
  * The detail pages Task I-126's states check found drawing something other than an explicit state (Task I-133, AC-2.9):
  * a skill page whose view the console's server chose by calling into a client module, a document drawing a skeleton
  * beside its error and its not-found state, and a lesson with no text drawing a blank panel. Each is drawn from the fake
- * gateway's own answer in that state, asked as `pnpm verify`'s sweep asks it (`zz_console=<person>+<state>`).
+ * gateway's own answer in that state, asked as `pnpm test:t2`'s sweep asks it (`zz_console=<person>+<state>`).
  */
 let base = '';
 let stop = () => {};
@@ -123,7 +123,7 @@ describe('a document, read on the console\'s server', () => {
     expect(read.state).toBe('failed');
     await draw('no-such-document.md', { state: 'missing', reason: read.state === 'failed' ? read.reason : '' });
     expect(await screen.findByText('This document does not exist')).toBeInTheDocument();
-    // The not-found screen, which verify's missingRoutes and the page-view recorder both read.
+    // The not-found screen, which the browser suites' missingRoutes and the page-view recorder both read.
     expect(screen.getByText('This document does not exist').closest('[data-missing-page]')).not.toBeNull();
     noPlaceholder();
   });

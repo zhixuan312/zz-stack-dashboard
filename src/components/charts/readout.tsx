@@ -9,9 +9,11 @@ import { useSize } from './use-size';
  * itself, because a fixed side-switch cannot keep long labels inside a narrow chart. Under 640px it pins to the leading
  * edge, so it stays still while a finger moves between points.
  */
-export function Readout({ at, after, top = 0, visible = true, children }: {
+export function Readout({ at = 0, percent, after, top = 0, visible = true, children }: {
   /** Where the point is, in pixels from the chart's leading edge. */
-  at: number;
+  at?: number;
+  /** Where the point is, as a share of the readout's own container: for a plot that is narrower than the figure. */
+  percent?: number;
   /** Stand after the point, or before it. */
   after: boolean;
   top?: number;
@@ -36,7 +38,7 @@ export function Readout({ at, after, top = 0, visible = true, children }: {
       style={{
         top,
         minWidth: 'min(100%, calc(var(--space-1) * 36))',
-        '--readout-cursor': `${at}px`,
+        '--readout-cursor': percent === undefined ? `${at}px` : `${percent}%`,
         // ResizeObserver gives the content box; the readout also has space-3 on each side.
         '--readout-width': `calc(${size.width}px + var(--space-3) * 2)`,
         left: size.width ? `clamp(0px, ${preferred}, calc(100% - var(--readout-width)))` : 0,

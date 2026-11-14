@@ -123,6 +123,7 @@ export function TableHeader({
   hideBelow,
   sort,
   onSort,
+  clipOnPhone,
   grow,
   children,
   ...rest
@@ -131,6 +132,11 @@ export function TableHeader({
   hideBelow?: Breakpoint;
   sort?: SortDirection;
   onSort?: () => void;
+  /**
+   * The head is clipped to the accessibility tree below 640px (a DataTable's card layout). The label then stands as the
+   * head's own text and the sort button is not drawn: a control inside the clipped head is a tab stop nobody can see.
+   */
+  clipOnPhone?: boolean;
   /** The record's name: the one column with a floor, so it is the last to be cut. */
   grow?: boolean;
 }) {
@@ -160,20 +166,24 @@ export function TableHeader({
       {...rest}
     >
       {sortable ? (
-        <button
-          type="button"
-          onClick={onSort}
-          className={cn(
-            'group/sort hit -mx-1.5 inline-flex h-7 items-center gap-1 rounded-xs px-1.5 transition-colors hover:bg-fill-hover hover:text-ink',
-            sort && 'text-ink',
-            align === 'right' && 'flex-row-reverse',
-            align === 'center' && 'relative',
-          )}
-        >
-          {children}
-          {/* Centred, the arrow hangs outside the label so the label centres over its cells. */}
-          <Icon className={cn('size-3 shrink-0', align === 'center' && 'absolute -right-3', sort ? 'text-accent-ink' : 'opacity-0 group-hover/sort:opacity-100 group-focus-visible/sort:opacity-100')} strokeWidth={2.25} />
-        </button>
+        <>
+          {clipOnPhone ? <span className="hidden @max-[640px]:inline">{children}</span> : null}
+          <button
+            type="button"
+            onClick={onSort}
+            className={cn(
+              'group/sort hit -mx-1.5 inline-flex h-7 items-center gap-1 rounded-xs px-1.5 transition-colors hover:bg-fill-hover hover:text-ink',
+              sort && 'text-ink',
+              align === 'right' && 'flex-row-reverse',
+              align === 'center' && 'relative',
+              clipOnPhone && '@max-[640px]:hidden',
+            )}
+          >
+            {children}
+            {/* Centred, the arrow hangs outside the label so the label centres over its cells. */}
+            <Icon className={cn('size-3 shrink-0', align === 'center' && 'absolute -right-3', sort ? 'text-accent-ink' : 'opacity-0 group-hover/sort:opacity-100 group-focus-visible/sort:opacity-100')} strokeWidth={2.25} />
+          </button>
+        </>
       ) : (
         children
       )}

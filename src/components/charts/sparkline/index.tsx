@@ -100,6 +100,7 @@ export function Sparkline({ values, color = 'accent', height = 36, curve = 'mono
   const dayOf = (i: number) => (values.length === dates?.length ? formatDate(dates[i]) : '');
   const spoken = picked === null ? '' : readAt === null ? `${dayOf(picked) ? `${dayOf(picked)}: ` : ''}No data` : `${dayOf(picked) ? `${dayOf(picked)}: ` : ''}${readout!.label} ${valueOf(readAt)}`;
   return (
+    <>
     <div
       ref={ref}
       {...(readable
@@ -144,7 +145,10 @@ export function Sparkline({ values, color = 'accent', height = 36, curve = 'mono
           <p className="t-num text-xs font-medium text-ink">{readAt === null ? 'No data' : valueOf(readAt)}</p>
         </Readout>
       ) : null}
-      {readable ? <p className="sr-only" aria-live="polite">{spoken}</p> : null}
     </div>
+    {/* Outside the role="img" node: children of role="img" are presentational, so a live region inside it was never
+        announced. The paragraph is visually hidden, so the layout is the same. */}
+    {readable ? <p className="sr-only" aria-live="polite">{spoken}</p> : null}
+    </>
   );
 }

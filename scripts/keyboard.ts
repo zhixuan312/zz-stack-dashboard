@@ -1,11 +1,12 @@
 /**
  * The whole keyboard path of every page: Tab from the top until focus comes back round, and check each stop.
  *
- *   node scripts/keyboard.ts [--base http://localhost:3100] [--routes /,/teams] [--as <persona>] [--missing /a,/b]
+ *   node scripts/keyboard.ts [--base http://localhost:3100] [--routes /,/teams] [--as <persona>] [--missing /a,/b] [--width 390]
  *
  * Fails (exit 1) when the first stop inside the shell is not "Skip to content", when a stop shows no focus ring (an outline, a
  * ring drawn as a box shadow, or a border, that focus CHANGED, on the control or the frame around it; inside a shadow root, on
- * any composed ancestor up to the outermost host), when a focused control is hidden under something else such as the sticky
+ * any composed ancestor up to the outermost host), when a stop draws nothing a person can see (a clipped head's button is a
+ * stop nobody can find), when a focused control is hidden under something else such as the sticky
  * top bar (WCAG 2.4.11), when a visible control is never reached at all, or when pressing Shift+Tab back through the stops
  * does not visit them in the reverse order.
  *
@@ -34,9 +35,13 @@ import { detailRoutes, personaCookie } from './lib/team-config.ts';
 import { holdArgs } from './lib/args.ts';
 
 const args = process.argv.slice(2);
-holdArgs('keyboard', args, ['--as', '--base', '--missing', '--routes']);
+holdArgs('keyboard', args, ['--as', '--base', '--missing', '--routes', '--width']);
 const opt = (k: string, d: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 const base = opt('--base', process.env.BASE ?? 'http://localhost:3100');
+// A phone width walks the same path a phone's keyboard takes: the audit presses 18 stops at every width, and this walks
+// all of them, so `--width 390` is where a head clipped to the accessibility tree shows what it left in the tab order.
+const WIDTH = Math.max(320, Number(opt('--width', '1440')) || 1440);
+const HEIGHT = WIDTH < 600 ? 844 : 900;
 const MISSING = missingRoutes(args);
 const ROUTES = opt('--routes', '') ? opt('--routes', '').split(',') : [...new Set([...discover(), ...detailRoutes, ...MISSING])].filter((r) => r !== NOT_FOUND_PROBE);
 // `--as` signs every open in as one persona (scripts/verify.config.ts), through the cookie scripts/lib/chrome.ts sets
@@ -68,12 +73,16 @@ const TAG = `(() => {
   return all.length;
 })()`;
 
-/** The focused element: its tag, whether focus gave it a ring, and whether it is on top where it sits. */
+/** The focused element: its tag, whether focus gave it a ring, whether it draws at all, and whether it is on top where it sits. */
 const STOP = `(() => {
   const el = deepActive(); if (!el || el === document.body) return null;
   el.setAttribute('data-kb-hit', '');
   // A ring is a change on focus, wherever on the element's frames it may be drawn (scripts/lib/deep.ts).
   const ring = ringChain(el).some((n) => ringed(n, window.__kbBefore && window.__kbBefore.get(n)));
+  // What the eye gets of the stop: a control inside a clipped head, or one drawn at 1px or transparent, is focused and
+  // invisible. Read after the focus styles have landed (press waits for the box to hold still), so the skip link, which
+  // moves into view on focus, counts as drawn.
+  const drawn = deepDrawn(el);
   // The first line box, not the whole rectangle: a link that wraps has its centre over the text beside it.
   const r = el.getClientRects()[0] ?? el.getBoundingClientRect();
   const x = Math.min(document.documentElement.clientWidth - 1, Math.max(0, r.left + r.width / 2)), y = Math.min(innerHeight - 1, Math.max(0, r.top + r.height / 2));
@@ -81,7 +90,7 @@ const STOP = `(() => {
   // A control inside an open root is hit as its outermost host: on top is the control, or any shadow host that contains it.
   let onTop = !!hit && (hit === el || el.contains(hit) || hit.contains(el) || !!hit.closest('[data-radix-popper-content-wrapper]'));
   for (let n = el; n && !onTop; n = deepParent(n)) onTop = hit === n && !!n.shadowRoot;
-  return { id: window.__kbId(el), name: window.__kbName(el), ring, onTop, covered: onTop ? '' : (hit ? hit.tagName.toLowerCase() + '.' + String(hit.className).split(' ').slice(0, 2).join('.') : 'nothing') };
+  return { id: window.__kbId(el), name: window.__kbName(el), ring, drawn, onTop, covered: onTop ? '' : (hit ? hit.tagName.toLowerCase() + '.' + String(hit.className).split(' ').slice(0, 2).join('.') : 'nothing') };
 })()`;
 
 /** Who has focus now, without marking it as reached. */
@@ -131,10 +140,10 @@ let stops = 0;
  * route in a guard of its own. Without it one hanging page ended the suite and its evidence for every route after it.
  */
 const walk = async (route: string) => {
-  await page.open(base + route, { width: 1440, height: 900, theme: 'dark', wait: 2500, cookie });
+  await page.open(base + route, { width: WIDTH, height: HEIGHT, theme: 'dark', wait: 2500, cookie });
   // One implementation of the walk: the helper is injected, never copied. A page it cannot be injected into fails the suite.
   try {
-    if (!(await page.eval<boolean>(`${DEEP_SOURCE}\n;typeof deepAll === 'function' && typeof deepActive === 'function' && typeof deepParent === 'function' && typeof deepText === 'function'`))) throw new Error('the helper is not defined after injection');
+    if (!(await page.eval<boolean>(`${DEEP_SOURCE}\n;typeof deepAll === 'function' && typeof deepActive === 'function' && typeof deepParent === 'function' && typeof deepText === 'function' && typeof deepDrawn === 'function'`))) throw new Error('the helper is not defined after injection');
   } catch (e) {
     // The route is named and counted by the guard around this walk; the suite goes on to the next one.
     console.error(`keyboard: cannot inject the deep-DOM helper into ${route}: ${(e as Error).message}`);
@@ -154,7 +163,7 @@ const walk = async (route: string) => {
   let wrapped = false;
   for (let i = 0; i < 400; i++) {
     await press(0);
-    const measure = () => page.eval<{ id: string; name: string; ring: boolean; onTop: boolean; covered: string } | null>(STOP);
+    const measure = () => page.eval<{ id: string; name: string; ring: boolean; drawn: boolean; onTop: boolean; covered: string } | null>(STOP);
     let s = await measure();
     if (!s) continue;
     // Ask again before calling a control covered. A control that has just taken focus may not yet be painted where it
@@ -170,7 +179,9 @@ const walk = async (route: string) => {
     if (reached.has(s.id)) { wrapped = s.id === order[0]; break; }
     reached.add(s.id); order.push(s.id); names.set(s.id, s.name);
     if (!s.ring) problems.push(`no focus ring: ${s.name}`);
-    if (!s.onTop) problems.push(`hidden under ${s.covered}: ${s.name}`);
+    // An invisible stop is named as such: "hidden under" would send a reader looking for something on top of it.
+    if (!s.drawn) problems.push(`focus lands on a control that draws nothing: ${s.name}`);
+    else if (!s.onTop) problems.push(`hidden under ${s.covered}: ${s.name}`);
   }
   if (order.length && !wrapped) problems.push('Tab did not come back to the first stop; the forward walk did not complete');
   // A control counts as reached when it, or a control inside it, took focus: a radio group is entered at its checked
@@ -204,7 +215,7 @@ const walk = async (route: string) => {
   for (const g of gone) problems.push(`could not be found again: ${g}`);
   const unique = [...new Set(problems)];
   if (unique.length) { failures += unique.length; console.log(`FAIL ${route} (${reached.size} of ${total} stops)\n  ${unique.slice(0, 12).join('\n  ')}`); }
-  else console.log(`ok   ${route} (${reached.size} stops, every one ringed and on top${order.length ? ', and the same in reverse' : '; no stop to walk'})`);
+  else console.log(`ok   ${route} (${reached.size} stops, every one drawn, ringed and on top${order.length ? ', and the same in reverse' : '; no stop to walk'})`);
 };
 
 for (const route of ROUTES) {

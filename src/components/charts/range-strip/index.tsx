@@ -81,11 +81,11 @@ export function RangeStrip({
         <ul aria-label={label} className="col-span-2 col-start-1 row-start-1 grid grid-cols-subgrid gap-y-3">
           {items.map((r, n) => {
             const hot = r.key === highlight;
-            const start = r.from === null ? null : at(r.from);
-            // A row with only a `to` starts at the plot's edge: the range has no low end to draw, and a segment from zero
-            // would claim one.
-            const left = r.to === null ? null : (start ?? 0);
-            const right = r.from === null ? 100 : at(r.to ?? r.from!);
+            // A missing end reaches the plot's edge on that side: a segment from zero would claim a measured zero. Only a
+            // row with neither end draws no strip.
+            const missing = r.from === null && r.to === null;
+            const left = r.from === null ? 0 : at(r.from);
+            const right = r.to === null ? 100 : at(r.to);
             return (
               <li key={r.key} data-row={r.key} className="group/row col-span-2 grid grid-cols-subgrid items-center" title={[named(r), ends(r), hot ? highlightLabel : null].filter(Boolean).join(' · ')}>
                 {r.href ? (
@@ -99,7 +99,7 @@ export function RangeStrip({
                   {/* The plot, inset by the gutter each end keeps for its figure, so a marker at 100% stands inside the chart. */}
                   <div className="relative h-full" style={{ paddingInline: gutter }}>
                     <div className="relative h-full">
-                      {left !== null && right !== null ? (
+                      {!missing ? (
                         <div
                           data-strip
                           className={cn('grow-x absolute top-1/2 -translate-y-1/2 rounded-full', hot ? 'bg-accent' : 'bg-chart-neutral group-hover/row:bg-chart-neutral-strong')}

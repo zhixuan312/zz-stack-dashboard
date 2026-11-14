@@ -43,7 +43,7 @@ import { settled } from './server-tree.tsx';
  * Copy control for its install command; a plugin's page with its install command, its public score and the
  * comparability statement as the gateway answered it, its skills with the team's use labelled as the team's, and the
  * owning team's evaluation drawn only when the gateway answered it; no control anywhere that starts an evaluation; and
- * every state each draws. The reads are the fake gateway's own answers, the ones `pnpm verify` serves.
+ * every state each draws. The reads are the fake gateway's own answers, the ones `pnpm test:t2` serves.
  */
 const AT = '2026-10-17T09:00:00Z';
 const catalogOf = (who: Me): Catalog => plugins(who)[1] as Catalog;

@@ -1,6 +1,6 @@
 /**
  * The fake gateway's clock and calendar. Every timestamp is an offset from the moment the server started, so a page
- * reads "3 hours ago" whatever day verify runs on, fixed for the life of the process, so two requests for the same
+ * reads "3 hours ago" whatever day the browser suites run on, fixed for the life of the process, so two requests for the same
  * record always agree. Every day, week, month, quarter and year is cut on midnight in the reporting timezone, the one
  * the console prints its dates in, as the gateway cuts its own in `ZZ_TZ` (`periodsOf` in console/work-figures.ts): a
  * week runs Monday 00:00 to Monday 00:00 there, and a record is counted in the period that holds its instant.

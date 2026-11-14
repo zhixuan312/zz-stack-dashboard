@@ -23,7 +23,7 @@ vi.mock('next/navigation', () => ({
  * - The context carries the question, the results in view, the inventory and the questions that found nothing.
  * - Nothing the assistant is offered here adds or supersedes a lesson: every read is a GET, and no source writes.
  *
- * The gateway is `fetch`, answering from the fake gateway's own fixtures, the ones `pnpm verify` serves, and every
+ * The gateway is `fetch`, answering from the fake gateway's own fixtures, the ones `pnpm test:t2` serves, and every
  * request this app makes is recorded with its method.
  */
 import { SurfaceOverride } from '@/components/base/surface';

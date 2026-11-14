@@ -58,7 +58,7 @@ export const SearchInput = forwardRef<HTMLInputElement, Props>(function SearchIn
             aria-label="Clear search"
             disabled={disabled || readOnly}
             onClick={() => { onValueChange(''); inner.current?.focus(); }}
-            className="-mr-1 grid size-6 place-items-center rounded-sm text-ink-3 hover:bg-fill-hover hover:text-ink [&_svg]:!size-3.5"
+            className="hit -mr-1 grid size-6 place-items-center rounded-sm text-ink-3 hover:bg-fill-hover hover:text-ink [&_svg]:!size-3.5"
           >
             <X strokeWidth={2} />
           </button>

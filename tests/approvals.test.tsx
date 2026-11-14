@@ -50,7 +50,7 @@ import { settled } from './server-tree.tsx';
 
 /**
  * Approvals as the person reads it (Task I-107, AC-5.7, AC-5.9), drawn from the fake gateway's own answers, the ones
- * `pnpm verify` serves the page: the Records template's four tiles, the approvals in the caller's name by week, and two
+ * `pnpm test:t2` serves the page: the Records template's four tiles, the approvals in the caller's name by week, and two
  * tabs composed with `LinkTabs`. Waiting is the team's queue, `Team approvals`, each row opening its revision on the
  * document's page for review; History is every approval recorded in the caller's name with its exact version and
  * content revision, when, and its presentation and decision basis as the gateway classified them. The fixture's dates

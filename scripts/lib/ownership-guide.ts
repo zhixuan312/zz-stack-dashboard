@@ -22,8 +22,9 @@ export function ownershipGuideProblems(root: string): string[] {
   if (from < 0 || to < from) return [`${OWNERSHIP_GUIDE}: no "<!-- BEGIN:ownership -->" … "<!-- END:ownership -->" block for the rule's rendering`];
   // The rule's source is the package's, and a project a payload reached has no `cli/` at all. Nothing to compare there:
   // the guide it ships is the one the release wrote, and the release's own gate holds the two together.
-  // Read from the module that owns the rule, through the same renderer the package would use — not by re-parsing its
-  // source with a regex, which would be a second reading of one list.
+  // Read from the module that owns the rule. It cannot be imported (cli/ is excluded from the payload), so the exported
+  // array's own string literals are read; the regex is this file's one reading of that list, and the tests hold it to
+  // the renderer `scripts/check.ts` would otherwise use.
   const source = path.join(root, 'cli/src/ownership.ts');
   if (!fs.existsSync(source)) return [];
   const exported = fs.readFileSync(source, 'utf8').match(/export const OWNERSHIP: readonly string\[\] = \[([\s\S]*?)\n\];/)?.[1] ?? '';

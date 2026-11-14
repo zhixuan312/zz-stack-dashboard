@@ -4,7 +4,7 @@
  * Every part: what needs attention, the eight measures in the spec's order, week by week, each door's days, the records,
  * what is running, and `own`, the reader's active team's share of three of the measures and its bug reports. A week runs
  * Monday to Monday in the reporting timezone (clock.ts), and the weeks end on the one the server started in, so the page
- * reads last week whenever verify runs; the doors' days are that timezone's, from the first week's Monday through today. Both
+ * reads last week whenever the browser suites run; the doors' days are that timezone's, from the first week's Monday through today. Both
  * people the fixture signs in act for atlas, so `own` is the same for both. `needs` is the superadmin's, and so the
  * answer is labelled `platform-admin`; a member is answered `MEMBER_STATUS`, the same object labelled `platform-public`
  * with `needs` in the gateway's member projection: every team's approvals folded into one row that names no team and

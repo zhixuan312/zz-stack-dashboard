@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
  * A page that draws the state its server read ended in (not found, failed, unanswered within the bound) keeps that
- * state, and its Retry, where they are while the browser reads again (Task I-150, AC-2.9). `pnpm verify`'s keyboard path
+ * state, and its Retry, where they are while the browser reads again (Task I-150, AC-2.9). `pnpm test:t2`'s keyboard path
  * lost a person's place on Retry when a hint made the browser read a missing document again (#3763): the page dropped
  * the state for a skeleton while the read was in flight, and a first fix that kept it but marked Retry busy for any
  * read in flight disabled the focused button, which loses focus all the same. Only the person's own press makes Retry

@@ -1,6 +1,6 @@
 /**
  * The document page's two Approve banners that a page load alone does not reach, drawn in the built app against the
- * fake gateway (scripts/fake-gateway/work.ts): one of verify's `browserChecks`.
+ * fake gateway (scripts/fake-gateway/work.ts): one of the browser suites' `browserChecks`.
  *
  *   node scripts/approve-banners.ts [--base http://localhost:3100]
  *
@@ -49,7 +49,7 @@ const drifting = '/initiatives/atlas/2026-10-03-ranking-weights/spec.md';
 await page.open(base + drifting, { width: 1440, theme: 'dark' });
 let first = await offered();
 // A read and its record that straddle one of the document's revisions (every 15 s) land on "out of date", or a refetch
-// in between on "changed" — true states, not this one — so the page is opened again. Under a full verify's load one
+// in between on "changed" — true states, not this one — so the page is opened again. Under a full browser run's load one
 // reopening was not always enough (job 2141; three runs alone all passed at the first open), so it is up to three.
 const straddled = (s: State) => !s.approve && (s.text.includes('This page is out of date') || s.text.includes('This document changed while you were reading it'));
 for (let reopened = 0; reopened < 3 && straddled(first); reopened++) {
@@ -68,7 +68,7 @@ if (changed.approve) failures.push(`${drifting}: Approve is still pressable on a
 if (page.errors.length) failures.push(`${drifting}: ${page.errors[0]}`);
 
 // Failed: the record is refused outright, so Approve is unavailable once the refusal lands. The record is a request of
-// its own after the render, so the banner is polled as Approve is in `offered`: under a full verify's load the one read
+// its own after the render, so the banner is polled as Approve is in `offered`: under a full browser run's load the one read
 // at the open's settle came before the refusal (Harbormaster #3834; three runs alone passed at the first read).
 const unrecordable = '/initiatives/atlas/2026-10-04-index-rebuild/spec.md';
 await page.open(base + unrecordable, { width: 1440, theme: 'dark' });

@@ -7,7 +7,7 @@ import config from '../scripts/verify.config.ts';
  * The guides' tasks to try as scripts/journeys.ts walks them (Task I-128, AC-8.3): the Work guide's eight and the
  * Platform guide's ten, kept in tests/fixtures/guide-tasks.json as each guide words them with the source it is kept in,
  * and the spec's definition beside a task whose guide example the spec supersedes. Each is carried out by exactly one
- * journey, and the check is one `pnpm verify` runs.
+ * journey, and the check is one `pnpm test:t2` runs.
  */
 const WORK = 'sources/2026-10-14-the-work-guide-version-7-as-text-every-word-of-the-page-and.md';
 const PLATFORM = 'sources/2026-10-14-the-platform-guide-version-7-as-text-every-word-of-the-page.md';
@@ -47,7 +47,7 @@ describe("the guides' tasks to try", () => {
     expect(who['platform-9']).toBe('superadmin and member');
   });
 
-  it('is one of the browser checks pnpm verify runs', () => {
+  it('is one of the browser checks pnpm test:t2 runs', () => {
     expect(config.browserChecks).toContain('scripts/journeys.ts');
   });
 });

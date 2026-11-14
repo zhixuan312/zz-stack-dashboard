@@ -58,7 +58,7 @@ import { captionedTable, classes, drawn, said } from './table-query.ts';
 
 /**
  * Every table the Wave 2 acceptance audit found wider than its frame, fitting it (Task I-136, AC-2.8): each table drawn
- * from the fake gateway's own answer, the one `pnpm verify` serves the page. jsdom lays nothing out, so this reads what
+ * from the fake gateway's own answer, the one `pnpm test:t2` serves the page. jsdom lays nothing out, so this reads what
  * the layout acts on: the columns that carry the container query hiding them under 896px (`hideBelow: 'lg'`, the band
  * the 1024 and 768 frames of 713 and 729px fall in), the cells cut to the width there is (`Cut`), and where
  * a hidden column's fact is still in reach: a link in the row's first cell to the page that holds it, or the title of a

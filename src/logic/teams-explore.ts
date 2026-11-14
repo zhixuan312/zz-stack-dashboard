@@ -12,7 +12,7 @@ import { platformCalls } from './tools/sources';
 /** The teams, a stock counted as of a window's last day, each drilled row the team's page. */
 const teams: Source = {
   collection: 'teams', date: 'at',
-  filters: { status: { ops: ['eq'], values: ['active', 'archived'] } }, facets: ['status'],
+  filters: { status: { ops: ['eq'], type: 'text', values: ['active', 'archived'] } }, facets: ['status'],
   measures: { teams: { label: 'Teams', unit: 'teams', definition: 'Every team made by the window\'s last day, as it stands now.', agg: 'count' } },
   drill: { columns: ['slug', 'name', 'status', 'created', 'people'], address: (r) => `/platform/teams/${String(r.slug)}` },
   cannot: 'Teams are a stock: a window\'s start changes nothing. A team is set beside its own past, never ranked against another. A window holds complete days of the reporting time zone, so today is in none.',

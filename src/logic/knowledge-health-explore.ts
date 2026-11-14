@@ -15,7 +15,7 @@ import { KNOWLEDGE_KINDS } from './knowledge-context';
 
 const PAGE = '/platform/knowledge';
 const WINDOW = 'A window holds complete days of the reporting time zone, so today is in none.';
-const eq = { ops: ['eq' as const] };
+const eq = { ops: ['eq' as const], type: 'text' as const };
 const count = (label: string, unit: string, definition: string, where?: [string, string]): Measure =>
   ({ label, unit, definition, agg: 'count', ...(where ? { where: [{ field: where[0], op: 'eq' as const, value: where[1] }] } : {}) });
 

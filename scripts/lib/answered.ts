@@ -28,11 +28,13 @@ export function missingRoutes(args: readonly string[]): string[] {
 
 /**
  * The problem with a route's answer, or null when it answered as declared. `status` is the document's (0 when none
- * arrived, which the suite's own measurement reports in its own terms); `drawn` is whether the page draws the not-found
- * screen.
+ * arrived: a server that died, or a connection Chrome could not make, is not a clean route); `drawn` is whether the page
+ * draws the not-found screen.
  */
 export function answerProblem(route: string, status: number, drawn: boolean, missing: readonly string[]): string | null {
-  if (!status) return null;
+  // No document arrived at all: Chrome drew its own connection-error page, and every rule below would measure that page
+  // as the route. This is a failure of the run, never a pass (a server that dies mid-sweep made every later route green).
+  if (!status) return `${route} answered no document (status 0): the server did not serve it, and what was measured is Chrome's own error page`;
   const meant = missing.includes(route);
   if (meant) return status === 404 || (drawn && status < 400) ? null : `${route} is in missingRoutes, and it answered ${status} and draws no not-found screen (${NOT_FOUND_SCREEN}): it is meant to be a record that does not exist`;
   if (status >= 400) return `${route} answered ${status}, so what was measured is its error page and not the route. A route meant to be missing goes in missingRoutes in scripts/verify.config.ts`;

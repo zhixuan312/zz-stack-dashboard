@@ -178,8 +178,9 @@ const walk = async (route: string, width: number) => {
     if (path === null || checkedLinks.has(path)) continue;
     // As the persona the page was opened as: a link that person may follow answers them, not a request with no one signed
     // in. A link that never answers is a dead link and a failure, ended by the hang guard — never by a budget the walk
-    // would be judging the machine against.
-    const status = await fetch(base + path, { redirect: 'manual', headers: cookie ? { cookie: `${cookie.name}=${cookie.value}` } : {}, signal: AbortSignal.timeout(LINK_HANG_GUARD_MS) })
+    // would be judging the machine against. Redirects are followed: a 302 to a 404 is a dead link, and judging the 302
+    // alone passed it.
+    const status = await fetch(base + path, { redirect: 'follow', headers: cookie ? { cookie: `${cookie.name}=${cookie.value}` } : {}, signal: AbortSignal.timeout(LINK_HANG_GUARD_MS) })
       .then((r) => r.status)
       .catch(() => 0);
     checkedLinks.set(path, status);

@@ -23,7 +23,7 @@ import PlatformPeoplePage from '../app/(dash)/platform/people/page';
  */
 
 const query = (path: string) => new URLSearchParams(path.split('?')[1]);
-/** The fake gateway's answer to the console's server, as `pnpm verify` serves it, for the default person. */
+/** The fake gateway's answer to the console's server, as `pnpm test:t2` serves it, for the default person. */
 function answer(path: string): unknown {
   if (path === '/me') return ME;
   if (path.startsWith('/initiatives?')) return initiativeList(ME, query(path))[1];

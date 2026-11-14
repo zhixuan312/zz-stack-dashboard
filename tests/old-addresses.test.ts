@@ -104,7 +104,7 @@ describe('nothing points at /teams, /teams/<slug>, /people or /settings', () => 
     expect(found).toEqual([]);
   });
 
-  it('verify neither walks nor probes one', () => {
+  it('the browser suites neither walk nor probe one', () => {
     const named = [
       ...(config.navigationChecks ?? []).map((c) => c.path),
       ...config.detailRoutes,

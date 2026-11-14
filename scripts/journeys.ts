@@ -1,5 +1,5 @@
 /**
- * The guides' tasks to try, carried out in a browser as the right person: one of verify's `browserChecks` (Task I-128,
+ * The guides' tasks to try, carried out in a browser as the right person: one of the browser suites' `browserChecks` (Task I-128,
  * spec AC-8.3).
  *
  *   node scripts/journeys.ts [--base http://localhost:3100] [--tasks work-1,platform-6]
@@ -17,7 +17,7 @@
  * whose journey sessions have written already stops before its first task, saying so.
  *
  * Work's task 4 asks the assistant on Knowledge, and the fake model answers the guide's phrase with a call to the search
- * (`fakeModel` in scripts/verify.config.ts), so that task needs a console with an assistant, as `pnpm verify --full`
+ * (`fakeModel` in scripts/verify.config.ts), so that task needs a console with an assistant, as `pnpm test:t2`
  * serves the browser checks: one pointed at the fake model with those steps.
  *
  * A step reads the page as a person would and checks it against the session's own read of the same route, fetched
@@ -250,7 +250,7 @@ export const JOURNEYS: Journey[] = [
     // Then the assistant, asked the same thing on the same page: the fake model answers the phrase with the search
     // (`fakeModel` in scripts/verify.config.ts) and quotes its first result, with the address that result cites.
     await w.until('open the assistant', `!!document.querySelector('button[aria-label="Assistant"]')`, 5_000)
-      .catch(() => fail('open the assistant', 'no launcher on /knowledge: this console has no assistant (pnpm verify --full points one at the fake model)'));
+      .catch(() => fail('open the assistant', 'no launcher on /knowledge: this console has no assistant (pnpm test:t2 points one at the fake model)'));
     await w.press('open the assistant', `document.querySelector('button[aria-label="Assistant"]')`);
     const before = Number(await w.until<string>('see the panel', `${PANEL} && String(${PANEL}.querySelectorAll('[data-assistant-text]').length)`));
     await w.type('ask the assistant', `${PANEL}.querySelector('textarea[aria-label="Message"]')`, phrase);

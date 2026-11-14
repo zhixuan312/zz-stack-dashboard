@@ -12,7 +12,7 @@ import { plugins } from '../scripts/fake-gateway/work-plugins.ts';
 
 /**
  * The figures Plugins draws are the catalog's, each in its own column for the plugin the row names: the fake gateway's
- * own answer, the one `pnpm verify` serves the page, is what is drawn, and a cell is read by the header it stands under,
+ * own answer, the one `pnpm test:t2` serves the page, is what is drawn, and a cell is read by the header it stands under,
  * so a column mapped onto another's data cannot pass. Both people read it: the superadmin is sent each protocol's key,
  * a member only its version, and the page draws what each was sent.
  */

@@ -7,6 +7,8 @@ import { cn } from '../../../lib/cn';
 /** The props a Field hands its control, so the label, hint and error are wired without the page doing it. */
 export type FieldControlProps = {
   id: string;
+  /** The label's own id: for a control whose root is not labelable (a radio group, a set of buttons), `for` cannot name it. */
+  'aria-labelledby': string;
   'aria-describedby'?: string;
   'aria-invalid'?: boolean;
   'aria-required'?: boolean;
@@ -47,14 +49,14 @@ export function Field({
   return (
     <div className={cn('flex min-w-0 flex-col gap-1.5', className)}>
       <div className="flex min-h-5 items-baseline gap-2">
-        <label htmlFor={id} className="text-sm font-medium text-ink">
+        <label id={`${id}-label`} htmlFor={id} className="text-sm font-medium text-ink">
           {label}
           {required ? <span aria-hidden className="ml-0.5 text-critical-ink">*</span> : null}
         </label>
         {optional ? <span className="text-xs text-ink-3">Optional</span> : null}
         {action ? <span className="ml-auto text-xs">{action}</span> : null}
       </div>
-      {children({ id, 'aria-describedby': described, 'aria-invalid': error ? true : undefined, 'aria-required': required || undefined })}
+      {children({ id, 'aria-labelledby': `${id}-label`, 'aria-describedby': described, 'aria-invalid': error ? true : undefined, 'aria-required': required || undefined })}
       {error ? (
         <p id={errorId} role="alert" className="flex items-start gap-1.5 text-xs leading-snug text-critical-ink">
           <CircleAlert aria-hidden className="mt-px size-3.5 shrink-0" strokeWidth={2} />

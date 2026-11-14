@@ -8,7 +8,7 @@
  * who is asking is the `zz_console` cookie, and the key sets every read's `meta` and every period carry are the
  * gateway's, so the suites take both from here.
  *
- * COUPLED: `scripts/verify.ts` starts the same script as `verify.config.ts`'s `fakeApi` and waits for the same line,
+ * COUPLED: `scripts/browser.ts` starts the same script as `verify.config.ts`'s `fakeApi` and waits for the same line,
  * so the print is a contract two callers with nothing else in common depend on.
  */
 import { spawn, type ChildProcess } from 'node:child_process';

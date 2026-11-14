@@ -14,6 +14,7 @@ const MAX_SMOKE = 3;
 /** The explicit list when given, else the landing route and the first two other unique rail paths. */
 export function selectSmokeRoutes({ smokeRoutes, nav, landing }: { smokeRoutes?: string[]; nav: string[]; landing: string }): string[] {
   if (smokeRoutes) {
+    if (smokeRoutes.length === 0) throw new Error('smokeRoutes: an empty list names no route; remove the key to use the landing route and the next two');
     if (smokeRoutes.length > MAX_SMOKE) throw new Error(`smokeRoutes: at most ${MAX_SMOKE} routes, got ${smokeRoutes.length}`);
     for (const path of smokeRoutes) if (!nav.includes(path)) throw new Error(`smokeRoutes: ${path} is not one of the rail routes`);
     const dup = smokeRoutes.find((path, i) => smokeRoutes.indexOf(path) !== i);

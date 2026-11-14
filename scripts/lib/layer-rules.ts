@@ -19,6 +19,39 @@ export type LayerTree = { root: string; aliases: [string, string][] };
 /** One violation, before its escape: the check supplies the rule's name and prints the escape. */
 export type RuleProblem = { file: string; line: number; message: string };
 
+/**
+ * A line that cuts a date to its UTC day: the instant's own ten characters, its date half before `T`, or a ten-character
+ * slice of a value whose name says it is a date (`iso`, `row.date`, `createdAt`, `time`). A ten-character slice of
+ * anything else — the top ten rows — is not a day cut and is not reported.
+ */
+export function utcDayCut(line: string): string | null {
+  if (/toISOString\(\)\s*\.slice\(\s*0\s*,\s*10\s*\)/.test(line)) return 'toISOString().slice(0, 10)';
+  if (/toISOString\(\)\s*\.split\(\s*['"]T['"]\s*\)/.test(line)) return "toISOString().split('T')";
+  const m = line.match(/([\w$.()]+)\.slice\(\s*0\s*,\s*10\s*\)/);
+  return m && /(?:date|Date|iso|At|time)/.test(m[1]!) ? `${m[1]}.slice(0, 10)` : null;
+}
+
+/** The modules that implement the day rule: the only sources allowed to cut a date themselves. */
+const DAY_RULE_FILES = new Set(['src/lib/format-date.ts', 'src/lib/calendar-date.ts']);
+
+/** The files the day-cut rule judges: the layers a product keeps, less the rule's own modules and the fixtures that generate UTC sample days on purpose. */
+export function dayCutFiles(files: readonly string[]): string[] {
+  return files.filter((f) => /^(?:app|src\/app|src\/(?:lib|logic|components))\//.test(f) && !DAY_RULE_FILES.has(f) && !f.startsWith('src/system/fixtures/'));
+}
+
+/** Every code line in `files` that cuts a date to its UTC day, as the check reports it. */
+export function dayCutProblems(files: readonly string[], read: (f: string) => string): RuleProblem[] {
+  const out: RuleProblem[] = [];
+  for (const file of files) {
+    read(file).split('\n').forEach((text, i) => {
+      if (/^\s*(\*|\/\/|\/\*)/.test(text)) return;
+      const cut = utcDayCut(text);
+      if (cut) out.push({ file, line: i + 1, message: `${cut} cuts a date to its UTC day (use dayOf or dayOfValue from src/lib/format-date)` });
+    });
+  }
+  return out;
+}
+
 // ── Reading source ───────────────────────────────────────────────────────────────────────────────────
 /** Comments blanked, not removed, so a scan reads code and a line number is still the file's. */
 export function blankedText(text: string): string {

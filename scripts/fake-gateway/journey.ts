@@ -1,7 +1,7 @@
 /**
  * The fake gateway's journeys: the writes a `<person>+journey` session makes, kept for that session (reconciliation 80).
  *
- * Every other session's writes are answered and forgotten, so the suites `pnpm verify` runs side by side read the same
+ * Every other session's writes are answered and forgotten, so the suites `pnpm test:t2` runs side by side read the same
  * data throughout. A guide's task to try is a write and then a read of what it changed (approve a document and see the
  * history gain it, close an initiative and see Record move), so scripts/journeys.ts signs in as `member+journey` or
  * `superadmin+journey`, and those sessions alone keep what they write, for the life of the process. A journey reads the

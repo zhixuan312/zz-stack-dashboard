@@ -124,7 +124,9 @@ export function UptimeBars({
         </div>
       ) : null}
       <p className="sr-only" aria-live="polite">{hover !== null ? `${formatDate(dateOf(hover))}: ${WORD[shown[hover]]}` : ''}</p>
-      <p id={summaryId} className="sr-only">
+      {/* Referenced by the SVG's aria-labelledby, so it names the figure; hidden here so it is not read a second time as
+          ordinary content. Accessible-name computation includes a hidden node named by a reference. */}
+      <p id={summaryId} aria-hidden="true" className="sr-only">
         {`${label}: ${pct(uptime)} ${measure} over ${shown.length} ${plural(shown.length, 'day')}, ${formatDate(dateOf(0))} to ${formatDate(dateOf(shown.length - 1))}.`}
         {marked.length === 0 ? ' No incidents.' : marked.map(({ d, i }) => ` ${formatDate(dateOf(i))}: ${WORD[d]}.`).join('')}
       </p>

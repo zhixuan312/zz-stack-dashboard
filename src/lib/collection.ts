@@ -1,12 +1,16 @@
 import { z } from 'zod';
-import { parseCalendarDate } from './calendar-date.ts';
+import { dayOfValue, shiftDay } from './format-date.ts';
 import { WEEKDAY_NAMES_MONDAY_FIRST } from './insight.ts';
 
 /** A named set of records the pages and the assistant read and change through one interface. */
 type Op = 'create' | 'update' | 'remove';
 type Scalar = string | number | boolean | null;
 type Value = Scalar | Scalar[];
-type Condition = { field: string; op: 'eq' | 'ne' | 'gt' | 'lt' | 'contains' | 'in'; value: Value };
+/**
+ * One condition a query must meet. `calendar` compares both sides as the calendar day each names in the reporting
+ * timezone — a bare `YYYY-MM-DD` as written, an instant as its day — so `lastActive lt 2026-06-01` means that day.
+ */
+type Condition = { field: string; op: 'eq' | 'ne' | 'gt' | 'lt' | 'contains' | 'in'; value: Value; calendar?: true };
 export type { Condition };
 export type Query = { where?: Condition[]; sort?: { field: string; dir: 'asc' | 'desc' }; limit?: number; offset?: number };
 
@@ -16,7 +20,7 @@ export type Query = { where?: Condition[]; sort?: { field: string; dir: 'asc' | 
  */
 export type AggregateQuery = {
   where?: Condition[];                       // the operators a prepared query may use: eq, ne, in, lt, gt
-  window?: { field: string; from: string; to: string }; // inclusive dates YYYY-MM-DD, compared with the field's first ten characters
+  window?: { field: string; from: string; to: string }; // inclusive calendar days YYYY-MM-DD, compared with the day the field's value names in the reporting timezone
   group?: { field: string } | { field: string; bucket: 'day' | 'week' | 'month' | 'weekday' };
   measures: { name: string; agg: 'count' | 'sum' | 'avg' | 'min' | 'max' | 'p95'; field?: string; where?: Condition[] }[]; // `field` may be a dotted path; a count's `where` counts the rows that meet it
   top?: number;                              // groups returned: largest first by the first measure, or for a bucket the latest `top` buckets in date order (weekday: Monday to Sunday), the earlier ones in `others`; 8 when not given, at most 50
@@ -102,6 +106,8 @@ export type Collection<T extends Record<string, unknown>, K extends keyof T & st
    * through its own action — the roles and add-ons on the Members page, for one, which only `assignRole` may change.
    */
   pageOnlyFields?: (keyof T & string)[];
+  /** Fields an agent's create must not offer though its update may set them: a ticket's state, which the server sets. */
+  createOmit?: (keyof T & string)[];
   /** Fields only a page may see: left out of every assistant tool's input and result. */
   hidden?: (keyof T)[];
 };
@@ -182,8 +188,24 @@ function compare(a: unknown, b: unknown): number {
  * A field with no value (null, or not there) matches `ne` of any value but null, and is named by `eq null` or an `in`
  * list holding null; `gt`/`lt` need the field and the value to be the same kind.
  */
-function matches(row: Record<string, unknown>, { field, op, value }: Condition): boolean {
+function matches(row: Record<string, unknown>, { field, op, value, calendar }: Condition): boolean {
   const v = row[field];
+  if (calendar) {
+    // Both sides are cut to their calendar day in the reporting timezone: a stored instant is compared as the day it
+    // falls on, and a bare date as itself (issue #144).
+    const day = dayOf(v);
+    if (day === null) return op === 'ne';
+    const days = (Array.isArray(value) ? value : [value]).filter((d): d is string => typeof d === 'string');
+    const one = days[0];
+    switch (op) {
+      case 'eq': return day === one;
+      case 'ne': return day !== one;
+      case 'gt': return one !== undefined && compare(day, one) > 0;
+      case 'lt': return one !== undefined && compare(day, one) < 0;
+      case 'in': return days.includes(day);
+      default: return false;
+    }
+  }
   if (v === null || v === undefined) return op === 'ne' ? value !== null : op === 'eq' ? value === null : op === 'in' && Array.isArray(value) && value.includes(null);
   switch (op) {
     case 'eq': return v === value;
@@ -264,22 +286,21 @@ function valueAt(row: Record<string, unknown>, path: string): unknown {
   return path.split('.').reduce<unknown>((v, k) => (v !== null && typeof v === 'object' ? (v as Record<string, unknown>)[k] : undefined), row);
 }
 
-/** The date a value starts with, as YYYY-MM-DD: its first ten characters, or null when they are not a date. */
+/** A date value's calendar day: a bare `YYYY-MM-DD` as written, an instant as its day in the reporting timezone. */
 function dayOf(v: unknown): string | null {
-  const d = typeof v === 'string' ? v.slice(0, 10) : '';
-  return parseCalendarDate(d) ? d : null;
+  return dayOfValue(v);
 }
 
-/** A date's bucket key: the day, the week's Monday, `YYYY-MM`, or the weekday's English name. Worked out in UTC, as the data's days are. */
+/** A date's bucket key: the day, the week's Monday, `YYYY-MM`, or the weekday's English name, cut from its calendar day. */
 function bucketOf(v: unknown, bucket: string): string | null {
   const d = dayOf(v);
   if (d === null) return null;
   if (bucket === 'day') return d;
   if (bucket === 'month') return d.slice(0, 7);
-  const t = Date.parse(`${d}T00:00:00Z`);
-  const weekday = (new Date(t).getUTCDay() + 6) % 7;
+  // Calendar arithmetic on the date itself: a weekday and a Monday are whole days from it, whatever the timezone.
+  const weekday = (new Date(`${d}T00:00:00Z`).getUTCDay() + 6) % 7;
   if (bucket === 'weekday') return WEEKDAYS[weekday];
-  if (bucket === 'week') return new Date(t - weekday * 86_400_000).toISOString().slice(0, 10);
+  if (bucket === 'week') return shiftDay(d, -weekday);
   throw new Error(`Unsupported bucket ${JSON.stringify(bucket)}`);
 }
 
@@ -387,6 +408,7 @@ export function arrayCollection<T extends Record<string, unknown>, K extends key
   allow: readonly Op[];
   pageOnly?: Op[];
   pageOnlyFields?: (keyof T & string)[];
+  createOmit?: (keyof T & string)[];
   hidden?: (keyof T)[];
   /** The tenant whose store and listeners this collection binds; the sample has one. */
   tenantId?: string;
@@ -428,6 +450,7 @@ export function arrayCollection<T extends Record<string, unknown>, K extends key
     title: def.title,
     pageOnly: def.pageOnly,
     pageOnlyFields: def.pageOnlyFields,
+    createOmit: def.createOmit,
     hidden: def.hidden,
     async query(q) {
       const { rows: hits, total } = queryRows(rows(), key, q);
@@ -525,12 +548,17 @@ export function visibleFields(c: AnyCollection): z.ZodObject {
 
 /**
  * The collection's fields an agent's tool may WRITE: its visible fields without the fields only a page may set
- * (`pageOnlyFields`). The create tool is built from this and the update tool's `set` from `patchOf` of it, so a field
- * a page owns is absent from the schema and, because the schema is strict, refused at execution if sent anyway.
+ * (`pageOnlyFields`). The update tool's `set` is `patchOf` of this and the create tool is `createFields` of it, so a
+ * field a page owns is absent from the schema and, because the schema is strict, refused at execution if sent anyway.
  *
  * It says nothing about reading: a page's prepared query may still filter, group or drill on a role or an add-on the
  * same as on any other visible field. Reading a field and changing it are different rules, and this is the second.
  */
 export function writableFields(c: AnyCollection): z.ZodObject {
   return without(visibleFields(c), (c.pageOnlyFields ?? []) as string[]);
+}
+
+/** The fields an agent's create offers: the writable ones less what only the server sets on a new record. */
+export function createFields(c: AnyCollection): z.ZodObject {
+  return without(writableFields(c), (c.createOmit ?? []) as string[]);
 }

@@ -57,7 +57,9 @@ export function Pagination({
         <span title={`${from.toLocaleString('en-US')}–${to.toLocaleString('en-US')} of ${total.toLocaleString('en-US')} ${noun}`} className="block truncate @max-[32rem]/pager:hidden">
           <span className="font-medium text-ink">{from.toLocaleString('en-US')}–{to.toLocaleString('en-US')}</span> of {total.toLocaleString('en-US')} {noun}
         </span>
-        <span title={`Page ${page} of ${count}`} className="block truncate @min-[32rem]/pager:hidden">Page <span className="font-medium text-ink">{page}</span> of {count}</span>
+        <span title={count > 1 ? `Page ${page} of ${count}` : `${total.toLocaleString('en-US')} ${noun}`} className="block truncate @min-[32rem]/pager:hidden">
+          {count > 1 ? <>Page <span className="font-medium text-ink">{page}</span> of {count}</> : <>All <span className="font-medium text-ink">{total.toLocaleString('en-US')}</span> {noun}</>}
+        </span>
       </p>
       {/* A menu of one size offers nothing, so it is drawn only when there is a choice. */}
       {pageSizes && pageSizes.length > 1 && onPageSizeChange ? (
@@ -75,6 +77,8 @@ export function Pagination({
           </MenuContent>
         </Menu>
       ) : null}
+      {/* One page is no navigation: the count line and the size menu stand, the arrows and numbers do not. */}
+      {count > 1 ? (
       <div className="ml-auto flex items-center gap-1">
         <IconButton size="sm" variant="ghost" label="Previous page" icon={<ChevronLeft />} disabled={page <= 1} onClick={() => onPageChange(page - 1)} />
         <ol className="flex items-center gap-0.5 @max-[32rem]/pager:hidden">
@@ -101,6 +105,7 @@ export function Pagination({
         </ol>
         <IconButton size="sm" variant="ghost" label="Next page" icon={<ChevronRight />} disabled={page >= count} onClick={() => onPageChange(page + 1)} />
       </div>
+      ) : null}
     </nav>
   );
 }

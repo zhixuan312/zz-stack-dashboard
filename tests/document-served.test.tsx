@@ -199,7 +199,7 @@ describe('the browser, following the server\'s read', () => {
 
   it('keeps a state the server\'s read ended in on screen, and its Retry neither busy nor disabled, while a change makes the browser read it again', async () => {
     // A change anywhere to documents reads a missing or failed document again. Until that read answers, the page says
-    // what it said, so a keyboard user on Retry keeps their place (`pnpm verify`'s keyboard path lost it, #3763). Retry
+    // what it said, so a keyboard user on Retry keeps their place (`pnpm test:t2`'s keyboard path lost it, #3763). Retry
     // is not busy for a read the person did not ask for: the managed Button disables a busy button, and a focused
     // control that becomes disabled loses focus.
     for (const read of [{ state: 'missing', reason: 'No document spec.md in this initiative.' }, { state: 'failed', reason: 'The gateway did not answer.' }] as const) {

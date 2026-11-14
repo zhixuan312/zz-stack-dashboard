@@ -141,5 +141,22 @@ export function ringChain(el: Element): Element[] {
   return chain;
 }
 
+/**
+ * Whether the eye gets the element: it draws a box larger than a pixel, its computed style draws it (display, visibility,
+ * opacity, including its ancestors'), no composed ancestor clips it to a pixel or less, and no `.sr-only` ancestor holds it.
+ * A control inside a head clipped for a screen reader (a DataTable's card head) is focused and invisible; a suite that
+ * walks focus fails it with this rather than calling it hidden under whatever its pixel happens to sit on.
+ */
+export function deepDrawn(el: Element): boolean {
+  const box = el.getBoundingClientRect();
+  if (box.width <= 1 || box.height <= 1 || deepClosest(el, '.sr-only')) return false;
+  if (typeof el.checkVisibility === 'function' && !el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) return false;
+  for (let n: Element | null = el; n; n = deepParent(n)) {
+    const b = n.getBoundingClientRect(), c = getComputedStyle(n);
+    if ((b.width <= 1 || b.height <= 1) && c.overflow !== 'visible') return false;
+  }
+  return true;
+}
+
 /** The functions as page code, for `page.eval`: function declarations, so they become globals of the page. */
-export const DEEP_SOURCE: string = [deepAll, deepActive, deepQuery, deepQueryAll, deepParent, deepText, deepClosest, ringSignature, ringed, ringChain].map((f) => f.toString()).join('\n');
+export const DEEP_SOURCE: string = [deepAll, deepActive, deepQuery, deepQueryAll, deepParent, deepText, deepClosest, deepDrawn, ringSignature, ringed, ringChain].map((f) => f.toString()).join('\n');

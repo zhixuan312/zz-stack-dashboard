@@ -45,7 +45,7 @@ import { runs } from '../scripts/fake-gateway/work-runs.ts';
 import { settled } from './server-tree.tsx';
 
 /**
- * Runs as the person reads it (Task I-110), drawn from the fake gateway's own answers, the ones `pnpm verify` serves
+ * Runs as the person reads it (Task I-110), drawn from the fake gateway's own answers, the ones `pnpm test:t2` serves
  * the page: the three tiles, the runs by skill in the gateway's order, the recent runs with their initiative and their
  * state, the skill control and the pages of recent runs each read on the console's server, and every state. Every
  * count and date here is read off the answer itself, never worked out beside it.

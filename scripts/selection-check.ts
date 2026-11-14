@@ -1,5 +1,5 @@
 /**
- * A control that shows a selection shows the one that was pressed — on that press. One of verify's `browserChecks`.
+ * A control that shows a selection shows the one that was pressed — on that press. One of the browser suites' `browserChecks`.
  *
  *   node scripts/selection-check.ts [--base http://localhost:3100]
  *
@@ -115,7 +115,7 @@ async function press(g: Group, it: Item): Promise<string> {
   return covered;
 }
 
-/** The rail's own routes and the detail routes verify already drives, so this walks what the rest of verify walks. */
+/** The rail's own routes and the detail routes the browser suites already drive, so this walks what the rest of them walk. */
 const config = (await import('./verify.config.ts')).default;
 const routes = [...(config.navigationChecks ?? []).map((c) => c.path), ...(config.detailRoutes ?? [])];
 let presses = 0, groupsSeen = 0;

@@ -1,5 +1,5 @@
 /**
- * The workspace menu, walked as each person walks it, against the built app and the fake gateway: one of verify's
+ * The workspace menu, walked as each person walks it, against the built app and the fake gateway: one of the browser suites'
  * `browserChecks`.
  *
  *   node scripts/workspace-switch.ts [--base http://localhost:3100]

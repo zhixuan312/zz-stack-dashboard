@@ -60,7 +60,7 @@ export function mount(ui: ReactElement, ask?: (q: string) => void) {
 export const text = () => document.body.textContent ?? '';
 
 // The review of Work's Home, Record and Knowledge (review-work-a and -d): the superadmin's team, the moment its reads
-// are stamped with, and the fake's answers to each page, as `pnpm verify` and the review's screenshots read them.
+// are stamped with, and the fake's answers to each page, as `pnpm test:t2` and the review's screenshots read them.
 export const TEAM = 'atlas';
 export const AT = '2026-10-19T12:00:00Z';
 /** A fake route's answer, held to have been a 200. */

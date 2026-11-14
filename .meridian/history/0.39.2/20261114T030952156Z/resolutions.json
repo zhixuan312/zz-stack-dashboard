@@ -1,0 +1,69 @@
+[
+  {
+    "id": "migration:script:test:t2",
+    "status": "resolved",
+    "reason": "The project keeps its own test:t2: it is the same runner with ZZ_GATEWAY set to the local fake gateway, which the build reads before the browser suites start it.",
+    "files": {
+      "package.json": "sha256-0d06e566ff56b48e9edab7f5019acb03ada4e1fe53e34017cee20d79461baa3f"
+    }
+  },
+  {
+    "id": "migration:script:test:release",
+    "status": "resolved",
+    "reason": "The project keeps its own test:release: the same runner with ZZ_GATEWAY set to the local fake gateway, for the same reason as test:t2.",
+    "files": {
+      "package.json": "sha256-0d06e566ff56b48e9edab7f5019acb03ada4e1fe53e34017cee20d79461baa3f"
+    }
+  },
+  {
+    "id": "migration:verify-modes",
+    "status": "resolved",
+    "reason": "The removed audit, interactions, keyboard and vitals scripts are gone from package.json, and every comment, test name and message that named pnpm verify, its flags or scripts/verify.ts now names test:t2, test:release or scripts/browser.ts; the one remaining pnpm verify is fixture lesson text, not a command.",
+    "files": {
+      "scripts/fake-gateway/journey.ts": "sha256-7fce285bf2e89b6e2ffb2b427e815b1d7a5d9cbdec1439fe4e238b14aab46ea1",
+      "scripts/fake-gateway/people.ts": "sha256-7a1ac4d9f506275ba20341903938a65ed02195fbb3faabb76df805722e67822b",
+      "scripts/fake-gateway/server.ts": "sha256-fc878ee024d81af72f4333ec56a3f5e9ceff9a9dbec750763af7de748652bb8c",
+      "scripts/fake-gateway/states-partial.ts": "sha256-d967484e38b51f45ba28db0c4769e4daa493d8896f6e2bc02b078728cb9f2b1e",
+      "scripts/journeys.ts": "sha256-d978a8ee16c9739cd8aa8c9b0403ef3889cf7789e2886a0e90435648a6076ae7",
+      "scripts/primary-data.ts": "sha256-02a0fa93734923deabd9731bd7becc94080fd040093125fdc15c724f50a4f2bc",
+      "scripts/states-timed.ts": "sha256-448f9fb47abf76b55089ed528ecf54197dbbcbffcad6351da5dd95b80a8e0162",
+      "scripts/verify.config.ts": "sha256-438d5612c6eea5bbc3d5aa2bd5cbcfee4c0a5198934b973bf18ea1ca1bd2cd5b",
+      "src/console/no-access.tsx": "sha256-125616159895fddfdf4a9f5667ffc5eeb9cc1ed9c3d78806df1908207e62dcf5",
+      "tests/activity.test.tsx": "sha256-2f212d00ad0ed2bea11ad078b21ee1debcb1edea449a820b90a4a121a496e22a",
+      "tests/agent-side.test.ts": "sha256-89bb952388303e0d536a92e57b8820934b8a3e0176ddf3d4c089736baf53664a",
+      "tests/approvals.test.tsx": "sha256-e38f0c0f6ffecdf332d7aa9208ccf783a3c42f66fd983b6315f744e6213af8c5",
+      "tests/ceilings.test.tsx": "sha256-f97c8b67555219b4f5f8ed3c04948b876d3e75ff50abbf8c7285917c31a28f8b",
+      "tests/document-served.test.tsx": "sha256-1020d423a1d3c9d44a8471c23f241ffb595f86a2a9c34adde9bb68c790da09f8",
+      "tests/fake-gateway-journey.test.ts": "sha256-93e22e0916bebde0190785c9c034227d6118deba4eb3357c0324829d17e4b625",
+      "tests/fake-gateway-personas.test.ts": "sha256-5c04036348aeeaceb6802d285d44bbfddef4d61c26bb3e8de2fe415adbc6fad5",
+      "tests/fake-gateway-server.test.ts": "sha256-8b2e16a0f4fe4f16bf3a89c72d8c53063f4cd52ebb14f6f5acc8a306fa8dd8dd",
+      "tests/fake-gateway-start.ts": "sha256-62afb287f9d9a7188cfd49ba68a1c6298e56a7a8c3e03870a861fb26d82a1036",
+      "tests/fake-gateway-states.test.ts": "sha256-afe22c6164cab3fb4eb6f9ba1cd3ed28bc61cad772b12349098c346b41f79b94",
+      "tests/home-no-figure.test.tsx": "sha256-b4b321cbe5208ef05b48f8e015035e95771258791a3159fa5e96c2d19b65ab79",
+      "tests/home.test.tsx": "sha256-4a09018fec76cdb136976ba59fd92ece0b2bc38533bbe47ffa1809d5443a6efb",
+      "tests/html-weight.test.tsx": "sha256-8b79117dc225d21aec8f130068b32b20d78f0e4632b3fb0b3aafc2793231ae58",
+      "tests/journey-search.test.ts": "sha256-574ed9b0570fc6c8a37d26f6e371c95330b4c8a8a9993c742a91f54454fd7981",
+      "tests/journeys-plan.test.ts": "sha256-d42612056f94e33e85805f1665aee0482258f203fb9c9ce001da948587613881",
+      "tests/knowledge-context.test.ts": "sha256-31198abefd94a6897731cf15e94a1fb9a4b02287514cb1ec5456c67c5bd9e1ba",
+      "tests/member-chrome.test.tsx": "sha256-a3deb619bff242fd69d5427ebd1758724d7076c12f27795ae6884b45e1e4ddf8",
+      "tests/no-figure.test.tsx": "sha256-6f9f1eb484d4572d8e3efdecdddb17f0f1c5472df978ea0cc4c952c0ab521888",
+      "tests/platform-status.test.tsx": "sha256-e97f02ddbc6054de9d39917a98b8a8c75d375acc3b827f14a3bce7630ad2244a",
+      "tests/plugins-figures.test.tsx": "sha256-1b3d8fcd5052c3a351ac238d468b9f403033805f001f52edc2ffb5f07c2b8a3c",
+      "tests/plugins.test.tsx": "sha256-09a3cae04e81877d1c6cefdadde3c040dca886340cf418d432058390d1c0f02e",
+      "tests/record.test.tsx": "sha256-5f165bd11d7e9f7374e73f66d4f1e824e047af8a220d7c37f4eeac9e87794648",
+      "tests/retry-keeps-its-place.test.tsx": "sha256-d5eb5a273c45444b09aa2728acc3f93b0f8e958f6c22519cab18a3cf38e18efe",
+      "tests/review-work-a.test.tsx": "sha256-9d278b7ab6a1886c56c600edfdb41485b4277f6a1729106e7738ab1f93b0de1e",
+      "tests/runs.test.tsx": "sha256-766b582d56ddbb4939af13019a579ed431f391c1fce6e6824bf969dd0a5c353e",
+      "tests/shell-first.test.tsx": "sha256-29a1b301d4f75de2803eff4910660cf38eed004dd23c14349b8f2986bb5ccf18",
+      "tests/states-detail.test.tsx": "sha256-f90f7550ce973f31c314efd0b2bcb7413c601014928c5441b198dc60a51cf2d0",
+      "tests/states-platform.test.tsx": "sha256-1842697c05ff4f5cac055a86e85eabaa8b3df0918c375d737abdd944f2a6bf92",
+      "tests/states-work.test.tsx": "sha256-b15714badfb60535f14fb2fe3c3b77632dbc940ba996f3feae781be41460c790",
+      "tests/table-columns.test.tsx": "sha256-24d1f27f78c640cca9cdce8818beb0be34f52dcccca66dd807ca0f6ddb1b3d04",
+      "tests/team-figures.test.tsx": "sha256-ddedf6694e9bec7ef33ebc095aa6e030d01fa6f8c8287f032183e932769713a8",
+      "tests/teams-figures.test.tsx": "sha256-ef5ee7e69a2fda7eed0d1d2866a67888386b018d757030928fb14039c51a7ac7",
+      "tests/verify-tiers.test.ts": "sha256-7afd02b8abc79a78d88a71183e00450f1528e9fc04bd5c9f1d7c9f7580f96819",
+      "tests/view-contexts.test.ts": "sha256-95a25fcbf734df732be1877f4c2a298355f99f04bb22eac113943077437b26f8",
+      "tests/work-fixture.tsx": "sha256-8d1c05eac670dd39b944a57eb2320dcb44ef96e91d0ad4102a67b2fa16fc0667"
+    }
+  }
+]

@@ -225,7 +225,7 @@ function Drawer({ rail, asked, root }: { rail: ReactNode; asked: number; root: R
           {shown ? rail : null}
           <Dialog.Close
             aria-label="Close navigation"
-            className="absolute top-4 -right-12 grid size-9 place-items-center rounded-full bg-surface-raised text-ink-2 shadow-overlay"
+            className="absolute top-4 -right-12 grid size-9 place-items-center rounded-full bg-surface-raised text-ink-2 shadow-overlay pointer-coarse:size-11"
           >
             <X className="size-4" />
           </Dialog.Close>

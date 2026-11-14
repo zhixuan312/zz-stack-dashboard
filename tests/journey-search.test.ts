@@ -12,7 +12,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
  * `src/views/pages/knowledge.tsx` makes) and links (`hitAddress`), so the two addresses compared are the two a person
  * would follow. scripts/journeys.ts prints the page's own link from the browser.
  *
- * The browser journey asks the assistant itself, which `pnpm verify --full` points at the fake model with the steps of
+ * The browser journey asks the assistant itself, which `pnpm test:t2` points at the fake model with the steps of
  * `fakeModel` (scripts/verify.config.ts). Here the same two turns are made without a browser: the fake model is asked the
  * phrase with the search tool handed, calls it, is handed the tool's result as the assistant's route hands it
  * (`{ address, context }`, `src/lib/assistant/tools.ts`), and answers; the address that answer cites, read as the

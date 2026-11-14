@@ -22,7 +22,7 @@ const at = (path: string, params: Record<string, unknown> = {}) => {
   const p = new URLSearchParams(Object.entries(params).flatMap(([k, v]) => (typeof v === 'string' && v ? [[k, v]] : [])));
   return p.size ? `${path}?${p}` : path;
 };
-const eq = { ops: ['eq' as const] };
+const eq = { ops: ['eq' as const], type: 'text' as const };
 const WINDOW = 'A window holds complete days of the reporting time zone, so today is in none.';
 const ACTIVE = 'It is the active team\'s alone, whoever asks.';
 

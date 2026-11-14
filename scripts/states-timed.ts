@@ -1,6 +1,6 @@
 /**
  * Every rail route and every detail route drawn in a browser in the `slow` state, as each person, held to the five
- * seconds an explicit state has: one of verify's `timedChecks` (Task I-142; spec AC-2.9), which `pnpm verify --timed`
+ * seconds an explicit state has: one of the browser suites' `timedChecks` (Task I-142; spec AC-2.9), which `pnpm test:release`
  * runs alone and one at a time, after the live data and before Web Vitals.
  *
  *   node scripts/states-timed.ts [--base http://localhost:3100] [--as superadmin,member] [--routes /,/record]

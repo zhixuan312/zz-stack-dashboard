@@ -62,7 +62,7 @@ describe('the fake gateway as the sweep uses it', () => {
   });
 
   it('renames one of its own teams on a hint, and adds no row', async () => {
-    // What `scripts/live-check.ts` drives. It renames rather than adds because `verify` runs the checks and the presses
+    // What `scripts/live-check.ts` drives. It renames rather than adds because the browser suites run the checks and the presses
     // suite against ONE gateway at once: a row this added would be a link the presses would follow to a team page the
     // fixture does not know, which is a 404 this check caused and another suite would report.
     const base = await start();
@@ -160,7 +160,7 @@ describe('the fake gateway as the sweep uses it', () => {
   });
 
   it('takes the console\'s presentation and approval the way the gateway does', async () => {
-    // `verify` presses Approve against this fixture: a page that sent the old `{ initiative, path }` would pass
+    // the browser suites press Approve against this fixture: a page that sent the old `{ initiative, path }` would pass
     // here and be refused by the gateway, so the fixture refuses it too.
     const base = await start();
     const post = (path: string, body: unknown) => fetch(`${base}/api/console/${path}?team=atlas`, {
@@ -211,7 +211,7 @@ describe('the fake gateway as the sweep uses it', () => {
     expect(await unshown.json()).toMatchObject({ conflict: 'unshown' });
   });
 
-  // `verify` runs the normal world only, so the states this change adds live in its records: a correction the
+  // the browser suites run the normal world only, so the states this change adds live in its records: a correction the
   // signed-in user may approve, and a document another session revises after every read.
   it('holds a correction this user can approve, and a document that moves after it is read', async () => {
     const base = await start();
@@ -270,7 +270,7 @@ describe('the fake gateway as the sweep uses it', () => {
     }
   });
 
-  // What `pnpm verify` walks: each person's own team's initiatives as detail routes, and another team's as a missing route
+  // What `pnpm test:t2` walks: each person's own team's initiatives as detail routes, and another team's as a missing route
   // and a probe both are refused, so a browser suite never reads a record the gateway would not answer.
   it('is walked through the active team\'s initiatives, and another team\'s as a denied probe for both people', async () => {
     const base = await start();

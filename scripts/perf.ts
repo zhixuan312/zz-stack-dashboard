@@ -98,13 +98,14 @@ async function openTab(refuse?: string): Promise<Page> {
  * Every rail route that answers a live resync with a verified refresh, so an after-live journey can start from one, and every
  * route whose phone page has the console's drawer, so any journey can.
  */
-async function startRoutes(routes: string[]): Promise<{ live: string[]; starts: string[]; drawn: Record<string, string[]> }> {
+async function startRoutes(routes: string[]): Promise<{ live: string[]; starts: string[]; drawn: Record<string, string[]>; redirected?: string }> {
   const page = await openTab();
   const live: string[] = [];
   let starts: string[] = [];
   let drawn: Record<string, string[]> = {};
+  let redirected: string | undefined;
   try {
-    ({ starts, drawn } = await drawerRoutes(page, base, routes));
+    ({ starts, drawn, redirected } = await drawerRoutes(page, base, routes));
     for (const route of routes) {
       await page.send('Network.clearBrowserCache');
       await page.open(base + route, { width: 1440, theme: 'dark', wait: 200 });
@@ -118,7 +119,7 @@ async function startRoutes(routes: string[]): Promise<{ live: string[]; starts: 
   } finally {
     page.close();
   }
-  return { live, starts, drawn };
+  return { live, starts, drawn, ...(redirected !== undefined ? { redirected } : {}) };
 }
 
 async function main(): Promise<number> {
@@ -186,7 +187,14 @@ async function main(): Promise<number> {
   const shared: Partial<Record<Device, Page>> = {};
   try {
     try {
-      ({ live, starts, drawn } = await startRoutes(rail.routes));
+      let redirected: string | undefined;
+      ({ live, starts, drawn, redirected } = await startRoutes(rail.routes));
+      if (redirected !== undefined) {
+        const reason = `every rail route redirected to ${redirected}: is sign-in on for this build?`;
+        console.log(`FAIL    perf: ${reason}`);
+        out({ status: 'FAIL', errors: [reason] });
+        return 1;
+      }
     } catch (e) {
       const first = (e as Error).message.split('\n')[0];
       const reason = e instanceof ChromeStartError ? `Chrome could not start (${first})` : `the rail's routes could not be probed (${first})`;

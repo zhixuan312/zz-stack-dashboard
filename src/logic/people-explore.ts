@@ -6,14 +6,14 @@
  */
 import type { PreparedQuery, Source } from '@/lib/explore';
 
-const ROLE = { ops: ['eq' as const], values: ['superadmin', 'member'] };
+const ROLE = { ops: ['eq' as const], type: 'text' as const, values: ['superadmin', 'member'] };
 const WINDOW = 'A window holds complete days of the reporting time zone, so today is in none.';
 const PAGE = '/platform/people';
 
 /** The people, a stock counted as of a window's last day. */
 const people: Source = {
   collection: 'people', date: 'at',
-  filters: { role: ROLE, state: { ops: ['eq'], values: ['active', 'deactivated'] } }, facets: ['role', 'state'],
+  filters: { role: ROLE, state: { ops: ['eq'], type: 'text', values: ['active', 'deactivated'] } }, facets: ['role', 'state'],
   measures: { people: { label: 'People', unit: 'people', definition: 'Every person added by the window\'s last day, as they stand now.', agg: 'count' } },
   drill: { columns: ['email', 'name', 'role', 'state'], address: () => PAGE },
   cannot: `People are a stock: a window's start changes nothing. A person's tokens and enrolment links are never shown. ${WINDOW}`,

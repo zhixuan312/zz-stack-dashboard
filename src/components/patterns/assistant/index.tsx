@@ -141,10 +141,16 @@ export function AssistantPanel({
   const draft = held ?? own;
   const setDraft = onDraft ?? setOwn;
   const thread = useRef<HTMLDivElement>(null);
+  const panel = useRef<HTMLElement>(null);
   useEffect(() => {
     const el = thread.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
+  // The panel mounts only when it opens (`if (!open) return null`). Focus it, so Escape closes it without first having to
+  // tab into it, and Tab reaches its own controls before the page behind. A preview drawn in the flow takes no focus.
+  useEffect(() => {
+    if (!inline) panel.current?.focus();
+  }, [inline]);
 
   const text = draft.trim();
   const send = () => {
@@ -166,6 +172,8 @@ export function AssistantPanel({
     {/* Below 1024px the panel is a sheet over the page: a scrim dims the page and closes the panel when pressed. */}
     {inline ? null : <div aria-hidden onClick={onClose} className="scrim-in fixed inset-0 z-(--layer-overlay) bg-scrim lg:hidden" />}
     <aside
+      ref={panel}
+      tabIndex={-1}
       data-assistant
       aria-label="Assistant"
       onKeyDown={(e) => e.key === 'Escape' && !e.nativeEvent.isComposing && onClose()}

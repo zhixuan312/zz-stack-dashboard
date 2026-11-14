@@ -51,7 +51,7 @@ import { settled } from './server-tree.tsx';
 
 /**
  * Home as the person reads it, drawn from the read the page makes on the console's server. The weeks come from the fake
- * gateway's own answer, the one `pnpm verify` serves the page: atlas's plain week with four revisions waiting, beacon's
+ * gateway's own answer, the one `pnpm test:t2` serves the page: atlas's plain week with four revisions waiting, beacon's
  * first observed week with one, and the other states built from them here: a quiet week, an empty team, and a read
  * whose parts failed one by one.
  */

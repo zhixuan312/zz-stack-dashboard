@@ -13,7 +13,7 @@ import { findings as counted, scores } from './tools/sources';
 /** The findings as Evaluation counts them, with the decisions and owner categories the gateway answers named. */
 const findings: Source = {
   ...counted,
-  filters: { ...counted.filters, owner: { ops: ['eq'], values: OWNER_KEYS } },
+  filters: { ...counted.filters, owner: { ops: ['eq'], type: 'text', values: OWNER_KEYS } },
   labels: {
     decision: Object.fromEntries(DECISIONS.map((d) => [d.key, d.label.toLowerCase()])),
     owner: Object.fromEntries(OWNER_KEYS.map((o) => [o, ownerOf(o).toLowerCase()])),

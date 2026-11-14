@@ -153,7 +153,7 @@ for (const f of SOURCE.filter((x) => /^(app|src\/console|src\/lib|src\/logic|src
 
 // ── The navigation ────────────────────────────────────────────────────────────────────────────────────
 // `nav` in `src/app.config.ts` is what the rail draws (narrowed by `chromeAccess` in `src/data/access.ts`) and what
-// `scripts/lib/routes.ts` walks for verify's navigation smoke, so a bad href is a broken check as much as a broken
+// `scripts/lib/routes.ts` walks for the browser suites' navigation smoke, so a bad href is a broken check as much as a broken
 // link. Meridian's check.ts holds each item's `needs` to the shape the rail can read; this holds the route itself, and
 // that each one appears once: the rail lights up the longest match, so two entries with the same href are two links to
 // the same page.

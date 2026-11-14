@@ -26,7 +26,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
  * collections they may read), with the prepared queries' own words, collected from the declarations, never a hand list.
  *
  * Each page is rendered as Next renders it: its own default export, its real gate, its async parts awaited (as
- * `tests/agent-side.test.ts` does), every server and browser read answered by the fake gateway `pnpm verify` serves,
+ * `tests/agent-side.test.ts` does), every server and browser read answered by the fake gateway `pnpm test:t2` serves,
  * spawned here, as the person the `zz_console` cookie names.
  */
 const jar = vi.hoisted(() => ({}) as Record<string, string>);
@@ -127,7 +127,7 @@ type Page = { file: string; feature: FeatureId; address: string; params: Record<
 /** A route's segment as a pattern: `[x]` one name, `[...x]` the rest of the path. */
 const segmentRe = (seg: string) => (seg.startsWith('[...') ? '(.+)' : seg.startsWith('[') ? '([^/]+)' : seg.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
 
-/** A detail page's addresses: verify's own, without their queries, and a lesson on the shared shelf. */
+/** A detail page's addresses: the browser suites' own, without their queries, and a lesson on the shared shelf. */
 const SHARED_LESSON = SHELF.find((n) => n.team === SHARED_TEAM)!;
 const DETAILS = [...config.detailRoutes, `/knowledge/${SHARED_TEAM}/${SHARED_LESSON.path}`]
   .map((a) => a.split('?')[0]).filter((a, i, all) => all.indexOf(a) === i);

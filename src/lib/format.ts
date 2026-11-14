@@ -68,6 +68,8 @@ function formatCostCompact(amount: number | null): string {
   if (amount === null) return '—';
   const sign = amount < 0 ? '-' : '';
   const a = Math.abs(amount);
+  // A positive amount under one unit rounds to "$0" at whole dollars, which reads as nothing: keep its cents.
+  if (a > 0 && a < 1) return formatCost(amount);
   return zeroHasNoSign(a < 1000 ? `${sign}${CURRENCY}${INT.format(Math.round(a))}` : `${sign}${CURRENCY}${formatCompact(a)}`);
 }
 
@@ -81,7 +83,8 @@ function formatCostCompact(amount: number | null): string {
  *  is still there when the figure is set in two faces.
  */
 export function splitFigure(s: string): { pre?: string; int: string; frac?: string; unit?: string } {
-  const m = s.match(/^([-+]?[^\d\s.,-]*)([\d,]+)(\.\d+)?\s*([%a-zA-Z]*)$/);
+  // The unit may be a spaced word ("12.5M tokens"); a spaced symbol before the number ("CHF 1,234.50") is not split.
+  const m = s.match(/^([-+]?[^\d\s.,-]*)([\d,]+)(\.\d+)?\s*([%a-zA-Z]*(?:\s+[a-zA-Z]+)*)$/);
   if (!m) return { int: s };
   // Cents step down; the decimal of a compact amount ("$1.2M") is part of the number, not cents.
   const cents = Boolean(m[1]) && !m[4];

@@ -45,7 +45,7 @@ describe('an address ending in a file name', () => {
     expect((await outcome(address)).passed).toBe(true);
   });
 
-  it('lets every address verify walks through, the documents and knowledge nodes among them', async () => {
+  it('lets every address the browser suites walk through, the documents and knowledge nodes among them', async () => {
     const addresses = [...config.detailRoutes.map((r) => r.split('?')[0]), ...config.navigationChecks!.map((c) => c.path)];
     expect(addresses.some((a) => /\.md$/.test(a))).toBe(true);
     for (const address of addresses) expect((await outcome(address)).passed, address).toBe(true);

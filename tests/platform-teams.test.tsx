@@ -323,7 +323,7 @@ describe('the view tools answer the pages\' own responses', () => {
     const { sources } = teamsTool.explore;
     expect(Object.fromEntries(Object.entries(sources).map(([k, s]) => [k, s.collection]))).toEqual({ teams: 'teams', calls: 'platform_calls' });
     expect(sources.calls.facets).toContain('team');
-    expect(sources.calls.filters.team).toEqual({ ops: ['eq'] });
+    expect(sources.calls.filters.team).toEqual({ ops: ['eq'], type: 'text' });
     expect(sources.teams.drill.address({ slug: 'atlas' })).toBe('/platform/teams/atlas');
     expect(Object.keys(teamTool.explore.sources)).toEqual(['calls']);
     expect(await teamTool.explore.fixed!({ slug: 'atlas' })).toEqual({ calls: [{ field: 'team', op: 'eq', value: 'atlas' }] });

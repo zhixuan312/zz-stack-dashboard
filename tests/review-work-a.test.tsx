@@ -10,7 +10,7 @@ vi.mock('@/lib/live', async (importOriginal) => ({ ...(await importOriginal<type
 
 /**
  * Phase 7's review of the Work destinations, the findings of Home, Record, Knowledge, the knowledge log and a knowledge
- * node (Task I-152, AC-8.4, AC-2.8): each page drawn from the fake gateway's own answers, the ones `pnpm verify` and the
+ * node (Task I-152, AC-8.4, AC-2.8): each page drawn from the fake gateway's own answers, the ones `pnpm test:t2` and the
  * review's screenshots read, and each finding's cause looked for and not found.
  *
  * - F-13: Record's tile labels whole at a quarter-width tile, and its tick labels short enough not to touch.

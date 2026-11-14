@@ -394,20 +394,37 @@ const WORKSPACE_ITEM = '[role="menuitemradio"]';
  * patience the visit has; every link in it is read whether or not it is displayed, since at a phone's width the rail is in the
  * page and hidden until the drawer opens.
  */
-export async function drawerRoutes(page: Page, origin: string, routes: string[]): Promise<{ starts: string[]; drawn: Record<string, string[]> }> {
+export async function drawerRoutes(page: Page, origin: string, routes: string[]): Promise<{ starts: string[]; drawn: Record<string, string[]>; redirected?: string }> {
   const starts: string[] = [];
   const drawn: Record<string, string[]> = {};
+  const landed: Record<string, string> = {};
   const read = `(() => {
     const links = typeof deepQueryAll === 'function' ? deepQueryAll('nav a[href]') : [...document.querySelectorAll('nav a[href]')];
     return [...new Set(links.map((a) => a.getAttribute('href')))];
   })()`;
   for (const route of routes) {
     await page.open(origin + route, { ...PHONE, theme: 'dark', wait: 200 });
+    landed[route] = await page.eval<string>('location.pathname');
     const shown = await poll(() => page.eval<boolean>(`document.readyState === 'complete' && !!document.querySelector('h1')`), Date.now() + PATIENCE.phone);
     if (shown && (await page.eval<boolean>(`!!document.querySelector('button[aria-label="Open navigation"]')`))) starts.push(route);
     drawn[route] = !shown ? [] : (await poll(async () => { const l = await page.eval<string[]>(read); return l.length ? l : null; }, Date.now() + PATIENCE.phone)) ?? [];
   }
-  return { starts, drawn };
+  const redirected = redirectedEverywhere(routes, landed);
+  return { starts, drawn, ...(redirected !== null ? { redirected } : {}) };
+}
+
+/**
+ * The path every one of `routes` landed on, when every visit was answered by a page that is not the rail route asked for:
+ * the sign-in wall, or a redirect to one page. Null when any route stayed where it was asked, or they landed in different
+ * places (a per-page guard is the product's own gate, not a wall in front of the whole console).
+ */
+export function redirectedEverywhere(routes: string[], landed: Record<string, string | undefined>): string | null {
+  if (routes.length === 0) return null;
+  const at = routes.map((route) => landed[route]);
+  if (at.some((path) => path === undefined)) return null;
+  const same = (a: string, b: string) => a.replace(/\/+$/, '') === b.replace(/\/+$/, '');
+  const to = at[0]!;
+  return at.every((path) => same(path!, to)) && routes.every((route) => !same(to, route)) ? to.replace(/\/+$/, '') || '/' : null;
 }
 
 /**

@@ -40,7 +40,7 @@ import { runs } from '../scripts/fake-gateway/work-runs.ts';
  * A gap is never drawn as zero (Task I-124, AC-2.8). Where a figure has no number the card is handed none, and says the
  * page's own word in its place; where a Heatmap, which draws no gap, is handed days from before the record begins, the
  * page draws no cell before that start and names it, and draws no week of hours until a whole week was observed. Each
- * answer is the fake gateway's own, the one `pnpm verify` serves, with one part changed as the gateway could answer it.
+ * answer is the fake gateway's own, the one `pnpm test:t2` serves, with one part changed as the gateway could answer it.
  */
 const wrap = (node: ReactNode) =>
   render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><Tooltip.Provider>{node}</Tooltip.Provider></QueryClientProvider>);

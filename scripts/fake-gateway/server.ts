@@ -4,14 +4,14 @@
  *
  *   node scripts/fake-gateway/server.ts [--port 0] [--mode normal|empty|error|slow|extreme|partial]
  *
- * Why it exists: `pnpm verify` presses every control on every page. Against the real deployment
+ * Why it exists: `pnpm test:t2` presses every control on every page. Against the real deployment
  * that would approve documents, revoke tokens and archive teams, so the browser checks run against
  * this instead. Build the app with `ZZ_GATEWAY=<the printed address>`: `next.config.ts` bakes that
  * rewrite into the build, and the pages then fetch from here exactly as they fetch from the
  * gateway behind Caddy in production.
  *
  * Who is calling: one of the two people in `people.ts`, named by the `zz_console` cookie's value. A
- * request with no such cookie is the superadmin, because `pnpm verify` signs nobody in unless it is
+ * request with no such cookie is the superadmin, because `pnpm test:t2` signs nobody in unless it is
  * run with `--as`; the member's value is one person in one team, who is answered that team's records
  * and nothing that names another; any other value has no session and is answered 401. On the
  * screens a visitor sees before signing in (`/login`, `/enrol`, `/signed-out`) `/me` answers 401 too,
@@ -81,7 +81,7 @@
  * `POST /api/console/settings/me/active-team` is the one write that is kept: the team it moves a session to stays that
  * cookie's for the life of the process, as the gateway keeps it on the session's own row, so every read after it is
  * answered for the new team; the personas' plain values and a request with no cookie are answered and not kept, so
- * verify's suites never move one another. It is refused as the gateway refuses it: a team the person is not in, or a
+ * the browser suites never move one another. It is refused as the gateway refuses it: a team the person is not in, or a
  * caller who is not a signed-in browser. A third cookie value, `member-two-teams`, signs in the member as a member of
  * two teams.
  */
@@ -190,9 +190,9 @@ function callerOf(cookie: string | null): Me | null {
  * `POST /settings/me/active-team`, as the gateway answers it: a signed-in browser alone, a slug, a team the person is
  * in, and `{ ok, actingFor, from }`.
  *
- * DELIBERATE: a request with no cookie is answered and not kept. It is every browser `pnpm verify` runs side by side,
+ * DELIBERATE: a request with no cookie is answered and not kept. It is every browser `pnpm test:t2` runs side by side,
  * the audit, the presses and the keyboard walk, so one press of "Act as this team" would move the others mid-run. The
- * personas' own values, `superadmin` and `member`, are not kept either: verify presses every control on a persona's
+ * personas' own values, `superadmin` and `member`, are not kept either: the browser suites press every control on a persona's
  * routes as that persona, and a kept switch turned atlas's member rows into beacon's read-only list halfway through
  * /access. A switch that must hold is made by a session of its own (`superadmin+normal`, `member-two-teams`).
  */
@@ -580,7 +580,7 @@ const server = http.createServer((req, res) => {
      * went and read again. The new name is the asking session value's alone (`renamedFor`), so the suites beside the
      * check, the states sweep's captures among them, read the fixture's names throughout.
      *
-     * DELIBERATE, and it is why this renames rather than adds: `verify` runs the checks and the presses suite against
+     * DELIBERATE, and it is why this renames rather than adds: the browser suites run the checks and the presses suite against
      * ONE gateway at the same time, so anything this records is also something the presses see. A row this added would
      * be a link the presses would follow to a team page the fixture does not know, which is a 404 this check caused and
      * another suite would report. A rename changes no row, adds no link, and is undone by the next run's fresh process.
@@ -692,6 +692,6 @@ const server = http.createServer((req, res) => {
 server.listen(port, '127.0.0.1', () => {
   const { port: p } = server.address() as { port: number };
   onDrift(() => hint('document'));
-  // verify.ts reads this line to learn the address.
+  // scripts/browser.ts reads this line to learn the address.
   console.log(`fake-gateway listening on http://127.0.0.1:${p}${mode === 'normal' ? '' : ` (${mode})`}`);
 });

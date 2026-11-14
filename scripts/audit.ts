@@ -37,6 +37,7 @@ import { atlasCoverage, atlasEntries } from './lib/atlas.ts';
 import { launch } from './lib/chrome.ts';
 import { DEEP_SOURCE } from './lib/deep.ts';
 import { discover } from './lib/routes.ts';
+import { phoneHeadProblem } from './lib/table-head.ts';
 import { settle } from './lib/settle.ts';
 import { detailRoutes, personaCookie } from './lib/team-config.ts';
 import { holdArgs } from './lib/args.ts';
@@ -95,7 +96,7 @@ if (atlasLine) console.log(atlasLine);
 
 type Report = {
   path: string; href: string; text: number;
-  sideways: string[]; clipped: string[]; spills: string[]; truncated: string[]; overlap: string[]; focusless: string[]; unnamed: string[]; unmeasured: string[]; scrollers: string[]; contrast: string[]; targets: string[]; headings: string[];
+  sideways: string[]; clipped: string[]; spills: string[]; truncated: string[]; overlap: string[]; focusless: string[]; unseen: string[]; unnamed: string[]; unmeasured: string[]; scrollers: string[]; contrast: string[]; targets: string[]; headings: string[]; heads: { label: string; height: number; srOnly: boolean }[];
   sizes: number[]; weights: number[]; radii: number[]; ratio: number;
 };
 
@@ -103,9 +104,12 @@ type Report = {
 const MEASURE = `(() => {
   // The layout viewport, never innerWidth: a phone's visual viewport widens to content that overflows it, so a page
   // 600px wide at 390 measured 616 there and its sideways scroll, the strip rule and every clip were judged at 616.
-  const W = document.documentElement.clientWidth, out = { path: location.pathname, href: location.href, text: 0, sideways: [], clipped: [], spills: [], truncated: [], overlap: [], unnamed: [], unmeasured: [], scrollers: [], contrast: [], targets: [], headings: [], sizes: [], weights: [], radii: [], ratio: 0 };
+  const W = document.documentElement.clientWidth, out = { path: location.pathname, href: location.href, text: 0, sideways: [], clipped: [], spills: [], truncated: [], overlap: [], unnamed: [], unmeasured: [], scrollers: [], contrast: [], targets: [], headings: [], heads: [], sizes: [], weights: [], radii: [], ratio: 0 };
   const label = (el) => (el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + (el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\\s+/).slice(0, 3).join('.') : '')).slice(0, 90);
-  const visible = (el) => { const r = el.getBoundingClientRect(); const c = getComputedStyle(el); /* visually hidden (sr-only, also under a variant) is for screen readers, not the eye */ return r.width > 0 && r.height > 0 && c.visibility !== 'hidden' && c.display !== 'none' && parseFloat(c.opacity) > 0.05 && !deepClosest(el, '.sr-only,[aria-hidden="true"]') && !(c.position === 'absolute' && r.width <= 1 && r.height <= 1); };
+  // Visually hidden (sr-only, also under a variant) is for screen readers, not the eye. sr-only's 1px box is padded by
+  // whatever padding the element carries, so a clipped absolute box is judged by either dimension: at most a pixel wide
+  // or tall cannot show a line, and a DataTable's phone head (sr-only cells carrying px-4) measured 20x1.
+  const visible = (el) => { const r = el.getBoundingClientRect(); const c = getComputedStyle(el); return r.width > 0 && r.height > 0 && c.visibility !== 'hidden' && c.display !== 'none' && parseFloat(c.opacity) > 0.05 && !deepClosest(el, '.sr-only,[aria-hidden="true"]') && !(c.position === 'absolute' && (r.width <= 1 || r.height <= 1)); };
   const sr = document.scrollingElement;
   if (sr.scrollWidth > W + 1) out.sideways.push('document ' + sr.scrollWidth + 'px wide at ' + W);
   const all = deepAll(document.body).filter((n) => n !== document.body);
@@ -315,14 +319,18 @@ const MEASURE = `(() => {
   out.overlap = [...new Set(out.overlap)].slice(0, 8); out.truncated = [...new Set(out.truncated)].slice(0, 8); out.spills = [...new Set(out.spills)].slice(0, 8);
   // Headings descend one level at a time, so a screen reader's outline has no holes.
   // A specimen's headings are the card's own, at the level the card uses where it is placed, not the documentation page's.
-  const levels = [...document.querySelectorAll('h1,h2,h3,h4,h5,h6')].filter((h) => !h.closest('[aria-hidden="true"]') && !h.closest('[data-specimen]')).map((h) => +h.tagName[1]);
+  const levels = [...deepQueryAll('h1,h2,h3,h4,h5,h6')].filter((h) => !deepClosest(h, '[aria-hidden="true"]') && !deepClosest(h, '[data-specimen]')).map((h) => +h.tagName[1]);
   levels.forEach((l, i) => { if (i && l > levels[i - 1] + 1) out.headings.push('h' + levels[i - 1] + ' then h' + l); });
-  out.focusless = [];
+  out.focusless = []; out.unseen = [];
   // What each element looks like unfocused, so the focus check can tell a ring from a decoration that is always there.
   window.__ringBefore = new WeakMap(); for (const n of all) window.__ringBefore.set(n, ringSignature(getComputedStyle(n)));
   const sorted = texts.sort((a, b) => a - b);
   out.ratio = sorted.length ? +(sorted[sorted.length - 1] / sorted[Math.floor(sorted.length / 2)]).toFixed(1) : 0;
   out.sizes = [...new Set(out.sizes)].sort((a, b) => a - b); out.weights = [...new Set(out.weights)].sort(); out.radii = [...new Set(out.radii)].sort((a, b) => a - b);
+  // A card-mode table's head is measured as it draws: a contents row leaves no box, a visible one is a band of words.
+  // A table that stays a table on a phone (the roles matrix) keeps its visible head, so it is not this rule's subject.
+  out.heads = deepQueryAll('thead').filter((h) => { const tb = h.closest('table') && h.closest('table').querySelector('tbody'); return tb !== null && getComputedStyle(tb).display === 'block'; })
+    .map((h) => ({ label: label(h), height: Math.round(h.getBoundingClientRect().height), srOnly: !!deepClosest(h, '.sr-only') }));
   out.contrast = [...new Set(out.contrast)].slice(0, 8); out.clipped = [...new Set(out.clipped)].slice(0, 8); out.unnamed = [...new Set(out.unnamed)].slice(0, 8); out.unmeasured = [...new Set(out.unmeasured)].slice(0, 8);
   // A page that rendered nothing fails every check above without being told to: nothing sideways, nothing clipped, no
   // unnamed control, no heading to skip, no colour, no target. So what was measured is recorded here — the path the
@@ -345,7 +353,7 @@ const measure = async (route: string, width: number, theme: string, embed: boole
   if (embed) await page.eval(`(() => { const d = document.documentElement; d.setAttribute('data-theme','${theme}'); window.__hostGround = '${theme}' === 'dark' ? '#1C1C20' : '#FFFFFF'; return true; })()`);
   // One implementation of the walk: the helper is injected, never copied. A page it cannot be injected into fails the audit.
   try {
-    if (!(await page.eval<boolean>(`${DEEP_SOURCE}\n;typeof deepAll === 'function' && typeof deepActive === 'function' && typeof deepParent === 'function' && typeof deepText === 'function'`))) throw new Error('the helper is not defined after injection');
+    if (!(await page.eval<boolean>(`${DEEP_SOURCE}\n;typeof deepAll === 'function' && typeof deepActive === 'function' && typeof deepParent === 'function' && typeof deepText === 'function' && typeof deepDrawn === 'function'`))) throw new Error('the helper is not defined after injection');
   } catch (e) {
     console.error(`audit: cannot inject the deep-DOM helper into ${route}: ${(e as Error).message}`);
     page.close();
@@ -370,18 +378,25 @@ const measure = async (route: string, width: number, theme: string, embed: boole
     // arrives, every stop reports a 0px ring (measured on `/` at 1440: `0px` at once, `2px` one frame on), and the audit
     // reported 907 issues that were its own timing rather than the page's. So it polls for the ring instead of sampling
     // once, up to ~5 frames, and only then calls the stop unmarked.
-    const miss = await page.eval<string | null>(`(async () => {
+    const stop = await page.eval<{ name: string; ring: boolean; drawn: boolean } | null>(`(async () => {
       const el = deepActive(); if (!el || el === document.body) return null;
       const frame = () => new Promise((done) => requestAnimationFrame(() => done(true)));
       // A ring is a change on focus, wherever on the element's frames it may be drawn (scripts/lib/deep.ts).
       const marked = () => ringChain(el).some((n) => ringed(n, window.__ringBefore && window.__ringBefore.get(n)));
       for (let i = 0; i < 6 && !marked(); i++) await frame();
-      if (marked()) return null;
-      return el.tagName.toLowerCase() + '.' + String(el.className).split(' ').slice(0, 3).join('.');
+      // The focus styles and the ring do not land in the same frame: a skip link's outline can be drawn a frame before
+      // it moves into view and turns opaque, so "draws nothing" is polled like the ring rather than sampled once.
+      const shown = () => deepDrawn(el);
+      for (let i = 0; i < 10 && !shown(); i++) await frame();
+      // A stop that draws nothing is a control a keyboard user lands on and cannot see: a clipped head's button, a
+      // transparent or zero-box control.
+      return { name: el.tagName.toLowerCase() + '.' + String(el.className).split(' ').slice(0, 3).join('.'), ring: marked(), drawn: shown() };
     })()`);
-    if (miss) r.focusless.push(miss);
+    if (stop && !stop.drawn) r.unseen.push(stop.name);
+    else if (stop && !stop.ring) r.focusless.push(stop.name);
   }
   r.focusless = [...new Set(r.focusless)].slice(0, 6);
+  r.unseen = [...new Set(r.unseen)].slice(0, 6);
   const scrollers = r.scrollers.filter((s) => !ALLOWED_SCROLLERS.test(s));
   const answer = answerProblem(route, page.status(), await page.eval<boolean>(DRAWS_NOT_FOUND), MISSING);
   const issues = [
@@ -411,10 +426,12 @@ const measure = async (route: string, width: number, theme: string, embed: boole
     ...r.unnamed.map((x) => 'unnamed: ' + x),
     ...r.unmeasured.map((x) => 'unmeasured: ' + x),
     ...[...new Set(r.headings)].map((x) => 'heading skips a level: ' + x),
+    ...r.heads.flatMap((h) => { const problem = phoneHeadProblem(width, h.height, h.srOnly); return problem ? [`${problem}: ${h.label}`] : []; }),
     ...[...new Set(r.targets)].slice(0, 8).map((x) => 'touch target under 44px: ' + x),
     ...(scrollers.length > 1 ? ['scrollers: ' + scrollers.join(', ')] : []),
     ...r.contrast.map((x) => 'contrast: ' + x),
     ...r.focusless.map((x) => 'no focus ring: ' + x),
+    ...r.unseen.map((x) => 'focus lands on a control that draws nothing: ' + x),
     ...[...new Set(page.errors)].slice(0, 4).map((x) => x),
   ];
   const tag = `${route} @${width} ${theme}`;

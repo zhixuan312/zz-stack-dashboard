@@ -27,6 +27,8 @@ export type UpdateJournal = {
   phase: Phase;
   operations: FileOperation[]; migrations: Migration[];
   retired: Retirement[];
+  /** Managed files the team had deleted, recorded in keep.json by this update: absent is a deletion the team kept. */
+  keptDeletions: KeepEntry[];
   validation: ValidationResult[]; failure: string | null;
 };
 
@@ -63,6 +65,13 @@ function exactKeys(o: Obj, keys: string[], at: string) {
 function str(v: unknown, at: string): string {
   if (typeof v !== 'string') throw new Error(`${at}: must be a string`);
   return v;
+}
+
+/** A journal id is one folder's name: letters, digits, dot, dash and underscore, never `.` or `..`. */
+function sessionName(v: unknown, at: string): string {
+  const s = str(v, at);
+  if (!/^[A-Za-z0-9._-]+$/.test(s) || s === '.' || s === '..') throw new Error(`${at}: must be a plain folder name (letters, digits, dot, dash and underscore)`);
+  return s;
 }
 
 function oneOf<T extends string>(v: unknown, list: readonly T[], at: string): T {
@@ -105,26 +114,33 @@ export function parseKeep(text: string): KeepEntry[] {
   const seen = new Set<string>();
   return v.map((e, i) => {
     const at = `keep.json entry ${i}`;
-    if (!isObj(e)) throw new Error(`${at}: must be an object with path and reason`);
-    exactKeys(e, ['path', 'reason'], at);
-    if (!isSafePath(e.path)) throw new Error(`${at}: path must be a safe project-relative path`);
-    if (!nonBlank(e.reason)) throw new Error(`${at} (${e.path}): reason must not be blank`);
-    if (seen.has(e.path)) throw new Error(`${at}: path "${e.path}" is listed twice`);
-    seen.add(e.path);
-    return { path: e.path, reason: e.reason };
+    const entry = keepEntry(e, at);
+    if (seen.has(entry.path)) throw new Error(`${at}: path "${entry.path}" is listed twice`);
+    seen.add(entry.path);
+    return entry;
   });
 }
 
-/** A kept path must be managed or verifiably retired, and the kept file must exist: it is never recreated. */
+function keepEntry(e: unknown, at: string): KeepEntry {
+  if (!isObj(e)) throw new Error(`${at}: must be an object with path and reason`);
+  exactKeys(e, ['path', 'reason'], at);
+  if (!isSafePath(e.path)) throw new Error(`${at}: path must be a safe project-relative path`);
+  if (!nonBlank(e.reason)) throw new Error(`${at} (${e.path}): reason must not be blank`);
+  return { path: e.path, reason: e.reason };
+}
+
+/**
+ * A kept path must be managed or verifiably retired. An absent kept file is not a problem: it is a file the team
+ * deliberately deleted, and the update recorded it as kept deleted so no later update stages it again.
+ */
 export function keepProblems(
   keep: KeepEntry[],
-  ctx: { managed: ReadonlySet<string>; retired: readonly Retirement[]; exists: (p: string) => boolean },
+  ctx: { managed: ReadonlySet<string>; retired: readonly Retirement[] },
 ): string[] {
   const retired = new Set(ctx.retired.map((r) => r.path));
   const out: string[] = [];
   for (const { path: p } of keep) {
     if (!ctx.managed.has(p) && !retired.has(p)) out.push(`${p}: kept, but Meridian neither manages nor retired it (remove it from .meridian/keep.json)`);
-    else if (!ctx.exists(p)) out.push(`${p}: kept file is missing; update never recreates it (restore it or remove it from .meridian/keep.json)`);
   }
   return out;
 }
@@ -200,7 +216,9 @@ export function parseJournal(text: string): UpdateJournal {
   const v = parseJson(text, 'state.json');
   if (!isObj(v)) throw new Error('state.json: must be an object');
   return {
-    id: str(v.id, 'id'),
+    // The id becomes the session folder's name under `.meridian/history/<version>/`; a hand-edited `../` would move it
+    // outside.
+    id: sessionName(v.id, 'id'),
     sourceVersion: str(v.sourceVersion, 'sourceVersion'),
     targetVersion: str(v.targetVersion, 'targetVersion'),
     route: oneOf(v.route, ['adopt', 'create'], 'route'),
@@ -212,6 +230,7 @@ export function parseJournal(text: string): UpdateJournal {
     operations: list(v.operations, 'operations', operation),
     migrations: list(v.migrations, 'migrations', migration),
     retired: list(v.retired, 'retired', retirement),
+    keptDeletions: list(v.keptDeletions, 'keptDeletions', keepEntry),
     validation: list(v.validation, 'validation', validation),
     failure: v.failure === null ? null : str(v.failure, 'failure'),
   };

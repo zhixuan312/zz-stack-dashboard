@@ -429,9 +429,9 @@ describe('a member in two teams', () => {
     expect((await ava.json()).activeTeam).toBe('atlas');
   });
 
-  // verify presses every control on a persona's routes as that persona: a kept "Act as this team" on /access turned
+  // the browser suites press every control on a persona's routes as that persona: a kept "Act as this team" on /access turned
   // atlas's member rows into beacon's read-only list mid-walk, and every row control after it went missing.
-  it('keeps nothing for the personas verify signs in as', async () => {
+  it('keeps nothing for the personas the browser suites sign in as', async () => {
     expect((await post(SUPERADMIN, { team: 'beacon' })).status).toBe(200);
     expect((await read(SUPERADMIN, 'me')).activeTeam).toBe('atlas');
   });

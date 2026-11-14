@@ -1,4 +1,7 @@
-import { app } from '../app.config';
+// Relative with its extension, and the collection seam imports this module under plain Node (a store fixture and the
+// multi-process test) where the `@/` alias does not resolve.
+import { app } from '../app.config.ts';
+import { parseCalendarDate } from './calendar-date.ts';
 /**
  * Every date this product displays goes through this module. Nothing calls
  * `toLocaleDateString` directly.
@@ -17,8 +20,11 @@ const DISPLAY_TIMEZONE = app.timezone;
 type DateInput = Date | string | number;
 
 function toDate(input: DateInput): Date | null {
+  // A literal calendar day must exist: Date alone silently rolls February 30 into March.
+  if (typeof input === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(input)) return parseCalendarDate(input);
   const d = input instanceof Date ? input : new Date(input);
-  return Number.isNaN(d.getTime()) ? null : d;
+  if (Number.isNaN(d.getTime())) return null;
+  return d;
 }
 
 /** Built once: an Intl formatter costs far more to construct than to use, and a table formats a date per row. */
@@ -61,6 +67,19 @@ export function dayOf(input: DateInput, timeZone: string = DISPLAY_TIMEZONE): st
   return fmt.format(d);
 }
 
+/**
+ * The calendar day a stored value names, `2026-06-30`. A bare `YYYY-MM-DD` is already a day and is kept as written, wherever
+ * the product reports from; an instant is its day in the reporting timezone, through `dayOf`. Null for a value that is not
+ * a date. Every cut of a stored date — an aggregate's window and bucket, a drill's address — uses this one rule, so a day
+ * in a table, a day in a total and a day in an agent's window are the same day.
+ */
+export function dayOfValue(value: unknown, timeZone: string = DISPLAY_TIMEZONE): string | null {
+  if (typeof value !== 'string') return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return parseCalendarDate(value) ? value : null;
+  const day = dayOf(value, timeZone);
+  return day === '' ? null : day;
+}
+
 /** `09 Jun 2026` */
 export function formatDate(input: DateInput): string {
   const p = dayParts(input);
@@ -97,13 +116,11 @@ export function formatDateTime(input: DateInput): string {
 let DAY_FMT: Intl.DateTimeFormat | null = null;
 
 function calendarParts(date: string): Record<string, string> | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
-  if (!m) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  const d = toDate(date);
+  if (!d) return null;
   DAY_FMT ??= new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
-  // Numeric date constructors map years 0–99 onto 1900–1999; calendar dates name the year itself.
-  const day = new Date(0);
-  day.setUTCFullYear(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-  return Object.fromEntries(DAY_FMT.formatToParts(day).map((p) => [p.type, p.value]));
+  return Object.fromEntries(DAY_FMT.formatToParts(d).map((p) => [p.type, p.value]));
 }
 
 /** The calendar day `n` days after `date` (before it when negative), both YYYY-MM-DD: whole days, whatever the timezone. */

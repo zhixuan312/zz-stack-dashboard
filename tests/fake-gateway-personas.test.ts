@@ -10,9 +10,9 @@ import { app } from '@/app.config';
 import { dayOf, formatDateTime } from '@/lib/format-date';
 
 /**
- * The fixture as two people, which is how `pnpm verify --as` uses it.
+ * The fixture as two people, which is how the browser suites' `personas` use it.
  *
- * Who is asking is the `zz_console` cookie's value: no cookie is the superadmin, because the default `pnpm verify`
+ * Who is asking is the `zz_console` cookie's value: no cookie is the superadmin, because the default `pnpm test:t2`
  * signs nobody in and must keep reading what it read before there was a second person; the member's value is one
  * person in one team; any other value is a browser with no session. The cookies are taken from the personas
  * `scripts/verify.config.ts` declares, since those are what a browser suite is signed in with, so a persona whose
@@ -130,7 +130,7 @@ describe('who the fake gateway answers as', () => {
   });
 
   it('answers the superadmin with no cookie exactly what it answers their cookie', async () => {
-    // The default `pnpm verify` sends no cookie, so this is what keeps its pages reading what they read.
+    // The default `pnpm test:t2` sends no cookie, so this is what keeps its pages reading what they read.
     for (const path of ['teams', 'teams?scope=platform', 'initiatives?scope=platform', 'knowledge', 'people?scope=platform',
                         'activity?scope=platform', 'access', 'teams/beacon']) {
       expect(unobserved(await read(null, path)), path).toEqual(unobserved(await read(SUPERADMIN, path)));
@@ -462,7 +462,7 @@ describe('POST /api/console/page-view', () => {
   });
 });
 
-describe('the personas pnpm verify --as signs in as', () => {
+describe('the personas the browser suites sign in as', () => {
   /** Both rails, in the destinations table's order (Work's, then Platform's); written out here and not read from `nav`. */
   const RAIL = [
     '/', '/record', '/initiatives', '/approvals', '/knowledge', '/activity', '/runs', '/plugins', '/access',

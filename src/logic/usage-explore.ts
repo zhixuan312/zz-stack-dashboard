@@ -14,7 +14,7 @@ const WINDOW = 'A window holds complete days of the reporting time zone, so toda
 /** The refusals as Usage counts them: by owner and tool, and by team for a superadmin, never listed. */
 const refusals: Source = {
   ...platformRefusals,
-  filters: { ...platformRefusals.filters, team: { ops: ['eq'] } },
+  filters: { ...platformRefusals.filters, team: { ops: ['eq'], type: 'text' } },
   facets: [...platformRefusals.facets, 'team'],
   drill: { columns: ['owner', 'refusals'], address: () => PAGE },
   cannot: `Refusals are counted, never listed: Usage and Status count them and list none. A member reads no team's name. ${WINDOW}`,
@@ -23,7 +23,7 @@ const refusals: Source = {
 /** The platform's own model calls, by model; what they cost is not recorded. */
 const modelCalls: Source = {
   collection: 'model_calls', date: 'at',
-  filters: { model: { ops: ['eq'] } }, facets: ['model'], buckets: ['day', 'week', 'month', 'weekday'],
+  filters: { model: { ops: ['eq'], type: 'text' } }, facets: ['model'], buckets: ['day', 'week', 'month', 'weekday'],
   measures: { calls: { label: 'Model calls', unit: 'calls', definition: 'The platform\'s own model calls in the window, failed or answered.', agg: 'count' } },
   drill: { columns: ['model', 'calls'], address: () => PAGE },
   none: { model: 'no model recorded' },

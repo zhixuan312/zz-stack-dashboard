@@ -21,7 +21,7 @@ import { activityLog, activitySummary } from '../scripts/fake-gateway/work-activ
 
 /**
  * Activity as the person reads it: the summary the console's server read and handed to the page, and the log the
- * browser reads page by page. Every figure is the fake gateway's own answer for atlas, the one `pnpm verify` serves the
+ * browser reads page by page. Every figure is the fake gateway's own answer for atlas, the one `pnpm test:t2` serves the
  * page, and the other states are built from it: a team with nothing recorded, a busy one, a summary whose parts failed,
  * and reads that failed or did not answer. The browser counts no owner and filters no row: each row on the page is a row
  * the gateway answered for the address the page asked.

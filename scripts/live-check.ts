@@ -17,7 +17,7 @@
  * origin, so a hint reaching this tab is the same frame a second tab would get; the reader should know that is an
  * argument, not a measurement.
  *
- * ONE CAVEAT under `verify --full`, where it matters: the read counts are the gateway's, per collection, and the
+ * ONE CAVEAT under `test:t2`, where it matters: the read counts are the gateway's, per collection, and the
  * presses suite shares that gateway. A page the presses visit may read `initiatives` in the same window this check is
  * watching, which would let the bell case pass without this tab having read anything. The cases that assert on the page
  * itself are unaffected, and the negative control was run outside that concurrency: the case fails when the thing it
@@ -37,7 +37,7 @@ const args = process.argv.slice(2);
 const opt = (k: string, d: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 const base = opt('--base', process.env.BASE ?? 'http://localhost:3100');
 
-/** The fixture team this check renames: no row is added, so nothing else in `verify` sees a link it cannot follow. See
+/** The fixture team this check renames: no row is added, so nothing else in the browser suites sees a link it cannot follow. See
  * the hook's own comment in `scripts/fake-gateway/server.ts`. */
 const RENAMED_SLUG = 'dune';
 /** This check's own session value (scripts/fake-gateway/server.ts): the renames it asks for are seen by it alone. */
@@ -55,7 +55,7 @@ const failures: string[] = [];
 /**
  * Every stream the page opens, as the browser opened it: its address, and its greeting with the moment it arrived.
  * Recorded inside the page before any of its scripts run, so the first stream of each load is in it however soon it
- * opens; a check outside the page sees only the gateway, which other suites share under `verify --full`.
+ * opens; a check outside the page sees only the gateway, which other suites share under `test:t2`.
  */
 await page.send('Page.addScriptToEvaluateOnNewDocument', {
   source: `(() => {
@@ -73,7 +73,7 @@ await page.send('Page.addScriptToEvaluateOnNewDocument', {
         const greet = (event) => (e) => { if (opened.greeting === null) { opened.greeting = { event, data: e.data }; opened.at = performance.now(); } };
         this.addEventListener('synced', greet('synced'));
         this.addEventListener('resync', greet('resync'));
-        // Every hint the stream carried, with when: under verify --full the other suites' writes are hinted too.
+        // Every hint the stream carried, with when: under test:t2 the other suites' writes are hinted too.
         this.addEventListener('change', (e) => {
           try { window.__liveChanges.push({ collection: JSON.parse(e.data).collection, at: performance.now() }); } catch {}
         });
@@ -154,7 +154,7 @@ type Opened = { url: string; greeting: { event: string; data: string } | null; a
 
 /**
  * The tab's reads of a followed collection begun after `greetedAt` that no hint explains: a read that starts after a
- * `change` for its own collection is that hint's doing, which under `verify --full` the presses' writes raise (an
+ * `change` for its own collection is that hint's doing, which under `test:t2` the presses' writes raise (an
  * approval hints `initiatives`, a revoked token `settings`), so only a read with no hint before it is one the greeting
  * caused. Harbormaster #3751 failed /platform/people and /access on reads the presses' hints made.
  */
@@ -179,7 +179,7 @@ async function readsTheGreetingCaused(greetedAt: number, followed: string[]): Pr
 const kept = (streams: Opened[]) => streams.find((s) => s.greeting || !s.closed);
 
 /**
- * The pages whose first greeting was a resync on the first load and synced on the second. Under `verify --full` another
+ * The pages whose first greeting was a resync on the first load and synced on the second. Under `test:t2` another
  * suite's write (a press revoking a token hints `settings`) can move a collection between the page's server read and its
  * stream's greeting, and a resync is then the right answer (Harbormaster #4530 failed /access so, and passed alone twice,
  * #4536). So a resync is judged once more on a fresh load; a console that resyncs every time fails both.
@@ -252,7 +252,7 @@ async function pressed(from: string, to: string, collection: string): Promise<vo
   if (!target) { failures.push(`${where}: no stream following ${collection} opened after the press (${after.length} opened)`); return; }
   if (!target.greeting) { failures.push(`${where}: the stream following ${collection} was never greeted (${target.url})`); return; }
   for (const s of after) {
-    // Closed before its greeting: replaced while the navigation settled (Harbormaster #3842 under a full verify's load).
+    // Closed before its greeting: replaced while the navigation settled (Harbormaster #3842 under a full browser run's load).
     if (!s.greeting && s.closed) continue;
     if (!s.greeting) { failures.push(`${where}: a stream it opened was never greeted (${s.url})`); continue; }
     const asked = new URL(s.url, base).searchParams;
@@ -277,7 +277,7 @@ await follows(`/platform/teams/${RENAMED_SLUG}`, 'Dune Renamed On Its Own Page',
 /**
  * People, at its address under Platform: its first read is the console's server's, so a read of `people` the gateway
  * counts after a hint is the tab's own. Nothing in the fixture can rename a person, so this asserts on the gateway's
- * read count, as the bell case below does, and carries the same caveat under `verify --full`. A hint for a collection
+ * read count, as the bell case below does, and carries the same caveat under `test:t2`. A hint for a collection
  * People does not show is not asserted here: on a shared gateway another suite's read of `people` would fail it.
  */
 await page.open(base + '/platform/people', { width: 1440, theme: 'dark', cookie: SESSION });
