@@ -1,5 +1,5 @@
 {
-  "version": "0.39.3",
+  "version": "0.39.4",
   "route": "adopt",
   "brand": {
     "name": "ZZ Stack",
@@ -42,7 +42,7 @@
     "scripts/assistant.ts": "sha256-c696f575a6803ad2299bc552d814a270341824cc33ed7ecde0a711ca88135dff",
     "scripts/audit.ts": "sha256-9f92f1d0044504792046e8cf5ed4fd6ae13e7b8aa2364519d4aeaa251d0edab0",
     "scripts/brand.ts": "sha256-03154f27da2732ea18754b63222da9b01db466279b16464f5085207ab32bb8fe",
-    "scripts/browser.ts": "sha256-02a7b129c7575cd9c9e5f5e0dfe0a930b962b4b9f856c4c904cc3a5660633a3c",
+    "scripts/browser.ts": "sha256-209fed0d2bf89d1e0b60aa2d6da2e96120b4a15cfde2476fefd08f1de958dcff",
     "scripts/check.ts": "sha256-13b6ca51c30793aa835e2871fce806d75cbaf0cda1daf97d8a54903cf31c5660",
     "scripts/contrast.ts": "sha256-70323752dbbcf9e017895be6fdb1041bba395a4df327aa8e2c48f71e552d5a52",
     "scripts/fake-llm.ts": "sha256-e5bbbe41aa12ac06484b22bf2b625072e2d35720366c4171ecfc8b9d8b5e96d8",
@@ -60,7 +60,7 @@
     "scripts/lib/cls.ts": "sha256-2f40e13151413ad0d87d43406ee822fc89a4344964004e4075b19059d9b4bce9",
     "scripts/lib/config-hooks.ts": "sha256-118436ea0cc1075c4528b9923f473632d1b50831b60ff7cb3cb495bb04359c06",
     "scripts/lib/consumer-smoke.ts": "sha256-a21a7f690b0bbed5714d0a0898bbaad6484b541674256d8dea93d0acc241aada",
-    "scripts/lib/context-check.ts": "sha256-62ce14f5452893f47a908e0e85f1d6e6a40655e08f38111bd9dddda54c3cbfdd",
+    "scripts/lib/context-check.ts": "sha256-23d39bf430526da017d878498be5b552273acb23147a328c38e2d8f5f00df5ae",
     "scripts/lib/coverage.ts": "sha256-6e9dbdd18c1ab92f18a01fada8d226a8fe06b2c1d61e3bdd2c4be3e4c76ae45c",
     "scripts/lib/data-url.ts": "sha256-d837e724ac5f4d7ff69dbff1ae55d8a3f720953d41404cb655b5d09f2ac9e425",
     "scripts/lib/deep-inputs.ts": "sha256-969b563cb46fd40b6348827a9787572ae32c29b0c4fa397bb0e353316654a3da",
@@ -78,6 +78,7 @@
     "scripts/lib/next-config.ts": "sha256-370482ef82c099796215f82329c4f694b283f3471c4d1a6fa2794e8ec7d295a3",
     "scripts/lib/ownership-guide.ts": "sha256-73f9bf9c5e108f66362b674df8f88aa4acaa70c2a278afbd753418c3918c28fb",
     "scripts/lib/phone.ts": "sha256-b527db13dafd1e2207b90ad68526c55cf019af789f9888a0f40f8282963313b7",
+    "scripts/lib/pool.ts": "sha256-dfce8b914aec404f156605eedd33002718372d8dda12b3694f9d044ba1890712",
     "scripts/lib/report-lines.ts": "sha256-eb09bd2a4e7b467cc9f52bb9675fbae6e96ac96b5bc9ecc9cd53aff005b4a43b",
     "scripts/lib/routes.ts": "sha256-b18419faa355f5c06a79c0dc3f63b070d5a359d4d532804da247d8b8d4a346e0",
     "scripts/lib/sample.ts": "sha256-c793f2c3d055e30b1d674923d6e9730372a6397a9e198bc2f69a270adfbdba43",

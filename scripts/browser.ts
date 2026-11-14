@@ -1,7 +1,7 @@
 /**
  * The browser suites: a production build walked by a real browser, run by `test:t2` and `test:release`.
  *
- *   node scripts/browser.ts --depth fn[,timed][,perf] [--only audit|interactions|keyboard|rest] [--built]
+ *   node scripts/browser.ts --depth fn[,timed][,perf] [--only audit|interactions|keyboard|rest] [--built] [--browsers <n>]
  *
  * `fn` is the function-only set, run whenever a change can alter what a page draws or what a control does:
  * scripts/navigate.ts with its budgets unjudged, the audit of every page at every width in both themes
@@ -13,15 +13,19 @@
  * `keyboard`, or `rest` (navigation unjudged, the personas, the assistant walk-throughs, the product's own checks and the
  * build's sizes). Where the product has an assistant, each of the first three starts the fake LLM and restarts the server
  * with the `ASSISTANT_*` variables, as the full run does, and prints a `server:` line naming that mode; the sweeps not
- * asked for are printed as declared, left to their own jobs. Without `--only`, every sweep runs, in this one process.
+ * asked for are printed as declared, left to their own jobs. Without `--only`, every sweep runs, in this one process,
+ * holding a ceiling of browsers between them: `--browsers <n>`, and one browser per two cores by default, each check
+ * weighted by the `browsers` it declares. A check that watches a wall-clock window otherwise judges the machine, not the
+ * product — the same page that settles in 12.5 s alone takes 25.4 s beside a dozen browsers.
  *
  * `timed` is what judges a time and belongs on a quiet machine: the navigation of every rail route with its budgets
  * judged, the live-data checks (scripts/live.ts), the product's own `timedChecks` and the Web Vitals floors
  * (scripts/vitals.ts). It runs last, alone. It is Tier 2: a suite that prints FAIL is listed under `reported` and leaves
  * the run green; a suite that could not run is `not run`, never ok.
  *
- * `perf` is the 20-sample navigation protocol (scripts/perf.ts), judged the same way as `timed`. It runs only where CI is true and only for the weekly
- * job, which calls `pnpm test:t2` on a fresh clone; a local run reports it not run rather than judging the machine.
+ * `perf` is the 20-sample navigation protocol (scripts/perf.ts), judged the same way as `timed`. It runs only where CI is
+ * true, and `scripts/perf.ts` still ships: the release workflow's `tier2` job and `test:release`'s own tier 2 stage ask
+ * for it. A local run reports it not run rather than judging the machine.
  *
  * `--built` reuses the production build the caller already made (test:release builds once).
  *
@@ -38,6 +42,7 @@
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
+import { availableParallelism } from 'node:os';
 import path from 'node:path';
 
 import { answers, bin, freePort, spawnNext } from './lib/bin.ts';
@@ -45,6 +50,7 @@ import { CHROME, launch } from './lib/chrome.ts';
 import { fakeModelArgs, fakeModelProblems, type FakeModelStep } from './lib/config-hooks.ts';
 import { declaredNotRun, selectSmokeRoutes } from './lib/coverage.ts';
 import { FN_SWEEPS, navigationPlan, sweepsFor, timedOutcome, type FnSweep } from './lib/browser-plan.ts';
+import { capacityFrom, pool } from './lib/pool.ts';
 import { clearParts, readParts } from './lib/tier2.ts';
 import { unsafeDataUrls } from './lib/data-url.ts';
 import { APP_DIR, railRoutes } from './lib/routes.ts';
@@ -70,10 +76,15 @@ const config = verifyConfig as BrowserConfig;
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const args = process.argv.slice(2);
-holdArgs('browser', args, ['--depth', '--only', '--built']);
+holdArgs('browser', args, ['--depth', '--only', '--built', '--browsers']);
 const opt = (k: string, d: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] ?? d : d; };
 const depth = new Set(opt('--depth', 'fn').split(',').map((s) => s.trim()).filter(Boolean));
 const built = args.includes('--built');
+/**
+ * How many browsers the function sweeps may hold open between them. Each job is weighted by the `browsers` it opens, so
+ * the ones that judge a wall-clock window are not competing with browsers this run started.
+ */
+const browsers = capacityFrom(opt('--browsers', ''), availableParallelism());
 const want = (d: string) => depth.has(d);
 const onlyAt = args.indexOf('--only');
 if (onlyAt >= 0 && !want('fn')) {
@@ -467,13 +478,16 @@ if (want('fn')) {
     declared.push(`${s}: left to their own jobs`);
   }
 
-  const jobs: { name: string; start: () => Promise<Ran> }[] = [
-    ...(sweep('audit') ? [{ name: 'audit: every page at every width in both themes', start: () => run('scripts/audit.ts', ['--base', here]) }] : []),
-    ...(sweep('interactions') ? [{ name: 'every control pressed and every link followed', start: () => run('scripts/interactions.ts', ['--base', here]) }] : []),
-    ...(sweep('keyboard') ? [{ name: 'the whole keyboard path', start: () => run('scripts/keyboard.ts', ['--base', here]) }] : []),
-    ...(sweep('rest') ? own.map((c) => ({ name: `the product's check ${c.script}`, start: () => run(c.script, ['--base', here], { ...process.env, VERIFY_BROWSERS: String(c.browsers) }) })) : []),
+  // Every sweep this run was asked for is started through one pool, weighted by the browsers it opens, so a suite of
+  // a dozen checks does not put a dozen browsers on a machine of eight cores and have each of them judge the load.
+  const jobs: { name: string; weight: number; start: () => Promise<Ran> }[] = [
+    ...(sweep('audit') ? [{ name: 'audit: every page at every width in both themes', weight: 1, start: () => run('scripts/audit.ts', ['--base', here]) }] : []),
+    ...(sweep('interactions') ? [{ name: 'every control pressed and every link followed', weight: 1, start: () => run('scripts/interactions.ts', ['--base', here]) }] : []),
+    ...(sweep('keyboard') ? [{ name: 'the whole keyboard path', weight: 1, start: () => run('scripts/keyboard.ts', ['--base', here]) }] : []),
+    ...(sweep('rest') ? own.map((c) => ({ name: `the product's check ${c.script}`, weight: c.browsers, start: () => run(c.script, ['--base', here], { ...process.env, VERIFY_BROWSERS: String(Math.min(c.browsers, browsers)) }) })) : []),
   ];
-  const results = await Promise.all(jobs.map((j) => j.start()));
+  if (jobs.length > 1) log(`browsers: ${browsers} at a time across ${jobs.length} checks (${availableParallelism()} cores${args.includes('--browsers') ? ', --browsers' : ''})`);
+  const results = await pool(jobs, browsers);
   jobs.forEach((j, i) => report(j.name, results[i]));
   // The timed set runs whatever these found: a red in one judge must not hide the values of the others.
 }

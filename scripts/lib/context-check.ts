@@ -132,7 +132,7 @@ export function scanReferences(
 const STALE: readonly (readonly [RegExp, string])[] = [
   [/\bpnpm (?:verify|gate)\b/, 'names pnpm verify or pnpm gate'],
   [/\b(?:npm|yarn|bun) run (?:verify|gate)\b/, 'names a removed package script'],
-  [/\b(?:scripts|node scripts)\/(?:verify|gate|perf)\.ts\b/, 'names a removed script'],
+  [/\b(?:scripts|node scripts)\/(?:verify|gate)\.ts\b/, 'names a removed script'],
   [/`(?:verify|gate) --/, 'names a removed command with a flag'],
   [/--(?:full|timed|perf|shard)\b/, 'names a removed flag'],
   [/\btest:all\b/, 'names test:all'],

@@ -1,0 +1,18 @@
+[
+  {
+    "id": "migration:script:test:t2",
+    "status": "resolved",
+    "reason": "The project keeps its own test:t2: the same runner with ZZ_GATEWAY set to the local fake gateway, which the build reads before the browser suites start it.",
+    "files": {
+      "package.json": "sha256-0d06e566ff56b48e9edab7f5019acb03ada4e1fe53e34017cee20d79461baa3f"
+    }
+  },
+  {
+    "id": "migration:script:test:release",
+    "status": "resolved",
+    "reason": "The project keeps its own test:release: the same runner with ZZ_GATEWAY set to the local fake gateway, for the same reason as test:t2.",
+    "files": {
+      "package.json": "sha256-0d06e566ff56b48e9edab7f5019acb03ada4e1fe53e34017cee20d79461baa3f"
+    }
+  }
+]
