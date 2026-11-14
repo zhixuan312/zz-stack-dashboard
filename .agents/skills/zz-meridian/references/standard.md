@@ -128,7 +128,7 @@ evidence.
 | Navigation | The next step is obvious: rows open their record, a link's arrow says where it goes, the rail shows where you are, a dead end offers the way back |
 | Copy | `voice.md`: sentence case, verbs on buttons, a unit and a period on every number; realistic data in the person's domain, never lorem ipsum or "Item 1" |
 | States | Empty (first run and filtered, each with its one action), loading (a skeleton shaped like the page, rarely seen because the page's data is read through `read()` into the prerendered shell; a request-time read costs at least 300 ms a navigation: `cache.md`), error (what failed, and Retry), long text and extreme values (a 60-character name, a zero, a figure in the billions) all designed, and each one seen: a filter that matches nothing, a missing id, sample rows with the long and extreme values so the audit sees them at every width, and the page's `loading.tsx` and `error.tsx` rendered: against the fake API made slow or failing, or, with none, by making the page's read wait or throw for one dev render and reverting it |
-| Agents | Only when the assistant or MCP views are on: the view shares a context that answers "why?" on its own (`agents.md`), and an agent's write goes through a Proposal with the Agent mark |
+| Agents | Only when the assistant or MCP views are on: the view shares a context that answers "why?" on its own (`agents.md`), and an agent's write goes through a Proposal with the Agent mark. A product with no agent surface is compliant by having none: no context, no Proposal, and the gate judges nothing there |
 | Originality | One idea the view is remembered by, named in the evidence. The register names its own; a product view earns Strong with one of its own that serves its question. It comes from how the asked-for content is shown, never from adding content nobody asked for |
 
 Consistency has no row: the gate fails any value that is not a token, so it is a floor.
@@ -140,7 +140,7 @@ Run rounds until the stop condition holds. Order matters here, because each step
 1. **List the views** into the scoreboard (above), and write the floors' rows as `not run`.
 2. **Build or fix.** Change working code only for a problem you can name, as simply as it allows, from Meridian's tokens
    and components. When a defect is one a test can catch (a wrong total, a missing state, a formatter), write the failing
-   test at the lowest layer first, then fix it. Update the page's `README.md` and any doc that describes what you changed.
+   test at the lowest layer first, then fix it. Update the page's README and any doc that describes what you changed.
 3. **Measure what changed.** `pnpm test:t1` after each change, with `pnpm test:t2` when the change touches shared
    components, the shell or the data. A round that touched only some views checks only those: build once
    (`pnpm build`), serve it (`node_modules/.bin/next start --port 3100`, stopped by its own id), and run

@@ -2,10 +2,11 @@ import type { Service, ServiceStatus } from '../components/patterns/status-list/
 import { plural } from '../lib/format';
 
 export type Noun = { one: string; other: string };
-export const SERVICE_NOUN: Noun = { one: 'service', other: 'services' };
+/** What the items are called when the caller does not say: pass your own, `{ one: 'site', other: 'sites' }`. */
+export const NEUTRAL_NOUN: Noun = { one: 'item', other: 'items' };
 
 /** The worst state among the items, in words: the line a reader takes away. `noun` names what they are. */
-export function summarise(services: Service[], noun: Noun = SERVICE_NOUN) {
+export function summarise(services: Service[], noun: Noun = NEUTRAL_NOUN) {
   const down = services.filter((s) => s.status === 'outage').length;
   const degraded = services.filter((s) => s.status === 'degraded').length;
   if (down) return { status: 'outage' as const, text: `${down} ${plural(down, `${noun.one} is`, `${noun.other} are`)} down` };

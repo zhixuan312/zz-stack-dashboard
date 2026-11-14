@@ -27,9 +27,12 @@ recorded, what the running release has, what is on disk now), and acts on the re
 - **Applied**: untouched replacements, additions and untouched removals. Generated files come from the replayed target,
   so no generator runs in the project.
 - **Staged**: every file the team changed, deleted or collided with, as exact copies for a three-way merge.
+- **Tests**: only `tests/setup.ts` is Meridian's in a created project; `optional:tests/examples/` is the team's starting point and
+  stays the team's. A test an earlier release shipped is deleted when the team left it untouched and staged when it
+  edited it.
 - **Never touched**: files in the keep register, team-owned files, and a file the recorded release shipped that a
-  created project never received — `create` removes the Atlas and its tests after copying, so an update leaves them out
-  rather than reading their absence as a deletion to restore. The only team files an update edits are
+  created project never received — `create` removes the Atlas after copying, so an update leaves it out
+  rather than reading its absence as a deletion to restore. The only team files an update edits are
   `package.json` (missing dependencies and scripts, older ones of the same major, and entries still exactly as the earlier release wrote them; a version or script the team chose stays theirs and becomes a migration), the managed block in `AGENTS.md`, and the lockfile
   that the install rewrites. Everything else in `MERGE.md` is advice.
 
@@ -172,97 +175,33 @@ because `node_modules` is not restored. No git reset or clean is ever run.
 Exit codes of `--finalize`: `0` complete, `2` still pending, `1` failure or refusal. `--resume` ends like a plain
 update (`2` pending, `0` finalized, `1` failure). `--abort`: `0` aborted, `1` refused.
 
-## Resolving 0.9.0's migrations
+## Resolving a migration
 
-Moving a project to 0.9.0 can report two more `migration:<id>` items, to 0.10.0 a third for an assistant kept from before, to 0.13.0 a fourth for a navigation item without a `needs`, to 0.15.0 a fifth for a page under the project's own route group, and to 0.16.0 five more, for a configuration that does not declare `refusal`, an export gone from a managed module, a view tool without its page or its prepared query, a view tool's page whose specification does not say what the agent does there, and the sample's pages under their old names; to 0.16.2 one more, for a test of the rail standing over a `ResizeObserver` that answers `observe` with nothing, to 0.16.3 three more, for the assistant route's local `onPage`, a file importing the journey from `scripts/navigate.ts` and a route or a read that cuts today at the UTC date, to 0.19.0 one more, for a test that expects a Column chart's period with no data to draw a track, to 0.26.0 one more, for a test that expects a table's 256px floor or a table cell that spans columns, to 0.28.0 one more, for a file importing a module from the path the move left it at, or a symbol that left a shipped card for the logic layer, to 0.30.0 two more, for a direct read of a collection that the old list of sites let through and an `app` without a `description`, to 0.31.1 one more, for a live stream that never ends when the server is told to stop, to 0.32.0 one more, for a verify configuration with detail routes and no missing ones, to 0.33.0 one more, for a file that reads `.current` off the ref `useSize` returns, to 0.34.0 one more, for a layout that loads the fonts from Google Fonts, and to 0.36.0 three more, for a `NavItem` type without `under` and `prefetch`, a file that imports `workspaceHomes` from the navigation command, and a created project's sample files that the release's tests no longer pass. Each is resolved the same way as those below:
-
-| Id | The old shape it found | The change |
-|----|------------------------|------------|
-| `share-view-context` | `useShareView(text, structured)`, a sentence and an object | one shared context per view, `useShareView(context)`: `agents.md`, "Legible", and `customize.md`, "A shared context" |
-| `agent-reads-section` | a page README under `optional:app/(dashboard)/` or `optional:app/embed/` with no `### What the agent reads` | add the part under `## Agents`: `customize.md`, "A page spec"; checked by `pnpm test:t1` |
-| `assistant-view-tools` (0.10.0) | an assistant route, `optional:src/lib/assistant/tools.ts` or `optional:src/lib/assistant/respond.ts` kept from before view tools | bring the two files over from the release and pass `views` to `respond` (the template's `viewTools`, your own, or none): `example:docs/assistant.md`, "Adding an MCP server later" |
-| `nav-needs` (0.13.0) | an item of `nav` in `src/app.config.ts` with no `needs`, or a `NavItem` type declared without the property | add `needs: 'public'` where everyone may open the page, or `needs: FEATURES.<id>.needs`: `customize.md`, "Navigation", and "5. Decide who may do what" in `optional:docs/start-a-dashboard.md`; checked by `pnpm test:t1` |
-| `agent-reads-own-group` (0.15.0) | a page README under a route group of the project's own at the top of its app folder (`example:app/(dash)/`) with no `### What the agent reads`: the checks asked only under `optional:app/(dashboard)/` before | add the part under `## Agents`: `customize.md`, "A page spec"; checked by `pnpm test:t1`. A copy of the rule in `optional:scripts/check.local.ts` can go |
-| `refusal-declared` (0.16.0) | a `src/app.config.ts` with no `export const refusal` | declare `refusal` beside `facts`, `'explain'` to keep the no-access page a refused page draws today or `'absent'`; a project that keeps the sample's access seam brings `optional:src/data/access.ts` and `optional:src/data/refusal.ts` over from the release: `customize.md`, "Navigation: `src/app.config.ts`"; checked by `pnpm test:t1` and the build |
-| `managed-exports-removed` (0.16.0) | a file of the team's importing `deviations`, `largest`, `runs` or `weekendRatio` from `src/lib/insight.ts`, or `queryInput` from `src/lib/collection.ts` | a file of the sample's comes over from the release (Home's context replaces Overview's; `optional:src/lib/assistant/tools.ts` and `optional:src/lib/assistant/respond.ts` read through `view_<name>` and `explore_<view>`, and the route passes `readable` to `respond`), as does a shipped test that imports one; a file of your own writes the function it needs itself: `agents.md`, "Prepared queries"; checked by `pnpm test:t1` and the build |
-| `view-tool-page-explore` (0.16.0) | a `defineViewTool` call without `page` or `explore` | add `page`, the console route the view renders, and `explore`, its prepared query (`PreparedQuery` in `src/lib/explore.ts`), beside the view as `example:src/logic/<view>-explore.ts`: `agents.md`, "Prepared queries"; checked by `pnpm test:t1` and the build |
-| `agent-does-here-section` (0.16.0) | the README of a page a view tool's `page` names, with no `### What the agent does here`; while a tool names no page, every console page README without it | add the part under `## Agents`: `Protagonist: <name>.` and at least three `- "<question>" — <what the prepared query is asked>`, the card marked `data-protagonist`: `agents.md`, "Prepared queries"; checked by `pnpm test:t1` |
-| `sample-pages-renamed` (0.16.0) | the sample's Overview, Analytics and Operations pages and views under their 0.15.0 folders and files, and every file that names them: the view tools, the nav's feature ids, the verify config's routes, a shipped test | a project that kept them as they were brings the release's Home, Usage and Services over with the rest of the sample and its tests, keeping its own `app` in `src/app.config.ts`, and deletes a listed file the release no longer has; a project that made them its own keeps its names and makes the other 0.16.0 changes in them; checked by `pnpm test:t1` and the build |
-| `marker-measured-on-observe` (0.16.2) | a test that mounts the rail over a `ResizeObserver` whose `observe` answers nothing, such as `optional:tests/rail-marker.test.tsx` as the template wrote it | the rail reads no offset of its own since 0.16.2 — a rail mounts inside the tap that opens the phone drawer, and a read there lays the page out inside that tap — so the marker's first position is the one `observe` delivers, as the platform delivers it, after the effect that called it: bring `optional:tests/rail-marker.test.tsx` over from the release as it has it, whose fake answers `observe` with the callback (`observe() { for (const cb of observers) queueMicrotask(cb); }`), and answer a fake of your own the same way, reading the marker after that delivery; checked by `pnpm test:t1` |
-| `view-page-matched-as-next` (0.16.3) | `optional:app/api/assistant/route.ts` with a local `function onPage(` | delete `onPage` and find the view with `viewAt` from `@/lib/shared-context`, which matches a catch-all `page` as Next.js does: `const at = viewAt(viewTools, path); const view = at && views.includes(at) ? at : undefined;`; checked by `pnpm test:t1` |
-| `journey-moved` (0.16.3) | a file of the team's importing anything but `workspaceHomes` from `scripts/navigate.ts`, such as a copy of `optional:tests/navigate-start.test.ts` | the journey moved to `scripts/lib/journey.ts`: bring `optional:tests/navigate-start.test.ts` and `optional:tests/navigate-menu-start.test.ts` over from the release as it has them, and import the journey from `scripts/lib/journey.ts` in a file of your own; checked by `pnpm test:t1` |
-| `today-in-timezone` (0.16.3) | `optional:app/api/assistant/route.ts` or `optional:src/data/metrics.ts` cutting today with `clock().toISOString().slice(0, 10)` | `dayOf(clock())` from `src/lib/format-date.ts`, so today is the day in `app.timezone`; a file of your own comparing an instant's day with a day row asks `dayOf` too; checked by `pnpm test:t1` |
-| `no-data-mark` (0.19.0) | a test of the team's importing the Column chart and expecting a `.bg-fill-track` in a period with no data, such as `optional:tests/column-chart-no-data.test.tsx` as the template wrote it | a `null` period draws a dashed hairline on the baseline since 0.19.0, not a track the height of the scale, which was the tallest mark on the chart: bring `optional:tests/column-chart-no-data.test.tsx` over from the release as it has it, and find `[data-no-data-mark]` where a test of your own found `.bg-fill-track` or `[data-track]`; checked by `pnpm test:t1` |
-| `table-grid` (0.26.0) | a file of the team's importing the Table or DataTable that expects the old `grow` utility class, or passes a `colSpan` to a `TableCell` | a table is a grid, its spare shared equally between gaps, and a `grow` column has a 160px floor at every width: bring `optional:tests/table-cut-cell.test.tsx` over from the release, remove utility-class pins rather than repinning them, and check truncation, full-value access and the rendered responsive grid. Draw a spanning row outside the table or as a `DataTable` `empty`, since a cell takes one track; checked by `pnpm test:t1` |
-| `four-layers` (0.28.0) | a file of the team's importing a module that has left `optional:src/views/` or `optional:src/data/` for `src/logic/` — the migration names the file and, in its instruction, every path the module left — or importing `afterStart` from `src/components/patterns/incident-card` or `summarise` from `src/components/patterns/status-list`, which no longer export them | thirty-eight modules are in `src/logic/` since 0.28.0, thirty-six of them from `optional:src/views/`, and each import is rewritten to the path the module has: `afterStart` is `src/logic/after-start.ts` and `summarise` is `src/logic/summarise.ts`, and those two must move because the cards are Meridian's and the update replaces them, while every path under `optional:src/views/` and `optional:src/data/` is the team's and stays as it is; a created project brings the release's `src/logic/` over with the pages that import it; the standard the layers come from is `data-layers.md`; checked by `pnpm test:release` |
-| `direct-query-escape` (0.30.0) | a `.query(` call on a collection in `optional:app/`, `optional:src/logic/`, `optional:src/views/` or `src/lib/` whose line carries no `allow-no-direct-query:` escape: the checks let five sites of the template's through by line number before | read through `read()`, `readAll()` or `aggregate()` from `optional:src/data/read.ts`, which ask the caller's grant; where the read has to be direct (a server action reading the record it is about to change, a streamed export, the sign-in before an `AccessScope` exists), state why on the call's line, `// allow-no-direct-query: read() cannot serve this — <why>`: `data-layers.md`, "The seven direct reads"; checked by `pnpm test:t1` |
-| `app-description` (0.30.0) | a `src/app.config.ts` whose `app` has no `description` | add `description: '<one sentence about your product>',` beside `name`: the release's `optional:app/layout.tsx` shows it as the document's description, the line a search engine and a link preview put under the name; checked by `pnpm test:t1` |
-| `live-stream-shutdown` (0.31.1) | `optional:src/data/live-stream.ts` that never ends its streams when the server is told to stop | a stopped `next start` closes its port and waits for its open connections, so the old process kept every tab's stream while the new one served the port and no tab heard a hint again until its next poll: bring the block that begins `Every stream still open` over from `live.md`, delete the stream from the open set first in its `close`, and register it after it listens for its abort; checked by `pnpm test:t1` |
-| `missing-routes` (0.32.0) | `scripts/verify.config.ts` that lists `detailRoutes` and no `missingRoutes` | every browser suite now fails a route that answered an error or draws the not-found screen (`[data-missing-page]`), since it measured that screen and not the route: move each detail route that names a record that does not exist into `missingRoutes`, and give a not-found screen of your own `data-missing-page` on its root; checked by verify |
-| `use-size-callback-ref` (0.33.0) | a file of the team's that reads `.current` off the ref `useSize()` returns | `useSize` returns a callback ref since 0.33.0, so its first value has no `.current`: keep the element in a ref of your own and hand the `ref` prop one callback that stores it and calls `useSize`'s (`const ref = useCallback((el) => { own.current = el; return measure(el); }, [measure])`); checked by `pnpm test:release` |
-| `self-hosted-fonts` (0.34.0) | a file under `app/` that imports `next/font/google` and names `--font-face-sans` or `--font-face-mono` | the faces ship under `src/styles/fonts/` and an update delivered them: load each with `next/font/local` (`src: '../src/styles/fonts/Geist-Variable.woff2'` and `'../src/styles/fonts/GeistMono-Variable.woff2'`, `weight: '100 900'`, the same `variable`), so `next build` fetches nothing from Google Fonts and cannot fail when that host is unreachable; checked by `pnpm test:t1` and the build |
-| `nav-item-fields` (0.36.0) | a `src/app.config.ts` whose `NavItem` type lacks `under?: string` or `prefetch?: true` | the release's rail and trail read both on every item, where they tested for them first: add `prefetch?: true; under?: string` to the type, as the release's `src/app.config.ts` declares it; an item that sets neither is drawn as before; checked by `pnpm test:t1` |
-| `workspace-homes-moved` (0.36.0) | a file of the team's importing `workspaceHomes` from `scripts/navigate.ts`, or the module whole | `workspaceHomes` moved to `scripts/lib/journey.ts` with the journey and takes the arguments of the command that reads `--homes`: import it from there and call `workspaceHomes(process.argv.slice(2))`; checked by `pnpm test:t1` |
-| `sample-with-its-tests` (0.36.0) | in a project `create` made, an existing team-owned sample file differs from the release on any forward upgrade, or a module first introduced after the recorded version is missing | the sample stays team-owned while managed tests update. Create a scratch copy with `npx zz-meridian@<version> create <scratch folder> --no-install`; review every named difference and bring over untouched sample files and newly introduced modules. For customized code, migrate its contracts and adapt tests to the actual product. Retire only incidental pins or tests of features truly removed; never delete meaningful behavior or security failures just to finalize. An intentional deletion after a module's introduction is not resurrected; checked by `pnpm test:t1` and build |
-| `env-reset-before-each` (0.29.0) | a test file of the team's that sets `process.env` or calls `vi.stubEnv` inside a `beforeAll` | the shipped `tests/setup.ts` restores the environment before every test, so a value set in `beforeAll` is gone before the first test: keep the costly start in `beforeAll` and set the environment from what it returned in a `beforeEach`; checked by `pnpm test:t1` |
-| `computed-series-slot` (0.32.0) | a file of the team's that imports a Column chart, Composition bar, Sparkline or Trend chart and computes a `color` by arithmetic (`color: i + 1`) without typing it `SeriesSlot` | a chart's `color` is a `SeriesSlot`, `1` to `6` from `src/components/charts/scale.ts`: type the computed value `SeriesSlot`, or fold the parts past the palette into one "Other"; checked by `pnpm test:t1` |
-| `proposal-approve-required` (0.37.0) | a file of the team's rendering `<Proposal>` with neither `state` nor `onApprove` | an uncontrolled Proposal requires `onApprove`, since Approve without one claimed Applied for a change nothing ran: pass the function that runs the change, or pass `state` and own the card's states; checked by `pnpm test:t1` |
-| `open-command-moved` (0.37.0) | a file of the team's importing `openCommand` or `usePaletteKey` from `@/components/patterns/command-palette` | the palette is a chunk of its own, loaded with `next/dynamic`, so these two moved to `@/components/patterns/command-palette/open`: import them from there, and mount the palette through `dynamic()` as `src/views/console-chrome.tsx` does; checked by `pnpm test:t1` |
-
-A created project that never changed the template's pages brings the release's version of each affected file over, with
-the files that arrived with them: the view contexts `optional:src/logic/home-context.ts` and its siblings, the view
-tools `optional:src/logic/tools.ts`, the reads `optional:src/data/metrics.ts` and the collections in
-`optional:src/data/collections.ts`. From 0.16.0 that includes `src/app.config.ts`, whose nav names the pages' features
-(its own `app` kept), and `scripts/verify.config.ts`, which names their routes; each shipped test comes over as the release
-has it, and one the release no longer has is deleted. `src/lib/shared-context.ts`, `src/lib/agent-guidance.ts` and
-`src/lib/insight.ts` are Meridian's and arrive with the update. An adopted project builds a context for each view it
-shares.
-
-## Resolving 0.5.0's migrations
-
-Moving a project to 0.5.0 can report these ten `migration:<id>` items. Each is a change in the team's own files, so the
-update only reports it: `MERGE.md` lists the files it found, and its instructions name the section to follow. Resolve
-each one in the project, then record it as above, with the hashes of the files as they are after your change.
-
-| Id | The old shape it found | The change |
-|----|------------------------|------------|
-| `verify-modes` | a `package.json` script, workflow or shell file that still runs the old `verify` command, with a removed flag or none | use `pnpm test:t1`, `pnpm test:t2` or `pnpm test:release` instead; none takes an argument: `validation.md` |
-| `shell-assistant-promise` | `<AppShell assistant=...>` with a boolean | pass a `Promise<boolean>`: `cache.md`, "The shell's assistant promise" |
-| `assistant-available-promise` | `useAssistantAvailable()` read as a boolean | `use(useAssistantAvailable())` inside a `Suspense` boundary: same section |
-| `clock-now-required` | `Freshness`, `ShellTools` or `AlertsPanel` without `now`, `formatRelative` with one argument | pass the data's clock: "The clock is the data's" |
-| `cache-components-config` | a Next config without `cacheComponents` and `partialPrefetching` | add both flags: "Turn Cache Components on" |
-| `connection-boundaries` | a page or layout that awaits `connection()` | remove it and read behind a boundary: same section |
-| `authorized-read` | a page calling `.query(` on a collection | `read()` from `optional:src/data/read.ts`: "Authorized, scoped reads" |
-| `scoped-invalidation` | a Server Action that writes and invalidates nothing | `updateTag` after the commit: "Writes authorize, then invalidate" |
-| `live-provider` | collections without `optional:src/data/live-actions.ts`, or a console layout without the provider | add the live files: `live.md`, "The live starters" and "Refreshing" |
-| `authorized-endpoints` | the assistant route or an actions file that never calls `resolveAccess` | resolve the caller first, and bring `optional:src/lib/assistant/tools.ts` and `optional:src/lib/assistant/respond.ts` over, which take the guard: "The assistant route" |
-
-Every migration names the command that proves it: `pnpm test:t1` alone where a test run is enough, `pnpm test:t1` and the build where the change reaches the build, and `pnpm test:release` where the browser suites are its subject. None takes an argument: the command selects the tests.
+A migration is a change beyond copying files that the team must make: a dependency, a script, a release's own change.
+`MERGE.md` is the file that reports it, and it carries each migration's own instruction: the id, the summary of what it
+found, the paths it found it in, and the text to follow. That instruction is the whole of the change. The section it
+sends you to is in this skill, one of the references beside this file, or where the instruction names a guide of
+Meridian's, that guide; no per-release table lives here. Resolve each item in the project, then record it as above, with
+the hashes of the files as they are after your change.
 
 How to make the change depends on whose file it is:
 
 - **A project created from Meridian that never changed the template's pages** (a file as the earlier release wrote it):
   bring the release's version of each affected file over. Take it from the installed package's template or from
-  `https://github.com/zhixuan312/zz-meridian` at the version `MERGE.md` names, never from memory. The release's
-  versions need the files that arrived with them: the starters `optional:src/data/access.ts`,
-  `optional:src/data/read.ts`, `optional:src/data/live-stream.ts`, `optional:src/data/live-actions.ts` and
-  `optional:app/api/live/route.ts`, the client `optional:src/views/console-live.tsx`, each console route's
-  `loading.tsx`, and the assistant's route-side code (`optional:src/lib/assistant/tools.ts` and
-  `optional:src/lib/assistant/respond.ts`, which take the guard). Remove a file the release moved (the Home page is now under `optional:app/(dashboard)/(home)/`),
-  and carry over your own changes to a file you had edited; do not overwrite them.
-- **A project adopted into an existing app**, whose pages are its own: make the smallest edit the instruction names. A
-  Next config that lacks the two flags gets them, and then each route must still be static or partial; the pages Meridian
-  never wrote stay as they are. Do not copy Meridian's pages into an app that did not have them.
+  `https://github.com/zhixuan312/zz-meridian` at the version `MERGE.md` names, never from memory. The release's versions
+  need the files that arrived with them, which the instruction names; carry over your own changes to a file you had
+  edited, and do not overwrite them.
+- **A project adopted into an existing app**, whose pages are its own: make the smallest edit the instruction names. Do
+  not copy Meridian's pages into an app that did not have them.
 - **A breaking change with no migration.** Some interfaces change in a file only one origin has, or arrive with the
-  update itself: `filterRequests` is gone and `RequestsView` and `KeysView` take new props (a created project takes the
-  release's page and view; an adopted one never had them); `src/lib/collection.ts` is Meridian's now, with `zod` as a
-  dependency; a custom accent is set in `src/app.config.ts` alone, not in `src/lib/preferences.ts`. Meridian's own
-  files and the dependencies arrive with the update, and a conflict is staged like any other.
+  update itself: Meridian's own files and the dependencies come with it, and a conflict is staged like any other.
 - **A change that does not apply** (a page that awaits `connection()` on purpose, a `.query(` that is not a collection):
   record the migration as `not-applicable` with the reason, in one sentence.
 
-Then run `<pm> run test:t1` and `node node_modules/next/dist/bin/next build` yourself before the pinned `--finalize`,
-which runs them again, with the route policy and the size checks, and refuses anything that still fails.
+Every migration names the command that proves it: `pnpm test:t1` alone where a test run is enough, `pnpm test:t1` and one
+`next build` where the change reaches the build, and `pnpm test:release` where the browser suites are its subject. None
+takes an argument: the command selects the tests. Run `pnpm test:t1` and one `next build` yourself before the pinned
+`--finalize`, which runs them again, with the route policy and the size checks, and refuses anything that still fails.
 
 ## What to do with it
 

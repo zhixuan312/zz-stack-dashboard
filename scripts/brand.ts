@@ -13,8 +13,9 @@
  * gate then runs; where white on the accent fill fails in a theme, the preset gets a lower fill lightness for that
  * theme, a step at a time, until every pair in every theme passes. --no-atlas removes the Design Atlas: its routes, its
  * modules, its nav entries (the footer's link follows them) and its build tracing (the card previews stay: the gate checks them; the markdown packages stay for Prose).
- * --product goes further, for a dashboard that is not the design system: --no-atlas, and the card specs and previews,
- * page specs, docs, decisions, changelog and skill go too (the assistant, its collections and its fake model stay); the components, tokens, scripts and checks stay.
+ * --product goes further, for a dashboard that is not the design system: --no-atlas, the card previews and page specs
+ * (each card's README stays), docs, decisions, changelog and skill go too (the assistant, its collections and its fake
+ * model stay); the components, tokens, scripts and checks stay.
  * --existing is for an existing project that brought Meridian in (route A in the skill): it sets the name, accent and the
  * rest, never renames package.json unless --package is given, and has no Atlas or product branch to run. It never
  * touches AGENTS.md: the CLI writes the managed block there.
@@ -205,8 +206,6 @@ if (has('--no-atlas') || has('--product')) {
   fs.rmSync(file('app/system'), { recursive: true, force: true });
   const atlasOnly = ['content.ts', 'hero.tsx', 'markdown.tsx', 'page-stage.tsx', 'atlas-shell.tsx', 'card-stage.tsx', 'preview-loaders.ts', 'preview-loading.tsx', 'strata.tsx', 'token-view.tsx', 'tokens-data.ts'];
   for (const f of atlasOnly) fs.rmSync(file(`src/system/${f}`), { force: true });
-  // The shipped tests of those modules go with them: a test of a module the project no longer has would fail there.
-  for (const t of ['tests/atlas-layers.test.ts', 'tests/atlas-shell-early-press.test.tsx', 'tests/card-stage-hydration.test.tsx', 'tests/card-stage-loading.test.tsx', 'tests/atlas-unknown-entry.test.ts']) fs.rmSync(file(t), { force: true });
   // Nav entries for /system and /system/... exactly (never /systemic), then any group they leave empty.
   let cfg = read('src/app.config.ts').replace(/\n\s*\{ href: '\/system(?:\/[^']*)?'[^}]*\},/g, '');
   cfg = cfg.replace(/\n {2}\{\n(?: {4}label: '[^']*',\n)? {4}items: \[\s*\],\n {2}\},/g, '');
@@ -239,13 +238,26 @@ if (has('--product')) {
   if (!['pnpm', 'npm', 'yarn', 'bun'].includes(pm)) throw new Error('--package-manager must be pnpm, npm, yarn or bun');
   const cmd = (name: string) => (pm === 'npm' ? (name === 'install' ? 'npm install' : `npm run ${name}`) : pm === 'bun' ? `bun run ${name}` : `${pm} ${name}`);
   const walkDirs = (dir: string): string[] => fs.existsSync(file(dir)) ? fs.readdirSync(file(dir), { withFileTypes: true }).flatMap((e) => e.isDirectory() ? walkDirs(path.join(dir, e.name)) : [path.join(dir, e.name)]) : [];
-  for (const f of walkDirs('src/components')) if (/\/(README\.md|preview\.tsx)$/.test(f)) fs.rmSync(file(f));
+  for (const f of walkDirs('src/components')) if (/\/preview\.tsx$/.test(f)) fs.rmSync(file(f));
   for (const f of walkDirs('app')) if (/\/README\.md$/.test(f)) fs.rmSync(file(f));
   // Tests of removed specimens go with them; production components, tokens, styles and checks stay.
-  for (const f of ['src/system/specimen.tsx', 'tests/specimen-still.test.tsx', 'tests/atlas-product-slice.test.tsx', 'tests/atlas-template-contracts.test.tsx', 'tests/popover-preview.test.tsx', 'tests/banner-preview.test.tsx', 'tests/preview-live-controls.test.tsx', 'src/system/registry.ts', 'CONTRIBUTING.md', 'CHANGELOG.md']) fs.rmSync(file(f), { force: true });
+  for (const f of ['src/system/specimen.tsx', 'tests/cards-contract.test.tsx', 'tests/specimen-still.test.tsx', 'tests/atlas-product-slice.test.tsx', 'tests/atlas-template-contracts.test.tsx', 'tests/popover-preview.test.tsx', 'tests/banner-preview.test.tsx', 'tests/preview-live-controls.test.tsx', 'src/system/registry.ts', 'CONTRIBUTING.md', 'CHANGELOG.md']) fs.rmSync(file(f), { force: true });
   for (const d of ['docs', 'decisions', 'skills']) fs.rmSync(file(d), { recursive: true, force: true });
   const p = json('package.json');
   delete p.scripts?.registry;
+  // The accessibility engine is Meridian's own suite: the contract suite it serves went with the previews above, and a
+  // product never gains it, because `adopt` raises only the names in `TOOLCHAIN`. The lockfile records the root's
+  // devDependencies too, and a project whose package.json has one fewer than its lockfile fails `pnpm install` wherever
+  // CI freezes the lockfile — which is how `create` runs it. The entry is its name, its specifier and its version.
+  if (p.devDependencies?.['axe-core'] !== undefined) {
+    delete p.devDependencies['axe-core'];
+    if (fs.existsSync(file('pnpm-lock.yaml'))) {
+      const before = read('pnpm-lock.yaml');
+      const after = before.replace(/^ {6}axe-core:\n {8}specifier: [^\n]*\n {8}version: [^\n]*\n/m, '');
+      if (after === before) throw new Error('pnpm-lock.yaml records no axe-core devDependency to match package.json: reconcile them and run again');
+      write('pnpm-lock.yaml', after);
+    }
+  }
   write('package.json', JSON.stringify(p, null, 2) + '\n');
   const product = read('src/app.config.ts').match(/name: '([^']*)'/)?.[1] ?? 'Dashboard';
   write('README.md', `# ${product}\n\nA dashboard built on ZZ Meridian (Next.js, React, Tailwind v4, DTCG tokens).\n\n## Run it\n\n\`\`\`sh\n${cmd('install')}\n${cmd('dev')}          # http://localhost:3000\n${cmd('test:t1')}      # the tests affected by the change since the last green run\n${cmd('test:t2')}      # the affected Tier 2 tests too\n${cmd('test:release')} # every Tier 1 and Tier 2 test, with lint and the type check\n\`\`\`\n\n## Where things are\n\n| Path | What |\n|---|---|\n| \`src/app.config.ts\` | Name, workspace, accent, timezone, currency, the signed-in user and the navigation |\n| \`src/data/collections.ts\` | Where pages, actions and the assistant read and change records |\n| \`src/views/\`, \`app/\` | The pages |\n| \`src/components/\` | Meridian's components and patterns |\n| \`tokens/\` | Colour, type, space and motion (run \`${cmd('tokens')}\` after a change) |
@@ -268,7 +280,7 @@ The dashboard carries an assistant panel. It is off until \`ASSISTANT_PROVIDER\`
   const agents = read('AGENTS.md');
   const cut = agents.indexOf('# Working in Meridian');
   if (cut >= 0) write('AGENTS.md', agents.slice(0, cut));
-  done.push('product only: card specs and previews, page specs, docs, decisions, the changelog and the skill removed; README rewritten for the product, AGENTS.md cut at the template\'s own rules');
+  done.push('product only: card previews, page specs, docs, decisions, the changelog and the skill removed; README rewritten for the product, AGENTS.md cut at the template\'s own rules');
 }
 
 execFileSync('node', ['scripts/tokens.ts'], { cwd: ROOT, stdio: 'ignore' });

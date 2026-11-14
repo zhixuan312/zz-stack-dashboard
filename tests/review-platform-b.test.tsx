@@ -206,8 +206,10 @@ describe('Usage: the key value wraps whole, its caveat after the figure (F-22)',
     const values = [...line.querySelectorAll('dd')];
     expect(values.length).toBe(4);
     for (const dd of values) {
-      expect(dd.classList).not.toContain('truncate');
-      expect(dd.className).toContain('[overflow-wrap:anywhere]');
+      // The value is the definition's first span; the definition also holds the row's action when there is one.
+      const value = dd.querySelector(':scope > span')!;
+      expect(value.classList).not.toContain('truncate');
+      expect(value.className).toContain('[overflow-wrap:anywhere]');
     }
     expect(line.textContent).toContain('87.5% of 16 refused sessions · too few to judge');
     expect(line.textContent).not.toMatch(/too few of/);

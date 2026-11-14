@@ -6,6 +6,9 @@
  *   pnpm test:t2        the same plus the Tier 2 checks those changes affect (the affected Tier 1 tests included)
  *   pnpm test:release   every Tier 1 and Tier 2 test, once, with lint and the type check
  *
+ * `node scripts/test-run.ts stage <static|sweep <name>|deep --since <ref> [--part i/n]|tier2>` runs one part of test:release,
+ * for a CI job; it shares test:release's step functions. It is not a fourth test command.
+ *
  * "Since the last green run" is the marker in out/last-green, which a command writes after a passing run; out/ is
  * gitignored. A missing marker falls back to the diff against master, and a checkout with neither marker nor a diff
  * (master itself, a fresh CI clone) runs the whole tier, because no green run is evidence for it.
@@ -18,9 +21,13 @@
  *   a deleted file whose importers can no longer be computed, run the whole tier.
  * - Tier 1's large browser-fixture tests (tests/deep-*) run on their own, never inside the main Vitest run: their size
  *   decides that, not their tier.
- * - Tier 2 is the performance convention `*.perf.test.ts(x)` and the browser suites: the broad sweep of every page,
- *   control and keyboard stop (scripts/browser.ts --depth fn) and, on a quiet machine, the timed runs (--depth timed).
- *   The 20-sample protocol (--depth perf) runs where CI is true, in the weekly job that calls `pnpm test:t2`.
+ * - The browser function sweeps (scripts/browser.ts --depth fn: every page, control and keyboard stop, the walk-throughs
+ *   and the sizes) are Tier 1 and fail the run. They run where a build and Chrome exist: test:t2, test:release and the
+ *   release sweep jobs. test:t1 does not run them. `--only <audit|interactions|keyboard|rest>` runs one sweep by hand.
+ * - Tier 2 is the performance convention `*.perf.test.ts(x)` and the timed browser suites: on a quiet machine, the timed
+ *   runs (--depth timed), and the 20-sample protocol (--depth perf) where CI is true: the release workflow's `tier2`
+ *   job and the weekly `release` job. They report and never fail: a timed or perf suite that prints FAIL is counted in the closing line's
+ *   "Tier 2 over budget (reported, not failed)".
  */
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -29,6 +36,8 @@ import { pathToFileURL } from 'node:url';
 import { bin } from './lib/bin.ts';
 import { FIRST_LOAD_CAP_KB, budgetsOf, type BudgetsConfig } from './lib/budgets.ts';
 import { consumerSmokeKind } from './lib/consumer-smoke.ts';
+import { deepFiles, deepPart, deepPlan, deepReach } from './lib/deep-inputs.ts';
+import { clearLastRun, failedFilesOf, readLastRun, retryBaseline, retryNumber, writeLastRun } from './lib/last-run.ts';
 import { lintTargets } from './lib/lint.ts';
 import { deepBrowserNotRun } from './lib/report-lines.ts';
 import { clearParts, reportOrWarn, type Seed, type Value } from './lib/tier2.ts';
@@ -84,12 +93,34 @@ export function baseline(): { ref: string; from: 'the last green run' | 'master'
 
 /** The files whose bytes differ from `base`, committed or not, with the untracked ones; a deleted path stays in the change. */
 function changedSince(base: string): { all: string[]; present: string[]; deleted: string[] } {
-  const tracked = git(['diff', '--name-only', '--diff-filter=ACDMR', base, '--']).out.split('\n').filter(Boolean);
-  const untracked = git(['ls-files', '--others', '--exclude-standard']).out.split('\n').filter(Boolean);
-  const all = [...new Set([...tracked, ...untracked])];
+  // A file the index does not hold is not tracked, whatever `git diff <tree>` says: against a tree it reads such a path
+  // as deleted, and the red run's baseline is the working copy's own tree, so every file the run added would come back as
+  // a change on the next run, and an unchanged retry could never see an unchanged tree.
+  const untrackedNow = git(['ls-files', '--others', '--exclude-standard']).out.split('\n').filter(Boolean);
+  const untracked = new Set(untrackedNow);
+  const tracked = git(['diff', '--name-only', '--diff-filter=ACDMR', base, '--']).out.split('\n').filter(Boolean).filter((f) => !untracked.has(f));
+  // A file `base` already holds is not this run's change, untracked or not.
+  const held = new Set(git(['ls-tree', '-r', '--name-only', base]).out.split('\n').filter(Boolean));
+  const all = [...new Set([...tracked, ...untrackedNow.filter((f) => !held.has(f))])];
   const present = all.filter((f) => fs.existsSync(path.join(ROOT, f)));
   const deleted = all.filter((f) => !present.includes(f));
   return { all, present, deleted };
+}
+
+/**
+ * The tree the working copy would commit, computed in a throwaway index so the real one is never touched: the identity of
+ * what a run proves, and — when the run is red — the base the next one diffs its fix against.
+ */
+function workingTree(): string | null {
+  const index = git(['rev-parse', '--git-path', 'index']);
+  if (!index.ok) return null;
+  const copy = path.join(ROOT, 'out', 'index-last-run');
+  try { fs.copyFileSync(path.resolve(ROOT, index.out), copy); } catch { return null; }
+  const env = { ...process.env, GIT_INDEX_FILE: copy };
+  const added = spawnSync('git', ['add', '-A'], { cwd: ROOT, encoding: 'utf8', env });
+  const written = spawnSync('git', ['write-tree'], { cwd: ROOT, encoding: 'utf8', env });
+  fs.rmSync(copy, { force: true });
+  return added.status === 0 && written.status === 0 ? written.stdout.trim() : null;
 }
 
 /**
@@ -130,18 +161,18 @@ function run(label: string, cmd: string, args: string[], env: NodeJS.ProcessEnv 
 }
 
 /** What the last Vitest run proved, read from its JSON report; null when the report was not written. */
-function report(): { files: number; tests: number } | null {
+function report(): { files: number; tests: number; failed: string[] } | null {
   try {
     // `testResults` holds one entry per test file; the suite count includes every nested `describe`.
     const j = JSON.parse(fs.readFileSync(REPORT, 'utf8')) as { testResults?: unknown[]; numTotalTests?: number };
-    return { files: j.testResults?.length ?? 0, tests: j.numTotalTests ?? 0 };
+    return { files: j.testResults?.length ?? 0, tests: j.numTotalTests ?? 0, failed: failedFilesOf(ROOT, REPORT) };
   } catch { return null; }
 }
 
-function vitest(mode: 'related' | 'run', filters: string[], withTier2: boolean, label: string): { status: number; files: number; tests: number } {
+function vitest(mode: 'related' | 'run', filters: string[], withTier2: boolean, label: string): { status: number; files: number; tests: number; failed: string[] } {
   try { fs.rmSync(REPORT, { force: true }); } catch { /* no stale report */ }
   const status = run(label, bin('vitest'), vitestArgs(mode, filters, withTier2));
-  const r = report() ?? { files: 0, tests: 0 };
+  const r = report() ?? { files: 0, tests: 0, failed: [] };
   return { status, ...r };
 }
 
@@ -230,12 +261,12 @@ const chromeAvailable = (): boolean => {
 };
 
 /** The large browser-fixture tests cannot run without Chrome; say so, never that they passed. */
-function deepTests(label: string): { status: number; ran: boolean } {
+function deepTests(label: string, files: string[] = ['tests/deep-']): { status: number; ran: boolean } {
   if (!chromeAvailable()) {
     console.log(`not run ${label}: no Chrome (CHROME is unset and no browser was found)`);
     return { status: 0, ran: false };
   }
-  return { status: run(label, bin('vitest'), ['run', 'tests/deep-', '--no-file-parallelism']), ran: true };
+  return { status: run(label, bin('vitest'), ['run', ...files, '--no-file-parallelism']), ran: true };
 }
 
 const hasDeep = (): boolean => fs.existsSync(path.join(ROOT, 'tests')) && fs.readdirSync(path.join(ROOT, 'tests')).some((f) => f.startsWith('deep-') && /\.test\.tsx?$/.test(f));
@@ -247,11 +278,11 @@ const affectsDeep = (files: string[]): boolean => files.some((f) => /^(scripts|j
  * The browser suites (scripts/browser.ts), at the depths asked for. Its own line per suite is passed through; the JSON
  * line says what ran and what did not, and its exit 2 is a run with something not run, not a failure.
  */
-function browser(depth: string, built = false): Promise<{ ok: boolean; notRun: string[]; declared: string[]; ran: string[]; tier2: Value[] }> {
+function browser(depth: string, built = false, only?: string): Promise<{ ok: boolean; notRun: string[]; declared: string[]; ran: string[]; reported: string[]; tier2: Value[] }> {
   // Streamed as it arrives, not collected and printed when the child exits: a suite that stops making progress must be
   // visible in the log while it is stuck, never only after it finally returns or times out.
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, ['scripts/browser.ts', '--depth', depth, ...(built ? ['--built'] : [])], { cwd: ROOT });
+    const child = spawn(process.execPath, ['scripts/browser.ts', '--depth', depth, ...(built ? ['--built'] : []), ...(only ? ['--only', only] : [])], { cwd: ROOT });
     let out = '';
     let rest = '';
     const drain = (text: string) => {
@@ -265,17 +296,40 @@ function browser(depth: string, built = false): Promise<{ ok: boolean; notRun: s
     child.on('close', (status) => {
       if (rest.trim()) console.log(rest);
       const json = /^browser: (.*)$/m.exec(out);
-      let state: { ran?: string[]; failed?: boolean; notRun?: string[]; declared?: string[]; tier2?: Value[] } | null = null;
+      let state: { ran?: string[]; failed?: boolean; notRun?: string[]; declared?: string[]; reported?: string[]; tier2?: Value[] } | null = null;
       try { state = json ? JSON.parse(json[1]) : null; } catch { state = null; }
       if (status === 1 || !state) {
         console.log(`test: browser suites FAIL (${out.split('\n').filter(Boolean).slice(-1)[0] ?? 'no output'})`);
-        resolve({ ok: false, notRun: [], declared: [], ran: [], tier2: [] });
+        resolve({ ok: false, notRun: [], declared: [], ran: [], reported: [], tier2: [] });
         return;
       }
-      resolve({ ok: true, notRun: state.notRun ?? [], declared: state.declared ?? [], ran: state.ran ?? [], tier2: state.tier2 ?? [] });
+      resolve({ ok: true, notRun: state.notRun ?? [], declared: state.declared ?? [], ran: state.ran ?? [], reported: state.reported ?? [], tier2: state.tier2 ?? [] });
     });
   });
 }
+
+/** The steps `test:release` and the stages share, so a stage cannot drift from the release it is a part of. */
+const typeSteps = (): [string, () => number][] => [
+  ['types: route types', () => run('types: route types', bin('next'), ['typegen'])],
+  ['types: tsc --noEmit', () => run('types: tsc --noEmit', bin('tsc'), ['--noEmit'])],
+  ['lint: eslint .', () => run('lint: eslint .', bin('eslint'), ['.', '--ignore-pattern', '.meridian/'])],
+];
+
+/** A production build; the size checks need the built app served, so they run inside the browser suites. */
+const productionBuild = (): number => run('build: next build', bin('next'), ['build'], { ...process.env, MERIDIAN_TYPES_CHECKED: '1' });
+
+/**
+ * The route policy after a build. A build without the two flags writes no renderingMode, and the policy presupposes them:
+ * the project's configuration, reported as declared (exit 2) and never a failure; any other non-zero is a red.
+ */
+function routePolicy(declared: string[], failed: string[]): void {
+  const policy = run('route policy', process.execPath, ['scripts/route-policy.ts']);
+  if (policy === 2) declared.push("route policy (the build writes no renderingMode: the project's next.config sets no cacheComponents and partialPrefetching)");
+  else if (policy !== 0) failed.push('the route policy');
+}
+
+/** Every test file but the browser fixtures, which run on their own. */
+const everyTestFile = (): ReturnType<typeof vitest> => vitest('run', [], true, 'every test file (the browser fixtures run on their own)');
 
 async function release(): Promise<number> {
   const notRun: string[] = [];
@@ -286,15 +340,10 @@ async function release(): Promise<number> {
   clearParts(ROOT);
   for (const gap of ciGaps(Number(process.versions.node.split('.')[0]))) console.log(`warn test:release: ${gap}`);
   if (staticChecks() !== 0) failed.push('static checks');
-  const steps: [string, () => number][] = [
-    ['types: route types', () => run('types: route types', bin('next'), ['typegen'])],
-    ['types: tsc --noEmit', () => run('types: tsc --noEmit', bin('tsc'), ['--noEmit'])],
-    ['lint: eslint .', () => run('lint: eslint .', bin('eslint'), ['.', '--ignore-pattern', '.meridian/'])],
-  ];
-  for (const [label, step] of steps) if (step() !== 0) failed.push(label);
+  for (const [label, step] of typeSteps()) if (step() !== 0) failed.push(label);
 
   // Every test file: Tier 1, the performance convention, and this repository's browser fixtures on their own below.
-  const t1 = vitest('run', [], true, 'every test file (the browser fixtures run on their own)');
+  const t1 = everyTestFile();
   if (t1.status !== 0) failed.push('the test suite');
   if (hasDeep()) {
     const deep = deepTests('Tier 1 browser-fixture tests (tests/deep-*)');
@@ -303,16 +352,14 @@ async function release(): Promise<number> {
   }
   // A production build, its routes declared as the policy says. The size checks need the built app served, so they run
   // inside the browser suites below, once, against the app they start.
-  if (run('build: next build', bin('next'), ['build'], { ...process.env, MERIDIAN_TYPES_CHECKED: '1' }) !== 0) failed.push('the production build');
-  // A build without the two flags writes no renderingMode, and the policy presupposes them: the project's configuration,
-  // reported not run with the reason (exit 2) and never a failure; any other non-zero is a red.
-  const policy = run('route policy', process.execPath, ['scripts/route-policy.ts']);
-  if (policy === 2) declared.push("route policy (the build writes no renderingMode: the project's next.config sets no cacheComponents and partialPrefetching)");
-  else if (policy !== 0) failed.push('the route policy');
+  if (productionBuild() !== 0) failed.push('the production build');
+  routePolicy(declared, failed);
   // The browser suites against that build: the sweeps first, then the timed runs alone on the quiet machine. The parts
   // dir is cleared first, so values the browser-fixture tests recorded into the same out/ are not this run's.
   clearParts(ROOT);
-  const browserRun = await browser('fn,timed', true);
+  // The 20-sample protocol runs where `CI` is true, as it always has: the weekly run is the one with a quiet runner for
+  // it, and the release workflow asks for it in its own `tier2` job. A local `test:release` judges times without it.
+  const browserRun = await browser(process.env.CI === 'true' ? 'fn,timed,perf' : 'fn,timed', true);
   if (!browserRun.ok) failed.push('a browser suite');
   notRun.push(...browserRun.notRun.map((s) => `browser suites (${s})`));
   declared.push(...browserRun.declared.map((s) => `browser suites (${s})`));
@@ -327,7 +374,7 @@ async function release(): Promise<number> {
     }
     else if (run('Postgres tests', bin('vitest'), ['run', '--config', postgresConfig]) !== 0) failed.push('the Postgres tests');
   }
-  const overBudget = await reportTier2(browserRun.tier2);
+  const overBudget = [...(await reportTier2(browserRun.tier2)), ...browserRun.reported.map((s) => `browser suites (${s})`)];
   for (const d of declared) console.log(`not run (declared by the project's configuration): ${d}`);
   if (!failed.length && !notRun.length) recordGreen();
   else if (notRun.length) console.log(`test:release: the marker is not advanced, because ${notRun.length} check${notRun.length === 1 ? '' : 's'} did not run`);
@@ -338,20 +385,16 @@ async function release(): Promise<number> {
 
 /** Packs this working tree and runs the consumer smoke a change owes, with CI's flags: the path an adopter walks. */
 function consumerSmoke(kind: 'create' | 'update' | 'verify'): number {
-  const pack = path.join(ROOT, 'out', 'smoke-pack');
-  fs.rmSync(pack, { recursive: true, force: true });
-  fs.mkdirSync(pack, { recursive: true });
-  if (run('smoke: the template snapshot', process.execPath, ['cli/scripts/build-payload.ts', '--worktree']) !== 0) return 1;
-  if (run('smoke: the CLI compiles', bin('tsc'), ['-p', 'cli/tsconfig.json']) !== 0) return 1;
-  const packed = spawnSync('npm', ['pack', '--ignore-scripts', '--pack-destination', pack], { cwd: path.join(ROOT, 'cli'), encoding: 'utf8' });
-  const tarball = (packed.stdout ?? '').trim().split('\n').filter(Boolean).at(-1);
-  if (packed.status !== 0 || !tarball) return 1;
-  const args = ['cli/scripts/smoke.ts', '--tarball', path.join(pack, tarball), ...(kind === 'create' ? ['--create', '--created-report'] : kind === 'update' ? ['--adopt', '--update', '--verify'] : ['--adopt', '--verify'])];
-  return run(`smoke: the consumer path (${kind})`, process.execPath, args, { ...process.env, CI: 'true' });
+  const flags = kind === 'create' ? ['--create', '--created-report'] : kind === 'update' ? ['--adopt', '--update', '--verify'] : ['--adopt', '--verify'];
+  return run(`smoke: the consumer path (${kind})`, process.execPath, ['cli/scripts/consumer.ts', ...flags], { ...process.env, CI: 'true' });
 }
 
 async function affected(tier: 't1' | 't2'): Promise<number> {
-  const { ref, from } = baseline();
+  // A red run leaves the tree it proved and the test files it failed. The next run starts from that tree, so a fix runs
+  // the failures it answers and the tests its own change reaches — not everything since the last green run.
+  const last = readLastRun(ROOT);
+  const retry = retryBaseline(last);
+  const { ref, from } = retry ?? baseline();
   const { all: changed, present, deleted } = changedSince(ref);
   const withTier2 = tier === 't2';
   if (withTier2) clearParts(ROOT);
@@ -359,15 +402,35 @@ async function affected(tier: 't1' | 't2'): Promise<number> {
 
   // Nothing changed and a green run is recorded: there is nothing to prove again.
   const marker = fs.existsSync(MARKER);
-  if (!changed.length && marker) {
+  // A red run of this very tree is not "nothing changed": its failures run once more, and a pass then is reported as a
+  // retry and never advances the marker, because a pass with no cause found is flaky (`docs/testing.md`, "Flaky is red").
+  const sameTree = retry !== null && changed.length === 0;
+  if (!changed.length && marker && !sameTree) {
     console.log(`test:${tier}: nothing changed since the last green run`);
     return 0;
   }
+  if (sameTree && retryNumber(last) === null) {
+    console.log(`test:${tier}: the tree has not changed since the run that failed, and it was retried once already: name the cause from the output, fix it, then run again`);
+    return 1;
+  }
+  // The identity of what this run proves; a run that cannot name it records no baseline rather than a wrong one.
+  const tree = workingTree();
 
   /** Every Tier 1 failure this run met, printed together at the end: a red in one stage must not hide the next. */
   const failed: string[] = [];
-  if (staticChecks() !== 0) failed.push('static checks');
-  if (typecheck() !== 0) failed.push('the type check');
+  /** The test files that failed, so a red run can hand the next one its smallest starting set. */
+  const failedTests = new Set<string>();
+  // A retry of unchanged bytes re-runs what could have been transient and nothing else. When the red run named no test
+  // file — a browser fixture, a sweep, the consumer smoke — there is no suite to re-run, and the stages below decide for
+  // themselves whether they run.
+  const retryTests = sameTree ? (last?.failed ?? []) : null;
+  const skipTests = retryTests !== null && retryTests.length === 0;
+  // The checks that read the whole tree cannot say anything new about bytes they have already read: a retry of an
+  // unchanged tree runs its failures, and nothing else (docs/testing.md, "Once per commit").
+  if (!sameTree) {
+    if (staticChecks() !== 0) failed.push('static checks');
+    if (typecheck() !== 0) failed.push('the type check');
+  }
   // The same lint test:release runs, over the files this change touches: a lint error must not reach master through a
   // run that checked types but never linted (one did: the drawer's `react-hooks/refs`, b54c5d7b).
   const lintFiles = lintTargets(present);
@@ -381,6 +444,9 @@ async function affected(tier: 't1' | 't2'): Promise<number> {
     if (isTestFile(f) || isCode(f)) filters.add(f);
     for (const t of testsNaming(f)) filters.add(t);
   }
+  // Every file the run before this one failed, whether or not this change reaches it: the failures are the point, and a
+  // test the fix does not touch must still be proven.
+  for (const f of last?.failed ?? []) if (fs.existsSync(path.join(ROOT, f))) filters.add(f);
   // A deleted source file has no importers to compute: an import graph that cannot see a change is not evidence that
   // nothing needs checking, so the whole tier runs. A deleted test is gone, and has nothing to run.
   const deletedCode = deleted.some((f) => isCode(f) && !isTestFile(f));
@@ -401,11 +467,14 @@ async function affected(tier: 't1' | 't2'): Promise<number> {
   // The whole tier runs when a deleted source file's importers cannot be computed, or when no selected test reached a
   // changed code file at all. Both are decided below, after the related run reports what it selected.
 
-  let first = runRelated
-    ? vitest('related', [...filters], withTier2, `tier ${withTier2 ? '2 and 1' : '1'} tests related to the change`)
-    : vitest('run', [], withTier2, `tier ${withTier2 ? '2 and 1' : '1'} tests (nothing identifies a smaller set)`);
+  let first = skipTests
+    ? { status: 0, files: 0, tests: 0, failed: [] as string[] }
+    : runRelated
+      ? vitest('related', [...filters], withTier2, `tier ${withTier2 ? '2 and 1' : '1'} tests related to the change`)
+      : vitest('run', [], withTier2, `tier ${withTier2 ? '2 and 1' : '1'} tests (nothing identifies a smaller set)`);
 
   if (first.status !== 0) failed.push(`the tests affected by the change`);
+  for (const f of first.failed) failedTests.add(f);
 
   // A deleted source file, or a code change no test reaches, runs the whole tier: the import graph is not evidence that
   // nothing needs checking. A related run that failed has already said what it could not prove; the whole tier still runs.
@@ -414,6 +483,7 @@ async function affected(tier: 't1' | 't2'): Promise<number> {
     console.log(`test:${tier}: ${deletedCode ? 'a deleted source file' : 'no test reaches the changed code'}, so the whole tier runs`);
     first = vitest('run', [], withTier2, `tier ${withTier2 ? '2 and 1' : '1'} tests (whole tier)`);
     if (first.status !== 0) failed.push('a test in the whole tier');
+    for (const f of first.failed) failedTests.add(f);
   }
 
   // The browser fixtures are outside the main run; they run whole when a script, a journey or their own files changed,
@@ -437,11 +507,13 @@ async function affected(tier: 't1' | 't2'): Promise<number> {
   // that leaves it out is never "every check passed".
   notRun.push(...deepBrowserNotRun(deepNeeded, deepRan));
   let browserTier2: Value[] = [];
+  let browserReported: string[] = [];
   if (withTier2 && (ranWhole || touchesBrowserAll(changed))) {
     const perf = process.env.CI === 'true' && ranWhole;
     clearParts(ROOT);
     const r = await browser(perf ? 'fn,perf' : 'fn');
     browserTier2 = r.tier2;
+    browserReported = r.reported.map((s) => `browser suites (${s})`);
     if (!r.ok) failed.push('a browser suite');
     notRun.push(...r.notRun.map((s) => `browser suites (${s})`));
     declared.push(...r.declared.map((s) => `browser suites (${s})`));
@@ -459,18 +531,30 @@ async function affected(tier: 't1' | 't2'): Promise<number> {
     const minutes = (Date.now() - t) / 60000;
     if (minutes > 15) console.log(`warn test:${tier}: the consumer smoke took ${minutes.toFixed(1)} min, past the 15-minute line for a per-change run`);
   }
-  const overBudget = withTier2 ? await reportTier2(browserTier2) : [];
+  const overBudget = withTier2 ? [...(await reportTier2(browserTier2)), ...browserReported] : [];
 
   // test:t2 never judges a time: the timed suites belong to test:release, which alone runs them on a quiet machine.
   if (withTier2) console.log('not run timed browser suites: test:release runs them on a quiet machine');
   // A Tier 1 run proves nothing about a Tier 2 change: the marker advances only when this run covered every change.
   const tier2Left = withTier2 ? false : ranWhole || pendingTier2(changed, present, deleted);
   const pending = tier2Left || !deepRan || notRun.length > 0;
-  if (!failed.length && !pending) recordGreen();
+  if (!failed.length && !pending && !sameTree) {
+    recordGreen();
+    // A green run leaves nothing for the next one to retry.
+    clearLastRun(ROOT);
+  }
   else if (notRun.length) console.log(`test:${tier}: the marker is not advanced, because ${notRun.length} check${notRun.length === 1 ? '' : 's'} did not run`);
   else if (!failed.length) console.log(`test:${tier}: the marker is not advanced, because a Tier 2 check did not run; pnpm test:t2 covers it`);
+  // The retry of an unchanged tree is reported whatever it found: a pass here answers no cause, so it is flaky, not green.
+  if (sameTree) console.log(`test:${tier}: this run is a retry of the tree that failed, not of a fix: ${failed.length ? 'it failed again, so the cause is in its output' : 'it passed, which reports a flaky check and does not advance the marker'}`);
+  // A red run hands the next one its failures and the tree they were proven on, so a fix runs the smallest set that proves it.
+  // A run that could not name its tree records nothing: a baseline that is not this run's would select the wrong set.
+  if (failed.length) {
+    if (tree) writeLastRun(ROOT, { tree, failed: [...failedTests].sort(), retries: sameTree ? retryNumber(last)! : 0 });
+    else clearLastRun(ROOT);
+  }
   if (!first.files) console.log(`test:${tier}: no test is affected (${where})`);
-  const { line, exit } = summaryLine({ command: `test:${tier}`, failed, notRun, declared, overBudget, ...(first.files ? { files: first.files, tests: first.tests } : {}) });
+  const { line, exit } = summaryLine({ command: `test:${tier}`, failed, notRun, declared, overBudget, covers: tier === 't1' ? 'every Tier 1 check' : 'every Tier 1 check and the Tier 2 files this run covers', ...(first.files ? { files: first.files, tests: first.tests } : {}) });
   console.log(line);
   return exit;
 }
@@ -485,9 +569,108 @@ function touchesBrowserAll(changed: string[]): boolean {
   return changed.some((f) => touchesBrowser(f) || isDeep(f));
 }
 
+/** The stages of `test:release`, one CI job each. */
+const STAGES = ['static', 'sweep', 'deep', 'tier2'] as const;
+const SWEEPS = ['audit', 'interactions', 'keyboard', 'rest'] as const;
+
+/** A stage's last line and exit: 1 for a failed check, 2 for a check the environment could not run, else 0. */
+function stageExit(name: string, failed: string[], notRun: string[], declared: string[], overBudget: string[], counts?: { files: number; tests: number }): number {
+  for (const d of declared) console.log(`not run (declared by the project's configuration): ${d}`);
+  const { line, exit } = summaryLine({ command: `test:${name}`, failed, notRun, declared, overBudget, covers: 'every check the stage runs', ...(counts ?? {}) });
+  console.log(line);
+  return exit === 0 && notRun.length ? 2 : exit;
+}
+
+/** The static checks, the type check, lint and every Vitest file but the deep tests. */
+function stageStatic(): number {
+  const failed: string[] = [];
+  if (staticChecks() !== 0) failed.push('static checks');
+  for (const [label, step] of typeSteps()) if (step() !== 0) failed.push(label);
+  const t1 = everyTestFile();
+  if (t1.status !== 0) failed.push('the test suite');
+  return stageExit('stage static', failed, [], [], [], { files: t1.files, tests: t1.tests });
+}
+
+/** A production build, then one function sweep against it; `rest` also runs the route policy after the build. */
+async function stageSweep(name: string): Promise<number> {
+  const failed: string[] = [];
+  const declared: string[] = [];
+  const notRun: string[] = [];
+  if (productionBuild() !== 0) failed.push('the production build');
+  if (name === 'rest') routePolicy(declared, failed);
+  clearParts(ROOT);
+  const r = await browser('fn', true, name);
+  if (!r.ok) failed.push('a browser suite');
+  notRun.push(...r.notRun.map((s) => `browser suites (${s})`));
+  declared.push(...r.declared.map((s) => `browser suites (${s})`));
+  return stageExit(`stage sweep ${name}`, failed, notRun, declared, []);
+}
+
+/** The deep tests the changes since `since` reach, optionally one part of them; none reached is a decision, not a skip. */
+function stageDeep(since: string, part: { i: number; n: number } | null): number {
+  const list = git(['diff', '--name-only', `${since}..HEAD`]);
+  if (!list.ok) { console.error(`test-run: --since ${since} does not resolve to a range ending at HEAD`); return 1; }
+  const plan = deepPlan(list.out.split('\n').filter(Boolean), deepReach);
+  let files = plan.all ? deepFiles() : plan.files;
+  if (part) files = deepPart(files, part.i, part.n);
+  if (!files.length) {
+    console.log(`not run: tests/deep-* (no change since ${since} reaches them)`);
+    return 0;
+  }
+  console.log(`deep tests${part ? ` (part ${part.i}/${part.n})` : ''}: ${files.join(', ')}`);
+  const deep = deepTests('Tier 1 browser-fixture tests (tests/deep-*)', files);
+  return stageExit('stage deep', deep.status !== 0 ? ['the browser-fixture tests'] : [], deep.ran ? [] : ['browser-fixture tests (tests/deep-*) (no Chrome)'], [], []);
+}
+
+/** A build, then the timed and perf suites against it and the size values, recorded. Reports; always exits 0. */
+async function stageTier2(): Promise<number> {
+  if (productionBuild() !== 0) console.log('warn test:stage tier2: the production build failed, so no value was measured');
+  clearParts(ROOT);
+  const r = await browser('timed,perf', true);
+  const overBudget = [...(await reportTier2(r.tier2)), ...r.reported.map((s) => `browser suites (${s})`)];
+  // A browser run that could not finish is a red of this stage and never "every check the stage runs passed": the run
+  // measured nothing, and the release's whole Tier 2 table would go missing behind a green job.
+  return stageExit('stage tier2', r.ok ? [] : ['the browser suites'], r.notRun.map((s) => `browser suites (${s})`), [], overBudget);
+}
+
+function stageMain(argv: string[]): Promise<number> | number {
+  const [name, ...rest] = argv;
+  if (!STAGES.includes(name as (typeof STAGES)[number])) {
+    console.error(`test-run: unknown stage "${name ?? ''}"; the stages are ${STAGES.join(', ')}`);
+    return 1;
+  }
+  if (name === 'static' || name === 'tier2') {
+    if (rest.length) { console.error(`test-run: stage ${name} takes no arguments`); return 1; }
+    return name === 'static' ? stageStatic() : stageTier2();
+  }
+  if (name === 'sweep') {
+    if (rest.length !== 1 || !SWEEPS.includes(rest[0] as (typeof SWEEPS)[number])) {
+      console.error(`test-run: stage sweep takes one of ${SWEEPS.join(', ')}`);
+      return 1;
+    }
+    return stageSweep(rest[0]!);
+  }
+  const sinceAt = rest.indexOf('--since');
+  const partAt = rest.indexOf('--part');
+  const since = sinceAt >= 0 ? rest[sinceAt + 1] : undefined;
+  const partText = partAt >= 0 ? rest[partAt + 1] : undefined;
+  const part = partText === undefined ? null : /^(\d+)\/(\d+)$/.exec(partText);
+  const known = rest.length === (sinceAt >= 0 ? 2 : 0) + (partAt >= 0 ? 2 : 0);
+  if (!since || since.startsWith('--') || !known || (partText !== undefined && (!part || Number(part[1]) < 1 || Number(part[1]) > Number(part[2])))) {
+    console.error('test-run: stage deep takes --since <ref> and optionally --part i/n (1 <= i <= n)');
+    return 1;
+  }
+  if (!git(['rev-parse', '--verify', '--quiet', `${since}^{commit}`]).ok) {
+    console.error(`test-run: --since ${since} does not name a commit`);
+    return 1;
+  }
+  return stageDeep(since, part ? { i: Number(part[1]), n: Number(part[2]) } : null);
+}
+
 if (import.meta.main) {
   const tier = process.argv[2];
   const extra = process.argv.slice(3);
+  if (tier === 'stage') process.exit(await stageMain(extra));
   if (extra.length || !['t1', 't2', 'release'].includes(tier ?? '')) {
     console.error('test-run: takes one of t1, t2 or release, and nothing else. Use pnpm test:t1, pnpm test:t2 or pnpm test:release.');
     process.exit(1);

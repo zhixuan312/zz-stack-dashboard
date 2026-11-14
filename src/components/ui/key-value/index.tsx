@@ -29,20 +29,26 @@ export function KeyValue({ items, columns = 1, className }: { items: KeyValueIte
           return (
             <div key={i} className={cn('flex min-h-11 min-w-0 items-center gap-4 border-b border-line py-2.5 last:border-0', columns === 2 && '@min-[40rem]:[&:nth-last-child(2):nth-child(odd)]:border-0')}>
               <dt className="w-32 shrink-0 text-sm text-ink-3">{it.label}</dt>
+              {/* The row's action is part of its value's definition: a `dl` row group may hold only a `dt` and its
+                  `dd`s, and the button sat beside the value as a third child of the row. */}
               <dd
                 title={it.wrap || unknown ? undefined : (it.title ?? (typeof it.value === 'string' || typeof it.value === 'number' ? String(it.value) : undefined))}
-                className={cn(
-                  't-num min-w-0 flex-1 text-sm text-ink',
-                  // A value the row cuts keeps its whole text in its title, which a pointer reads and a phone cannot (issue
-                  // #89). Below the width where a sentence value cannot fit beside its label the row wraps instead, the way
-                  // `wrap` asks for, so nothing is left unreadable behind a hover that does not exist there.
-                  it.wrap ? '[overflow-wrap:anywhere]' : 'truncate @max-[26rem]:whitespace-normal @max-[26rem]:[overflow-wrap:anywhere]',
-                  it.mono && 'font-mono text-xs',
-                )}
+                className="t-num flex min-w-0 flex-1 items-center gap-4 text-sm text-ink"
               >
-                {unknown ? <span className="text-ink-3">—</span> : it.value}
+                <span
+                  className={cn(
+                    'min-w-0 flex-1',
+                    // A value the row cuts keeps its whole text in its title, which a pointer reads and a phone cannot (issue
+                    // #89). Below the width where a sentence value cannot fit beside its label the row wraps instead, the way
+                    // `wrap` asks for, so nothing is left unreadable behind a hover that does not exist there.
+                    it.wrap ? '[overflow-wrap:anywhere]' : 'truncate @max-[26rem]:whitespace-normal @max-[26rem]:[overflow-wrap:anywhere]',
+                    it.mono && 'font-mono text-xs',
+                  )}
+                >
+                  {unknown ? <span className="text-ink-3">—</span> : it.value}
+                </span>
+                {it.action ? <span className="-my-1 shrink-0">{it.action}</span> : null}
               </dd>
-              {it.action ? <div className="-my-1 shrink-0">{it.action}</div> : null}
             </div>
           );
         })}

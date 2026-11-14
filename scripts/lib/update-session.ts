@@ -230,7 +230,10 @@ export function parseJournal(text: string): UpdateJournal {
     operations: list(v.operations, 'operations', operation),
     migrations: list(v.migrations, 'migrations', migration),
     retired: list(v.retired, 'retired', retirement),
-    keptDeletions: list(v.keptDeletions, 'keptDeletions', keepEntry),
+    // Records written before the field existed hold no keep entries, which is exactly what absent means: `keepDeletions`
+    // arrived after several releases had already written journals, and refusing them failed `check.ts` — and so
+    // `--finalize` — in every project that had ever updated (an adopter hit 19 of them, 0.13.0 to 0.39.0).
+    keptDeletions: list(v.keptDeletions ?? [], 'keptDeletions', keepEntry),
     validation: list(v.validation, 'validation', validation),
     failure: v.failure === null ? null : str(v.failure, 'failure'),
   };

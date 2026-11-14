@@ -1,7 +1,7 @@
 /**
  * The browser suites: a production build walked by a real browser, run by `test:t2` and `test:release`.
  *
- *   node scripts/browser.ts --depth fn[,timed][,perf] [--built]
+ *   node scripts/browser.ts --depth fn[,timed][,perf] [--only audit|interactions|keyboard|rest] [--built]
  *
  * `fn` is the function-only set, run whenever a change can alter what a page draws or what a control does:
  * scripts/navigate.ts with its budgets unjudged, the audit of every page at every width in both themes
@@ -9,11 +9,18 @@
  * (scripts/keyboard.ts), the assistant walk-through (scripts/assistant.ts), the product's own `browserChecks` and the
  * `personas` of scripts/verify.config.ts.
  *
+ * `--only` runs one function sweep and is valid only with `fn`: `audit`, `interactions` (every control pressed),
+ * `keyboard`, or `rest` (navigation unjudged, the personas, the assistant walk-throughs, the product's own checks and the
+ * build's sizes). Where the product has an assistant, each of the first three starts the fake LLM and restarts the server
+ * with the `ASSISTANT_*` variables, as the full run does, and prints a `server:` line naming that mode; the sweeps not
+ * asked for are printed as declared, left to their own jobs. Without `--only`, every sweep runs, in this one process.
+ *
  * `timed` is what judges a time and belongs on a quiet machine: the navigation of every rail route with its budgets
  * judged, the live-data checks (scripts/live.ts), the product's own `timedChecks` and the Web Vitals floors
- * (scripts/vitals.ts). It runs last, alone.
+ * (scripts/vitals.ts). It runs last, alone. It is Tier 2: a suite that prints FAIL is listed under `reported` and leaves
+ * the run green; a suite that could not run is `not run`, never ok.
  *
- * `perf` is the 20-sample navigation protocol (scripts/perf.ts). It runs only where CI is true and only for the weekly
+ * `perf` is the 20-sample navigation protocol (scripts/perf.ts), judged the same way as `timed`. It runs only where CI is true and only for the weekly
  * job, which calls `pnpm test:t2` on a fresh clone; a local run reports it not run rather than judging the machine.
  *
  * `--built` reuses the production build the caller already made (test:release builds once).
@@ -37,6 +44,7 @@ import { answers, bin, freePort, spawnNext } from './lib/bin.ts';
 import { CHROME, launch } from './lib/chrome.ts';
 import { fakeModelArgs, fakeModelProblems, type FakeModelStep } from './lib/config-hooks.ts';
 import { declaredNotRun, selectSmokeRoutes } from './lib/coverage.ts';
+import { FN_SWEEPS, navigationPlan, sweepsFor, timedOutcome, type FnSweep } from './lib/browser-plan.ts';
 import { clearParts, readParts } from './lib/tier2.ts';
 import { unsafeDataUrls } from './lib/data-url.ts';
 import { APP_DIR, railRoutes } from './lib/routes.ts';
@@ -62,11 +70,21 @@ const config = verifyConfig as BrowserConfig;
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const args = process.argv.slice(2);
-holdArgs('browser', args, ['--depth', '--built']);
+holdArgs('browser', args, ['--depth', '--only', '--built']);
 const opt = (k: string, d: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] ?? d : d; };
 const depth = new Set(opt('--depth', 'fn').split(',').map((s) => s.trim()).filter(Boolean));
 const built = args.includes('--built');
 const want = (d: string) => depth.has(d);
+const onlyAt = args.indexOf('--only');
+if (onlyAt >= 0 && !want('fn')) {
+  console.error('browser: --only is valid only with --depth fn');
+  process.exit(1);
+}
+let sweeps: Set<FnSweep>;
+try { sweeps = sweepsFor(onlyAt >= 0 ? (args[onlyAt + 1]?.startsWith('--') ? '' : args[onlyAt + 1] ?? '') : undefined); }
+catch (e) { console.error(`browser: ${(e as Error).message}`); process.exit(1); }
+/** Whether this run executes a function sweep: `fn` is asked for, and `--only` (when given) names it. */
+const sweep = (s: FnSweep) => want('fn') && sweeps.has(s);
 
 type Status = 'ok' | 'warn' | 'FAIL' | 'not run' | 'n/a';
 type Ran = { status: number | null; out: string; err: string; took: number };
@@ -80,6 +98,8 @@ const notRun: string[] = [];
 const declared: string[] = [];
 let failed = false;
 const ran: string[] = [];
+/** The timed and perf suites that printed FAIL: Tier 2, reported and never failing the run. */
+const reported: string[] = [];
 
 function phase(status: Status, name: string, took: number | null, detail = ''): void {
   log(`${status.padEnd(7)} ${name}${took === null ? '' : ` (${took.toFixed(1)}s)`}${detail ? ` ${detail}` : ''}`);
@@ -183,7 +203,7 @@ async function start(env: NodeJS.ProcessEnv): Promise<{ port: number; server: Ch
 }
 
 /** What a suite's exit code says: 0 passed, 2 left a case unrun (neither pass nor failure), anything else failed. */
-const outcomeOf = (r: Ran): Status => (r.status === 0 ? 'ok' : r.status === 2 ? 'not run' : 'FAIL');
+const outcomeOf = (r: Ran): 'ok' | 'FAIL' | 'not run' => (r.status === 0 ? 'ok' : r.status === 2 ? 'not run' : 'FAIL');
 
 function report(name: string, r: Ran): void {
   const status = outcomeOf(r);
@@ -201,6 +221,14 @@ function report(name: string, r: Ran): void {
   if (status === 'ok' && r.out) beneath(r.out, 6);
 }
 
+/** A timed or perf suite: its verdict goes through `timedOutcome`, so a FAIL is reported with its output and the run stays green. */
+function reportTimed(name: string, r: Ran): void {
+  if (timedOutcome(outcomeOf(r)) !== 'reported') { report(name, r); return; }
+  phase('FAIL', name, r.took);
+  reported.push(name);
+  beneath(`${r.out}\n${r.err}`);
+}
+
 /** The `notRun` list a suite's own summary printed (`navigate: {...}`, `perf: {...}`), or nothing when it printed none. */
 function notRunEntries(out: string): string[] {
   const line = /^(?:navigate|perf): (\{.*\})$/m.exec(out)?.[1];
@@ -213,7 +241,7 @@ function finish(): never {
   // The Tier 2 values this run's suites recorded, gathered once: the run's table and record (test-run) read them.
   const tier2 = readParts(ROOT).flatMap((p) => p.values);
   clearParts(ROOT);
-  const state = { ran, failed, notRun, declared, tier2, seconds: Number(secs(started).toFixed(1)) };
+  const state = { ran, failed, notRun, declared, reported, tier2, seconds: Number(secs(started).toFixed(1)) };
   log(`browser: ${JSON.stringify(state)}`);
   process.exit(failed ? 1 : notRun.length ? 2 : 0);
 }
@@ -280,8 +308,9 @@ if (failed) finish();
 // gzipped HTML through the served response. One call, once, so neither figure is measured twice. Each verdict is its own
 // phase, as the check prints it: a FAIL fails the run, and a warning ("growth not configured") is never reported as a
 // pass — an adopted project has no HTML baseline until it records one.
-const sized = await run('scripts/sizes.ts', ['--base', `http://127.0.0.1:${server.port}`]);
-{
+// The sizes are part of the `rest` sweep: a run that asks for another sweep alone leaves them out.
+if (!want('fn') || sweeps.has('rest')) {
+  const sized = await run('scripts/sizes.ts', ['--base', `http://127.0.0.1:${server.port}`]);
   const verdicts = sized.out.split('\n').flatMap((l) => {
     const m = /^(ok|warn|FAIL|not run)\s+(first-load|html)\s+(.*)$/.exec(l);
     return m ? [{ status: m[1] as Status, name: m[2], detail: m[3] }] : [];
@@ -305,13 +334,14 @@ const sized = await run('scripts/sizes.ts', ['--base', `http://127.0.0.1:${serve
   }
   if (sized.status !== 0) failed = true;
 }
-if (failed) finish();
+// A failed size check is reported and the run carries on: the sweeps below judge different things, and a red in one must
+// not hide the others (docs/testing.md, "a red is fixed… every stage still runs so one red cannot hide another").
 
 // The navigation: every rail route when the config maps them all, else the smoke routes with their data and interaction
 // reported not configured. A product mid-adoption has no mappings yet; the smoke is what its own run can prove. The
 // function run is read here; the timed one runs last, in the timed block below, so what judges a time runs alone.
 let navPlan: { label: string; args: (timing: 'on' | 'off') => string[] } | null = null;
-if (want('fn') || want('timed')) {
+if (sweep('rest') || want('timed')) {
   let rail: { routes: string[]; landing: string };
   try { rail = await railRoutes(); } catch (e) { phase('FAIL', 'the rail routes could not be read', null, (e as Error).message); failed = true; finish(); }
   const mapped = new Set((config.navigationChecks ?? []).map((c) => c.path));
@@ -325,14 +355,15 @@ if (want('fn') || want('timed')) {
     label: full ? 'every rail route' : `the smoke routes ${navRoutes.join(', ')}`,
     args: (timing) => ['--base', `http://127.0.0.1:${server.port}`, '--mode', full ? 'full' : 'default', '--timing', timing, '--routes', navRoutes.join(',')],
   };
-  if (want('fn')) {
-    const nav = await run('scripts/navigate.ts', navPlan.args('off'), app);
+  if (sweep('rest')) {
+    const nav = await run('scripts/navigate.ts', navPlan.args(navigationPlan('fn').judged ? 'on' : 'off'), app);
     report(`navigation: ${navPlan.label}, its budgets unjudged`, nav);
   }
-  if (failed) finish();
+
+  // The personas run whatever the navigation found: they read a different thing, and a red in one must not hide the other.
 
   // --as the personas, each against a fresh server: a persona's presses change the sample's state.
-  if (want('fn') && config.personas && Object.keys(config.personas).length) {
+  if (sweep('rest') && config.personas && Object.keys(config.personas).length) {
     const personaPage = await launch();
     try {
       for (const name of Object.keys(config.personas)) {
@@ -383,18 +414,20 @@ if (want('fn') || want('timed')) {
     } finally {
       personaPage.close();
     }
-    if (failed) finish();
+    // Every persona is read, and every sweep after them: one persona's red is that persona's, and the run reports it with
+    // the rest rather than hiding what it has not looked at yet.
   }
 }
 
 // The function-only suites that change data: the assistant walk first, alone, then the audit, the presses, the keyboard
-// walk and the product's own checks side by side against the one built app.
+// walk and the product's own checks side by side against the one built app. `--only` leaves out the sweeps not named.
 if (want('fn')) {
   let here = `http://127.0.0.1:${server.port}`;
   if (hasAssistant) {
-    const off = await run('scripts/assistant.ts', ['--base', here, '--expect', 'off'], app);
-    report('assistant absent without its variables', off);
-    if (failed) { stop(server.server); finish(); }
+    if (sweep('rest')) {
+      const off = await run('scripts/assistant.ts', ['--base', here, '--expect', 'off'], app);
+      report('assistant absent without its variables', off);
+    }
 
     const fake = spawn(process.execPath, ['scripts/fake-llm.ts', '--port', '0', ...fakeModelArgs(fakeSteps)], { cwd: ROOT, stdio: ['ignore', 'pipe', 'inherit'], detached: true });
     children.push(fake);
@@ -403,55 +436,76 @@ if (want('fn')) {
       fake.stdout!.on('data', (d) => { buf += String(d); const m = /fake-llm listening on (\S+)/.exec(buf); if (m) resolve(m[1]); });
       fake.on('close', () => resolve(''));
     });
-    if (!llmUrl) { phase('FAIL', 'the fake LLM did not start', null); failed = true; stop(server.server); finish(); }
-    // A distinctive key per run: the walk-through searches everything the browser can get for it.
-    const key = `browser-${randomBytes(16).toString('hex')}`;
-    stop(server.server);
-    server = await start({ ...app, ASSISTANT_PROVIDER: 'openai-compatible', ASSISTANT_BASE_URL: llmUrl, ASSISTANT_API_KEY: key, ASSISTANT_MODEL: 'fake' });
-    if (failed) finish();
-    here = `http://127.0.0.1:${server.port}`;
-    const on = await run('scripts/assistant.ts', ['--base', here, '--expect', 'on', '--llm', llmUrl, '--key', key], app);
-    report('assistant walk-through', on);
-    if (failed) finish();
+    if (!llmUrl) {
+      // The fake LLM did not start, so the assistant checks cannot run; the sweeps that do not need it still do, and the
+      // walk-through is reported not run rather than allowed to hide everything after it.
+      phase('FAIL', 'the fake LLM did not start', null);
+      failed = true;
+      if (sweep('rest')) notRun.push('the assistant walk-through (the fake LLM did not start)');
+    } else {
+      // A distinctive key per run: the walk-through searches everything the browser can get for it.
+      const key = `browser-${randomBytes(16).toString('hex')}`;
+      stop(server.server);
+      server = await start({ ...app, ASSISTANT_PROVIDER: 'openai-compatible', ASSISTANT_BASE_URL: llmUrl, ASSISTANT_API_KEY: key, ASSISTANT_MODEL: 'fake' });
+      // The server the remaining sweeps run against did not come back: that is the one thing nothing below can work around.
+      if (failed) finish();
+      here = `http://127.0.0.1:${server.port}`;
+      log(`server: assistant on (fake LLM at ${llmUrl}, ASSISTANT_* set) at ${here}`);
+      if (sweep('rest')) {
+        const on = await run('scripts/assistant.ts', ['--base', here, '--expect', 'on', '--llm', llmUrl, '--key', key], app);
+        report('assistant walk-through', on);
+      }
+    }
   } else {
-    phase('n/a', 'assistant walk-through', null, '(this product has no assistant)');
+    log(`server: assistant off (this product has no assistant) at ${here}`);
+    if (sweep('rest')) phase('n/a', 'assistant walk-through', null, '(this product has no assistant)');
   }
 
-  const [audit, presses, keys, ...extras] = await Promise.all([
-    run('scripts/audit.ts', ['--base', here]),
-    run('scripts/interactions.ts', ['--base', here]),
-    run('scripts/keyboard.ts', ['--base', here]),
-    ...own.map((c) => run(c.script, ['--base', here], { ...process.env, VERIFY_BROWSERS: String(c.browsers) })),
-  ]);
-  report('audit: every page at every width in both themes', audit);
-  report('every control pressed and every link followed', presses);
-  report('the whole keyboard path', keys);
-  extras.forEach((r, i) => report(`the product's check ${own[i].script}`, r));
-  if (failed) finish();
+  // The sweeps this run was not asked for are declared, not run: each belongs to its own job, and none holds the marker.
+  for (const s of FN_SWEEPS.filter((s) => !sweeps.has(s))) {
+    log(`declared ${s}: left to their own jobs (--only ${[...sweeps].join(',')})`);
+    declared.push(`${s}: left to their own jobs`);
+  }
+
+  const jobs: { name: string; start: () => Promise<Ran> }[] = [
+    ...(sweep('audit') ? [{ name: 'audit: every page at every width in both themes', start: () => run('scripts/audit.ts', ['--base', here]) }] : []),
+    ...(sweep('interactions') ? [{ name: 'every control pressed and every link followed', start: () => run('scripts/interactions.ts', ['--base', here]) }] : []),
+    ...(sweep('keyboard') ? [{ name: 'the whole keyboard path', start: () => run('scripts/keyboard.ts', ['--base', here]) }] : []),
+    ...(sweep('rest') ? own.map((c) => ({ name: `the product's check ${c.script}`, start: () => run(c.script, ['--base', here], { ...process.env, VERIFY_BROWSERS: String(c.browsers) }) })) : []),
+  ];
+  const results = await Promise.all(jobs.map((j) => j.start()));
+  jobs.forEach((j, i) => report(j.name, results[i]));
+  // The timed set runs whatever these found: a red in one judge must not hide the values of the others.
 }
 
 // The timed set, last and alone: what judges a time must not share the machine with anything else.
 if (want('timed')) {
   const here = `http://127.0.0.1:${server.port}`;
   if (navPlan) {
-    report(`navigation: ${navPlan.label}, its budgets judged`, await run('scripts/navigate.ts', navPlan.args('on'), app));
-    if (failed) finish();
+    reportTimed(`navigation: ${navPlan.label}, its budgets judged`, await run('scripts/navigate.ts', navPlan.args(navigationPlan('timed').judged ? 'on' : 'off'), app));
   }
   if (hasLiveSample) {
+    // A drop server that does not start leaves the live checks unrun: Tier 2, so not run, never a failure of the run.
     const dropped = await start({ ...app, LIVE_DROP_HINTS: '1' });
-    const live = await run('scripts/live.ts', ['--base', here, '--drop-base', `http://127.0.0.1:${dropped.port}`], app);
-    stop(dropped.server);
-    report('live data: two tabs, a silent stream, a restart, a hidden and an offline tab, a burst', live);
+    if (failed) {
+      failed = false;
+      stop(dropped.server);
+      notRun.push('live data (the server for the dropped-hint case did not start)');
+    } else {
+      const live = await run('scripts/live.ts', ['--base', here, '--drop-base', `http://127.0.0.1:${dropped.port}`], app);
+      stop(dropped.server);
+      reportTimed('live data: two tabs, a silent stream, a restart, a hidden and an offline tab, a burst', live);
+    }
   } else {
     phase('n/a', 'live data', null, '(the sample Members page the live checks drive is not in this product)');
   }
-  for (const script of ownTimed) report(`the product's timed check ${script}`, await run(script, ['--base', here]));
-  report('LCP, INP, CLS and dropped frames on a mid-range phone', await run('scripts/vitals.ts', ['--base', here]));
+  for (const script of ownTimed) reportTimed(`the product's timed check ${script}`, await run(script, ['--base', here]));
+  reportTimed('LCP, INP, CLS and dropped frames on a mid-range phone', await run('scripts/vitals.ts', ['--base', here]));
   if (failed) finish();
 }
 
 if (want('perf')) {
-  report('performance: 20 samples per route, device and condition, p95 against the budgets', await run('scripts/perf.ts', ['--base', `http://127.0.0.1:${server.port}`]));
+  reportTimed('performance: 20 samples per route, device and condition, p95 against the budgets', await run('scripts/perf.ts', ['--base', `http://127.0.0.1:${server.port}`]));
 }
 
 finish();

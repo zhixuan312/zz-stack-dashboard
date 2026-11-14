@@ -47,281 +47,38 @@ reconnect. Heartbeats may check session expiry; they never stand in for authoriz
 are cleaned up on abort, error or cancellation, and the queue holds a name at most once, so it never grows past the
 names the stream follows.
 
-`optional:app/api/live/route.ts` is the Route Handler. It exports only `GET`:
+`optional:app/api/live/route.ts` is the Route Handler, and it exports `GET` only: it resolves the caller and answers
+401 without a session, parses `collections` and `since` and answers 400 for either malformed, asks `can` for every name
+before it subscribes to any and answers 403 with one body whether the name is unknown or forbidden, and hands
+`liveStream` the names, their scope-bound collections, the `since` map, the request's signal, and an `authorize` that
+resolves the caller again and compares the scope it gets with the one the stream opened under.
 
-```ts
-import { Unauthenticated, can, collectionFor, resolveAccess } from '@/data/access';
-import { liveStream } from '@/data/live-stream';
-
-const MAX_NAMES = 50;
-const NAME = /^[A-Za-z0-9_-]{1,64}$/;
-
-const text = (status: number, body: string) => new Response(body, { status, headers: { 'content-type': 'text/plain; charset=utf-8' } });
-
-/** `name:revision,...` into a map; `undefined` when absent, `null` when a pair has no `:`, an empty part or an unnamed collection. */
-function parseSince(raw: string | null, names: string[]): Record<string, string> | undefined | null {
-  if (raw === null) return undefined;
-  const served: Record<string, string> = {};
-  for (const pair of raw.split(',')) {
-    const at = pair.indexOf(':');
-    const name = pair.slice(0, at);
-    const revision = pair.slice(at + 1);
-    if (at < 1 || !revision || !names.includes(name)) return null;
-    served[name] = revision;
-  }
-  return served;
-}
-
-/** `GET /api/live?collections=members,keys`: change hints for the collections the caller may read; `since=members:<revision>` makes the first frame name only what moved. 400 malformed, 401 without a session, 403 for any name they may not read. */
-export async function GET(request: Request): Promise<Response> {
-  const scope = await resolveAccess().catch((e: unknown) => { if (e instanceof Unauthenticated) return null; throw e; });
-  if (!scope) return text(401, 'Sign in to continue.');
-
-  const raw = new URL(request.url).searchParams.get('collections');
-  const parts = raw ? raw.split(',') : [];
-  if (parts.length === 0 || !parts.every((n) => NAME.test(n))) return text(400, 'Name the collections to follow.');
-  const names = [...new Set(parts)];
-  if (names.length > MAX_NAMES) return text(400, 'Name the collections to follow.');
-
-  const served = parseSince(new URL(request.url).searchParams.get('since'), names);
-  if (served === null) return text(400, 'Name the revisions as name:revision.');
-
-  // An unknown name and a forbidden one answer alike, so neither is disclosed.
-  if (!(await Promise.all(names.map((n) => can(scope, n, 'read')))).every(Boolean)) return text(403, 'You do not have access to that.');
-
-  return liveStream({
-    names,
-    collections: names.map((n) => collectionFor(scope, n)),
-    since: served,
-    signal: request.signal,
-    authorize: async (name) => {
-      const now = await resolveAccess().catch(() => null);
-      return now !== null && now.tenantId === scope.tenantId && now.subjectId === scope.subjectId && can(now, name, 'read');
-    },
-  });
-}
-```
-
-`optional:src/data/live-stream.ts` is the stream:
-
-```ts
-/**
- * The live stream: Server-Sent Events that tell a tab which collections changed, so it reads them again. A hint names
- * a collection and nothing else: no record, tenant or cache tag leaves the server. A hint is sent only after the
- * scope is checked again, and a scope that may no longer read what it subscribed to ends the stream.
- */
-import type { AnyCollection } from '@/lib/collection';
-
-let noted = false;
-
-/**
- * Every stream still open. A server told to stop (`next start` on SIGTERM or SIGINT) closes its port and then waits for
- * its open connections, and a stream never ends of itself: the old process kept every tab's stream while the new one
- * served the port, so no tab heard a hint again until its next poll. Ending them lets the old process go and each tab
- * connect to the new one.
- */
-const open = new Set<() => void>();
-let watching = false;
-
-/** Ends every open stream; each tab reconnects itself (`src/lib/live.ts`), to whichever server then holds the port. */
-function endLiveStreams() {
-  for (const close of [...open]) close();
-}
-
-function endOnShutdown(close: () => void) {
-  open.add(close);
-  if (watching || typeof process === 'undefined' || typeof process.once !== 'function') return;
-  watching = true;
-  for (const sig of ['SIGTERM', 'SIGINT'] as const) {
-    process.once(sig, function endLiveStreamsOnSignal() {
-      endLiveStreams();
-      // A listener takes the place of the signal's default: where nothing else listens, the process stops as it would have.
-      if (process.listenerCount(sig) === 0) process.kill(process.pid, sig);
-    });
-  }
-}
-
-type LiveStreamOptions = {
-  /** The requested names, already authorized once; the first frame greets with what moved. */
-  names: string[];
-  /** One scope-bound collection per name, in the same order. */
-  collections: AnyCollection[];
-  signal: AbortSignal;
-  heartbeatMs?: number;
-  /** Whether the current scope may still read a collection; asked before every hint is sent. */
-  authorize: (name: string) => Promise<boolean>;
-  /** The revision of each collection the page was served, by name; the greeting names only what moved since. */
-  since?: Record<string, string>;
-};
-
-export function liveStream({ names, collections, signal, heartbeatMs = 15000, authorize, since }: LiveStreamOptions): Response {
-  const encoder = new TextEncoder();
-  const unsubscribe: Array<() => void> = [];
-  let timer: ReturnType<typeof setInterval> | undefined;
-  let closed = false;
-  let controller!: ReadableStreamDefaultController<Uint8Array>;
-
-  const send = (frame: string) => controller.enqueue(encoder.encode(frame));
-
-  function close() {
-    if (closed) return;
-    closed = true;
-    open.delete(close);
-    clearInterval(timer);
-    for (const off of unsubscribe) off();
-    unsubscribe.length = 0;
-    signal.removeEventListener('abort', close);
-    try { controller.close(); } catch { /* already cancelled */ }
-  }
-
-  // Hints wait here while the scope is checked, one per name, so the queue is never longer than the names followed.
-  const queue: string[] = [];
-  let draining = false;
-
-  async function drain() {
-    if (draining) return;
-    draining = true;
-    try {
-      while (!closed && queue.length > 0) {
-        const name = queue.shift()!;
-        const allowed = await authorize(name);
-        if (closed) return;
-        if (!allowed) return close();
-        send(`event: change\ndata: ${JSON.stringify({ collection: name })}\n\n`);
-      }
-    } catch {
-      close();
-    } finally {
-      draining = false;
-    }
-  }
-
-  function hint(name: string) {
-    if (closed) return;
-    if (process.env.LIVE_DROP_HINTS === '1') {
-      if (!noted) {
-        noted = true;
-        console.log('note: LIVE_DROP_HINTS is set; change hints are dropped (a test switch)');
-      }
-      return;
-    }
-    if (!queue.includes(name)) queue.push(name);
-    void drain();
-  }
-
-  const body = new ReadableStream<Uint8Array>({
-    start(c) {
-      controller = c;
-      if (signal.aborted) return close();
-      signal.addEventListener('abort', close);
-      endOnShutdown(close);
-      // Subscribe first, then compare: a write after the page's read either moves a revision the greeting names or
-      // arrives as a hint.
-      collections.forEach((collection, i) => {
-        const off = collection.subscribe?.(() => hint(names[i]!));
-        if (off) unsubscribe.push(off);
-      });
-      const moved = names.filter((n, i) => {
-        const was = since?.[n];
-        return was === undefined || was !== collections[i]!.revision?.();
-      });
-      send(moved.length ? `event: resync\ndata: ${JSON.stringify({ collections: moved })}\n\n` : 'event: synced\ndata: {}\n\n');
-      timer = setInterval(() => { if (!closed) send(`: beat ${Date.now()}\n\n`); }, heartbeatMs);
-    },
-    cancel: close,
-  });
-
-  return new Response(body, {
-    headers: { 'content-type': 'text/event-stream', 'cache-control': 'no-cache, no-transform' },
-  });
-}
-```
+`optional:src/data/live-stream.ts` is the stream. It subscribes to every collection before it compares revisions, so a
+write between the page's read and the open arrives either in the greeting or as a hint; the first frame is one `resync`
+naming what moved, or `synced` with nothing; every hint asks `authorize` again and closes the stream when the answer is
+no; the queue holds a name at most once; and abort, an error or a cancellation releases every subscription, the abort
+listener and the heartbeat. It also ends every open stream when the server is told to stop. A stopped `next start` closes
+its port and waits for its open connections, so a stream that never ends keeps the old process holding every tab while
+the new one serves the port, and no tab hears a hint again until its next poll: the file keeps each stream's `close` in
+one set, removes it from that set first thing in `close`, and registers it with the shutdown handler once the stream has
+listened for its abort. A product that serves its stream some other way ends its streams on that signal the same way.
 
 ## Refreshing
 
 `optional:src/data/live-actions.ts` exports `refreshCollections(names)`, a Server Action. The names come from the
 browser, so each is authorized against the caller's current access, and one the caller may not read is skipped without a
-trace. It drops only those collections' cached reads, and the router refresh that follows reads them again. With no
-session it resolves `{ ok: false, status: 401 }` instead of throwing, because a thrown error loses its `status` in a
-production build; the client turns that value into a 401 error, which pauses the live provider.
-
-```ts
-'use server';
-
-import { updateTag } from 'next/cache';
-import { Unauthenticated, can, resolveAccess } from '@/data/access';
-import { collectionTag } from '@/data/read';
-
-const MAX_NAMES = 50;
-
-/**
- * Drops the cached reads of the collections the caller may read, so the router refresh that follows reads them again.
- * The names come from the browser, so each is authorized here; one the caller may not read is skipped without a trace.
- * A caller without a session gets a refusal value, not a throw: a thrown error loses its status in a production build.
- */
-export async function refreshCollections(names: string[]): Promise<{ ok: true } | { ok: false; status: 401 }> {
-  const scope = await resolveAccess().catch((e: unknown) => { if (e instanceof Unauthenticated) return null; throw e; });
-  if (!scope) return { ok: false, status: 401 };
-  const asked = [...new Set(Array.isArray(names) ? names.filter((n): n is string => typeof n === 'string') : [])].slice(0, MAX_NAMES);
-  for (const name of asked) {
-    if (await can(scope, name, 'read')) updateTag(collectionTag(scope.tenantId, name));
-  }
-  return { ok: true };
-}
-```
+trace; at most 50 distinct names are read. It drops only those collections' cached reads, with
+`updateTag(collectionTag(scope.tenantId, name))` after the authorization and before the router refresh that follows reads
+them again. With no session it resolves `{ ok: false, status: 401 }` instead of throwing, because a thrown error loses
+its `status` in a production build; the client turns that value into a 401 error, which pauses the live provider.
 
 The managed `src/lib/live.ts` holds the provider and does not import this file, so a project that has not added it still
-compiles. The team-owned client `optional:src/views/console-live.tsx` injects it. The layout passes it a promise of the
-scope key and never awaits it, so the page does not wait for the request:
-
-```tsx
-'use client';
-
-import { Suspense, use, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { refreshCollections } from '@/data/live-actions';
-import { LiveProvider } from '@/lib/live';
-
-type Ready = { scopeKey: string; pollMs?: number };
-
-/**
- * `?livePollMs=` is a test hook: the live check shortens the safety poll with it. Any visitor can type it, and each poll
- * refreshes the tenant's collections, so it never goes under a second. Non-finite values and delays above the browser's
- * signed 32-bit timer maximum are ignored rather than overflowing into a hot polling loop.
- */
-export function pollFromAddress(search: string): number | undefined {
-  const ms = Number(new URLSearchParams(search).get('livePollMs'));
-  return Number.isFinite(ms) && ms > 0 && ms <= 2_147_483_647 ? Math.max(1000, ms) : undefined;
-}
-
-/** Waits for the caller's scope in its own boundary and reports it, so the page never waits and its children never remount. */
-function ResolveScope({ scope, onReady }: { scope: Promise<string>; onReady: (ready: Ready) => void }) {
-  const scopeKey = use(scope);
-  useEffect(() => {
-    onReady({ scopeKey, pollMs: pollFromAddress(window.location.search) });
-  }, [scopeKey, onReady]);
-  return null;
-}
-
-/** The console's live stream: one per tab, opened once the scope has resolved, for the collections the page's views register with `useLive` (a page that registers none is read fresh on each visit). A refresh reauthorizes the names, then reads the route again; a refusal throws a 401 the provider pauses on. */
-export function ConsoleLive({ scope, children }: { scope: Promise<string>; children: React.ReactNode }) {
-  const router = useRouter();
-  const [ready, setReady] = useState<Ready>({ scopeKey: '' });
-  const refresh = async (names: string[]) => {
-    const result = await refreshCollections(names);
-    if (!result.ok) throw Object.assign(new Error('Sign in to see live data.'), { status: result.status });
-    router.refresh();
-  };
-  return (
-    <LiveProvider refresh={refresh} scopeKey={ready.scopeKey} pollMs={ready.pollMs}>
-      <Suspense fallback={null}>
-        <ResolveScope scope={scope} onReady={setReady} />
-      </Suspense>
-      {children}
-    </LiveProvider>
-  );
-}
-```
+compiles. The team-owned client `optional:src/views/console-live.tsx` injects it, and is the piece written per project: it
+waits for the caller's scope key in a `Suspense` boundary of its own and reports it, so the page never waits and its
+children never remount; it reads `?livePollMs=` for the safety poll, never below a second and ignoring a non-finite value
+or one past the browser's signed 32-bit timer maximum; it turns a refused refresh into a 401 error the provider pauses
+on; and it hands `<LiveProvider>` the refresh, the scope key and the poll. The layout passes it a promise of the scope
+key and never awaits it, so the page does not wait for the request:
 
 In the dashboard layout, wrap the page in it, with `scope` resolved from the caller and never awaited:
 

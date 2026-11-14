@@ -2,8 +2,8 @@
 #
 # Tier 2 is the `*.perf.test.*` convention, the timed browser suite and the affected Tier 1 tests. There is no
 # `*.perf.test.*` file here yet, so on a clean master the run selects the whole Tier 1 set (no last-green marker and no
-# diff) and runs the timed browser suite. The 20-sample navigation protocol is a diagnostic now, not a tier and not a
-# CI job: run `node scripts/perf.ts --routes <route>` on a quiet machine when a change needs it.
+# diff) and runs the timed browser suite. The 20-sample navigation protocol is not run here: `test:release` asks for it
+# where CI is true, so `gate.yml` runs it on every push, as Tier 2 that reports and never fails.
 #
 # The release standard is not run here: `gate.yml` runs `test:release` on every push, and evidence on a commit stands
 # for it. A dispatch names the jobs it runs: `gh workflow run weekly.yml -f jobs=t2`.

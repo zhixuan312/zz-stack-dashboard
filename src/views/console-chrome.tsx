@@ -2,7 +2,8 @@
 
 import dynamic from 'next/dynamic';
 import { Suspense, use, type ComponentProps } from 'react';
-import { nav, type NavGroup } from '../app.config';
+import { nav } from '../app.config';
+import type { NavGroup } from '../lib/app-contract';
 import { Rail } from '../components/patterns/rail/index';
 import { Skeleton } from '../components/ui/skeleton/index';
 import type { ChromeAccess } from '../lib/collection';

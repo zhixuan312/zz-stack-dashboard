@@ -1,0 +1,33 @@
+tokens: up to date
+ok   tokens are fresh (0.1s)
+the card contract: not applicable here (it is judged where src/system/registry.ts is)
+check: ok
+judged nothing: a collection's rows read through it
+escape  src/lib/assistant/tools.ts:135: no-direct-query — the proposal path reads the rows a write would change, uncached, to show the person the difference before anything is written
+0 problems · 79 cards · 30 page specs · 414 source files
+ok   specifications are consistent (0.6s)
+check.local: ok
+0 problems · 414 source files
+ok   the product's own rules hold (0.4s)
+contrast: 440 pairs across every theme and accent, 0 failures
+ok   contrast holds in every theme and accent (0.2s)
+Generating route types...
+✓ Types generated successfully
+ok   types: route types (0.3s)
+ok   types: tsc --noEmit (1.8s)
+ok   lint: eslint on 1 changed file (0.8s)
+
+ RUN  v5.0.5 /Users/xuan/Documents/code/zz-parent/zz-stack-dashboard
+
+ ✓ tests/testing-guideline.test.ts (10 tests) 32ms
+ ✓ tests/review-platform-b.test.tsx (14 tests) 362ms
+
+ Test Files  2 passed (2)
+   Affected  2 of 185 test files (related to 2 files)
+      Tests  24 passed (24)
+   Start at  13:50:55
+   Duration  1.11s (tests 36%, environment 26%, import 22%, setup 13%, transform 2%, worker 1%)
+
+JSON report written to /Users/xuan/Documents/code/zz-parent/zz-stack-dashboard/out/test-run.json
+ok   tier 1 tests related to the change (1.6s)
+test:t1: every Tier 1 check passed (2 test files, 24 tests)

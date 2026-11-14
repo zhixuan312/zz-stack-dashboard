@@ -212,6 +212,33 @@ async function press(page: Page, at: { x: number; y: number }): Promise<number> 
   return t;
 }
 
+/**
+ * What a press looked like from the page, kept for the failure line it may end in (#147): the `readyState` and the topmost
+ * element at the press point just before the press, and, read afterwards, whether a click arrived at the page at all. A dead
+ * control and a press that never reached the page read the same from the outside; this tells them apart.
+ */
+type PressTrace = { readyState: string; hit: string };
+
+/** Presses like `press` and records the page's side of it. */
+async function tracedPress(page: Page, at: { x: number; y: number }): Promise<{ t: number; trace: PressTrace }> {
+  const trace = await page.eval<PressTrace>(`(() => {
+    if (!window.__pressClicks && window.__pressClicks !== 0) { window.__pressClicks = 0; addEventListener('click', () => { window.__pressClicks++; }, true); }
+    window.__pressClicks = 0;
+    const x = ${at.x}, y = ${at.y};
+    let hit = document.elementFromPoint(x, y);
+    for (let inner = hit && hit.shadowRoot && hit.shadowRoot.elementFromPoint(x, y); inner && inner !== hit; inner = hit.shadowRoot && hit.shadowRoot.elementFromPoint(x, y)) hit = inner;
+    return { readyState: document.readyState, hit: hit ? hit.tagName.toLowerCase() + (hit.id ? '#' + hit.id : '') + (typeof hit.className === 'string' && hit.className.trim() ? '.' + hit.className.trim().split(/\\s+/)[0] : '') : 'nothing' };
+  })()`);
+  return { t: await press(page, at), trace };
+}
+
+/** The sentence a failure line carries about its press: did the click reach the page, and what the page was doing. */
+async function pressNote(page: Page, trace: PressTrace): Promise<string> {
+  const clicks = await page.eval<number | undefined>('window.__pressClicks').catch(() => undefined);
+  const reached = clicks === undefined ? 'unknown (the page was left or replaced)' : clicks > 0 ? 'yes' : 'no';
+  return ` (click reached the page: ${reached}; readyState at the press: ${trace.readyState}; element at the press point: ${trace.hit})`;
+}
+
 /** Polls `read` until it returns something, or `until` (a clock time) passes. */
 async function poll<T>(read: () => Promise<T | null | false>, until: number): Promise<T | null> {
   for (;;) {
@@ -477,7 +504,7 @@ export async function journey(page: Page, device: Device, start: string, route: 
   }
   const spec = { route, from: start, title: check?.title ?? '', ready: check?.readySelector ?? '', text: (check?.readyText ?? '').toLowerCase() };
   await page.eval(`window.__nav.arm(${JSON.stringify(spec)})`);
-  const t0 = await press(page, at);
+  const { t: t0, trace: shellTrace } = await tracedPress(page, at);
 
   // The shell: the path and the target heading.
   const shellMs = await result(page, 'shell', t0 + cap);
@@ -496,8 +523,9 @@ export async function journey(page: Page, device: Device, start: string, route: 
       : now.there ? `${now.p} showed the heading "${now.h}" only after the ${cap} ms the journey waits`
       : now.p === start ? `still on ${now.p} ${cap} ms after pressing ${route}`
       : `pressing ${route} led to ${now.p}, which is neither ${route} nor a page under it`;
+    const note = await pressNote(page, shellTrace);
     return {
-      shell: { fail: new Fail(wrong ? 'wrong-result' : 'never-ready', why) },
+      shell: { fail: new Fail(wrong ? 'wrong-result' : 'never-ready', why + note) },
       data: check ? { fail: new Fail('never-ready', 'the shell was never reached') } : null,
       interactive: check ? { fail: new Fail('never-ready', 'the shell was never reached') } : null,
       drawerMs,
@@ -564,10 +592,10 @@ async function measureInteraction(page: Page, route: string, check: NavigationCh
   const isInput = await page.eval<boolean>(`(() => { const el = ${pickable(check.controlSelector)}; return !!el && el.tagName === 'INPUT' && ['text', 'search'].includes(el.type); })()`);
   // The page compares this result with what it shows from now on, and times the first frame that differs.
   await page.eval(`(() => { const n = window.__nav; n.expect = { selector: ${JSON.stringify(check.resultSelector)}, before: n.snap(${JSON.stringify(check.resultSelector)}) }; })()`);
-  await press(page, where);
+  const { trace } = await tracedPress(page, where);
   if (isInput) await page.send('Input.insertText', { text: 'a' });
   const ms = await result(page, 'interactive', Date.now() + wait);
-  if (ms === null) return { fail: new Fail('control-dead', `pressing ${check.controlSelector} (${check.probe}) changed nothing on ${check.resultSelector} in ${wait} ms`) };
+  if (ms === null) return { fail: new Fail('control-dead', `pressing ${check.controlSelector} (${check.probe}) changed nothing on ${check.resultSelector} in ${wait} ms${await pressNote(page, trace)}`) };
   return { ms };
 }
 

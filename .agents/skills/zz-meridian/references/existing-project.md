@@ -7,32 +7,36 @@ Tell them which route you chose and why, in one sentence, before starting.
 
 An existing product has users who rely on what it does today, so learn it before changing it, and keep what it does.
 
-1. **Learn it as a new teammate would**: its README, `AGENTS.md` or `CLAUDE.md`, package scripts, routes, data layer and
-   tests. Their conventions govern their code; Meridian's govern Meridian's files.
-2. **Find every place it reads or writes**: API base URLs and database URLs in the code and in every `.env` file. An
-   address that is not this machine, or a container you started, is production: never run their app against it, not
-   even `pnpm dev`. Write the fake API first (Route A, step 5), from the requests their code actually sends, with sample
-   records in their own shapes. In place (Route A) it goes in their `scripts/` and is committed on its own, so `adopt`
-   finds a clean tree (`adopt` copies Meridian's `scripts/` beside it and leaves a file of another name alone, and an update never changes
-   a team file inside a managed folder: `ownership.md`); for a
-   new project beside theirs (Routes A2, B) it goes in the new project. Records whose meaning depends on the time
-   ("late", "due soon") are placed relative to when the fake API starts, so the same cases exist on every run. Their
-   app reads the fake's address from the environment variable they already use: a variable set for the command
-   overrides the `.env` file Next loads, and `fakeApi.env` in `scripts/verify.config.ts` does the same for verify. An
-   API address is not a `dataUrls` entry; that list is for databases.
-3. **Keep a "before"**: run their app against the fake API, from a copy outside the repository (install there, so their
-   folder stays clean), and render their main routes at 1440 and 390px with Chrome itself (`"<chrome>" --headless
-   --virtual-time-budget=5000 --screenshot=out/standard/before/<name>.png --window-size=1440,900 <url>`, and `390,844`;
-   the time budget lets an app that fetches in the browser draw its data before the shot), since Meridian's scripts are
-   not there yet. An app that fetches from the browser reaches the fake API from another origin, so the fake answers
-   with `Access-Control-Allow-Origin: *`. For a new project beside theirs (Routes A2, B) the order is: `create`, the
-   fake API in the new project, then the "before" against it. The hand-over shows each page before and after, and the
-   renders record how each page worked. An app that does not run as it stands gets no "before": say so in the
-   hand-over, and keep the list in step 4 from its code.
-4. **List what must survive** in the scoreboard's floors: every route at its URL, every action and the request it sends
-   (the fake API logs them), and their own tests and scripts. When the request itself changes one of these (a filter
-   that now needs every order), record the change under "Kept and removed" in the hand-over. A rebuilt page that drops one of these is a regression,
-   however good it looks.
+**Learn it as a new teammate would.** Its README, `AGENTS.md` or `CLAUDE.md`, package scripts, routes, data layer and
+tests. Their conventions govern their code; Meridian's govern Meridian's files.
+
+**Find every place it reads or writes.** API base URLs and database URLs in the code and in every `.env` file. An
+address that is not this machine, or a container you started, is production: never run their app against it, not
+even `pnpm dev`. Write the fake API first (the Route A step that gives them a fake API), from the requests their code
+actually sends, with sample records in their own shapes. In place (Route A) it goes in their `scripts/` and is
+committed on its own, so `adopt`
+finds a clean tree (`adopt` copies Meridian's `scripts/` beside it and leaves a file of another name alone, and an update never changes
+a team file inside a managed folder: `ownership.md`); for a
+new project beside theirs (Routes A2, B) it goes in the new project. Records whose meaning depends on the time
+("late", "due soon") are placed relative to when the fake API starts, so the same cases exist on every run. Their
+app reads the fake's address from the environment variable they already use: a variable set for the command
+overrides the `.env` file Next loads, and `fakeApi.env` in `scripts/verify.config.ts` does the same for verify. An
+API address is not a `dataUrls` entry; that list is for databases.
+
+**Keep a "before".** Run their app against the fake API, from a copy outside the repository (install there, so their
+folder stays clean), and render their main routes at 1440 and 390px with Chrome itself (`"<chrome>" --headless
+--virtual-time-budget=5000 --screenshot=out/standard/before/<name>.png --window-size=1440,900 <url>`, and `390,844`;
+the time budget lets an app that fetches in the browser draw its data before the shot), since Meridian's scripts are
+not there yet. An app that fetches from the browser reaches the fake API from another origin, so the fake answers
+with `Access-Control-Allow-Origin: *`. For a new project beside theirs (Routes A2, B) the order is: `create`, the
+fake API in the new project, then the "before" against it. The hand-over shows each page before and after, and the
+renders record how each page worked. An app that does not run as it stands gets no "before": say so in the
+hand-over, and keep the list of what must survive from its code.
+
+**List what must survive.** In the scoreboard's floors: every route at its URL, every action and the request it sends
+(the fake API logs them), and their own tests and scripts. When the request itself changes one of these (a filter
+that now needs every order), record the change under "Kept and removed" in the hand-over. A rebuilt page that drops one of these is a regression,
+however good it looks.
 
 When the last page is rebuilt, trace what nothing imports any more (their old UI components, `*.before.css` once
 ported, helpers only the old pages used): check dynamic imports and config too, then delete them in a commit of their
@@ -42,92 +46,97 @@ own and list them in the hand-over, so the project keeps only what earns its pla
 
 Migrate in place, page by page, keeping their data layer.
 
-1. **Run `npx zz-meridian@latest adopt`** in their project, after "Before you change anything", with the brand flags
-   from step 2 of SKILL.md (`--name`, `--hex` or `--accent`, `--workspace`, `--timezone`, `--currency`), and commit what
-   it changed as one commit before building on it: that is the diff a reviewer reads to see what Meridian brought. It copies Meridian's tokens, styles, components,
-   gates and scripts in; merges the dependencies and scripts it needs into their `package.json`; adds `@meridian/*`
-   (`src/*`) to `tsconfig.json`, keeping theirs as `tsconfig.before.json` when it carries comments or trailing commas,
-   which JSON cannot hold; replaces their global stylesheet, keeping theirs beside it as `*.before.css` to port
-   from as tokens; writes an `eslint.config.ts` when they have no ESLint configuration at all, since the gate runs
-   the lint and a project would otherwise be handed a gate it cannot pass, and keeps a legacy `.eslintrc` with a line
-   saying ESLint 9 no longer reads it; writes a first `nav` from their routes into `src/app.config.ts`; brands it; writes a managed block
-   into their `AGENTS.md`, between two marker comments, and keeps every byte outside it (a later run replaces only that
-   block; a duplicate or unterminated marker is refused, with the files already copied); writes the five-section brief
-   `optional:docs/brief.md` when they have none (SKILL.md, step 3: fill it from their answers); installs this skill into
-   `optional:.agents/skills/` and `optional:.claude/skills/`; records every Meridian file it copied in `optional:.meridian/manifest.json`; installs and type
-   checks. It refuses, writing nothing, when the project is already on
-   Meridian (it names `update`, the command that moves it), when the git tree has uncommitted changes (commit first, so
-   its change is one diff to review), when the project is not Next.js with the App Router,
-   or when a file it would copy already exists with other content (it lists them: move theirs, then run it again).
-   Meridian's own files import each other by relative path, so their `components/ui/button` is never confused with
-   Meridian's.
-2. **The template to read from** is the version in `optional:.meridian/manifest.json`, at
-   `https://github.com/zhixuan312/zz-meridian/tree/v<version>`: the layouts, the presets in `src/views/` and the pages
-   in `optional:app/(dashboard)/`. Without network access to GitHub, `npx zz-meridian@<version> create /tmp/meridian-ref
-   --no-install` writes the same files to a scratch folder.
-3. Wrap their root layout like the template's `app/layout.tsx` (fonts, the pre-paint script, `Providers`) and their
-   console routes in `AppShell` with the rail, the bell and the command palette (see `optional:app/(dashboard)/layout.tsx`).
-   The template's layout hands `AppShell` its tools as `<ShellAlerts alerts={…} />` (`optional:src/views/shell-alerts.tsx`),
-   given the promise of `readAlerts()` from `optional:src/logic/alerts.ts`, unawaited and settled on `null` when the read
-   fails; the answer carries the alerts and the clock they were read at. Neither file is copied: hand `ShellTools` (the
-   pattern `ShellAlerts` renders) their own alerts, an empty list until they have some, and their own clock. The template
-   draws `WorkspaceRail` and `WorkspacePalette`; a console with one navigation draws `ConsoleRail` and `ConsolePalette`
-   as below. Give each `nav`
-   entry in `src/app.config.ts` its icon and group. The Rail and the palette are rendered from a client module
-   (`src/views/console-chrome.tsx`), since each destination carries its icon component, and take what depends on the
-   request from the layout as props: `<ConsoleRail access={…} signOut={…} />` and `<ConsolePalette access={…} />`,
-   where `access` is a promise of `{ only, user, viewAs }` — the hrefs this person may see, the signed-in person from
-   their session, and a View as group if they have one; leave `viewAs` out and the menu has no such group
-   (`ChromeAccess` from `@/lib/collection`, built by your own `chromeAccess()`). Both take an optional `nav` as well,
-   for a product that draws other destinations than the `nav` in `src/app.config.ts`: it is drawn in its own groups and
-   order, filtered by `access` the same way, and an empty list stays empty. Both pieces of chrome wait for that promise
-   in their own `<Suspense>` boundary, so the frame is in the static shell and the person's own rail streams in the same
-   response; pass the promise without awaiting it, and never draw the sample person while it is pending. `workspace` and `scopes` still arrive as plain props. A console
-   with no sign-in passes no `access` at all, and the chrome then shows the full `nav` and the `app.user` it was given,
-   so the rail never shows a sample person or a Sign out that goes nowhere.
-   **Turn on Cache Components.** Meridian's pages prerender a shell and stream what each request reads, and the route
-   policy check fails a page that is neither static nor partial. Set `cacheComponents: true` and
-   `partialPrefetching: true` in their `next.config` (`cache.md`, "Turn Cache Components on"), and put each per-request read (their API, cookies, headers) behind a `<Suspense>` boundary, as the
-   template's pages do. A detail route whose ids come from their API at request time has no `generateStaticParams` to
-   list them, and the shell reads the address: wrap the shell in the layout in `<Suspense>` too, or the build stops
-   with "usePathname outside Suspense". A route that must stay fully per-request goes in `requestDependentRoutes` in
-   `scripts/verify.config.ts`, with its reason.
-   **Catch the shell's own data in the layout.** A page's error boundary only catches what the page throws: if the
-   layout awaits something the shell needs — the alert list, the signed-in person — one failed query takes the whole
-   layout down, and the framework's bare error page shows instead of the designed one inside the shell. Read those
-   defensively, as the template does (`const alerts = readAlerts().catch(() => null)`, handed to the shell unawaited, and
-   `null` leaves the bell quiet), so the shell stands and the page's own
-   `error.tsx` shows "This view did not load" with Retry.
-4. Rebuild each page on `PageFrame`, `Stack` and `Row` with Meridian components (imported as
-   `@meridian/components/…`), keeping their data fetching and business logic untouched. Their old Tailwind utilities
-   render nothing under Meridian's scales, and the gate names each one. Do the busiest page first, and render and score it
-   (`standard.md`) before the rest: what it teaches you about their data carries to every other page.
-5. **Before the browser sweeps, give them a fake API.** `test:t1` reads and never presses; `test:t2` builds the app and
-   its browser sweeps press every control, Approve, Revoke, Archive and Delete included. If their pages call a
-   live backend, those presses change it, so build and serve the app against a fake first. Write
-   `example:scripts/fake-api.ts`: a server on `--port 0` that answers every route the pages call with typed fixtures
-   (writes answer success and are forgotten), prints `listening on <url>`, and logs each request it answers (method,
-   path and body), which is how the scoreboard shows every action still sends what it sent. Name it and the environment
-   variable their app reads its API address from in `scripts/verify.config.ts` (`fakeApi: { script, env }`): the
-   browser stage starts it before the app, so the app is built and served against it. Point the build at it, not only the server: an address read
-   in `next.config` rewrites is baked in at build time. If their pages use web components, every browser suite (the
-   audit, the presses, the keyboard walk, the assistant walk-through, the live-data walk-through and
-   the vitals' taps) looks inside open shadow roots, and an element the audit cannot look inside is reported as
-   `unmeasured:`; `validation.md` says what to do about it.
-   **A direct database connection is the same hazard through another door.** If their pages read `DATABASE_URL` from
-   `.env` (or any other data URL: name it in `dataUrls`), a `next build` and `next start` in their folder carry it, so
-   Approve and Delete land on whatever it names. Point it at a local copy for the run. Restore the data afterwards — the walk-through
-   flags rows and a press can delete, even on a run where every check passes.
-   **Or say the pages touch nothing.** When they call no API and read no database — fixtures in the repository only — set
-   `noLiveApi: true` in `scripts/verify.config.ts`: the same statement the browser stage reads, and without it an adopted
-   project's sweeps are reported not run and the browser evidence is missing for every route.
-6. List their detail pages worth seeing (a normal record, a failed one) in `detailRoutes` in
-   `scripts/verify.config.ts`, with ids from the fake API's fixtures, and a record that does not exist in
-   `missingRoutes`: a detail route must render its page and a missing one the not-found screen, so a mistyped id fails
-   instead of being measured as the not-found screen. A not-found screen of your own carries `data-missing-page` on its
-   root, as `MissingPage` does, since inside a streamed shell a missing record has already answered 200. Map their main
-   routes in `navigationChecks` (a ready selector and one harmless probe each) so the navigation suite covers data
-   and interaction, not only the shell. Run `pnpm test:release` until it passes; its timed suites want a quiet machine.
+**Run `adopt`.** Run `npx zz-meridian@latest adopt` in their project, after "Before you change anything", with the
+brand flags the skill's decisions step settles (`--name`, `--hex` or `--accent`, `--workspace`, `--timezone`,
+`--currency`), and commit what it changed as one commit before building on it: that is the diff a reviewer reads to see what Meridian brought. It copies Meridian's tokens, styles, components,
+gates and scripts in; merges the dependencies and scripts it needs into their `package.json`; adds `@meridian/*`
+(`src/*`) to `tsconfig.json`, keeping theirs as `tsconfig.before.json` when it carries comments or trailing commas,
+which JSON cannot hold; replaces their global stylesheet, keeping theirs beside it as `*.before.css` to port
+from as tokens; writes an `eslint.config.ts` when they have no ESLint configuration at all, since the gate runs
+the lint and a project would otherwise be handed a gate it cannot pass, and keeps a legacy `.eslintrc` with a line
+saying ESLint 9 no longer reads it; writes a first `nav` from their routes into `src/app.config.ts`; brands it; writes a managed block
+into their `AGENTS.md`, between two marker comments, and keeps every byte outside it (a later run replaces only that
+block; a duplicate or unterminated marker is refused, with the files already copied); writes the five-section brief
+`optional:docs/brief.md` when they have none (the skill's brief step: fill it from their answers); installs this skill into
+`optional:.agents/skills/` and `optional:.claude/skills/`; records every Meridian file it copied in `optional:.meridian/manifest.json`; installs and type
+checks. It refuses, writing nothing, when the project is already on
+Meridian (it names `update`, the command that moves it), when the git tree has uncommitted changes (commit first, so
+its change is one diff to review), when the project is not Next.js with the App Router,
+or when a file it would copy already exists with other content (it lists them: move theirs, then run it again).
+Meridian's own files import each other by relative path, so their `components/ui/button` is never confused with
+Meridian's.
+
+**Read the template.** It is the version in `optional:.meridian/manifest.json`, at
+`https://github.com/zhixuan312/zz-meridian/tree/v<version>`: the layouts, the presets in `src/views/` and the pages
+in `optional:app/(dashboard)/`. Without network access to GitHub, `npx zz-meridian@<version> create /tmp/meridian-ref
+--no-install` writes the same files to a scratch folder.
+
+**Wrap the layout in the shell.** Wrap their root layout like the template's `app/layout.tsx` (fonts, the pre-paint script, `Providers`) and their
+console routes in `AppShell` with the rail, the bell and the command palette (see `optional:app/(dashboard)/layout.tsx`).
+The template's layout hands `AppShell` its tools as `<ShellAlerts alerts={…} />` (`optional:src/views/shell-alerts.tsx`),
+given the promise of `readAlerts()` from `optional:src/logic/alerts.ts`, unawaited and settled on `null` when the read
+fails; the answer carries the alerts and the clock they were read at. Neither file is copied: hand `ShellTools` (the
+pattern `ShellAlerts` renders) their own alerts, an empty list until they have some, and their own clock. The template
+draws `WorkspaceRail` and `WorkspacePalette`; a console with one navigation draws `ConsoleRail` and `ConsolePalette`
+as below. Give each `nav`
+entry in `src/app.config.ts` its icon and group. The Rail and the palette are rendered from a client module
+(`src/views/console-chrome.tsx`), since each destination carries its icon component, and take what depends on the
+request from the layout as props: `<ConsoleRail access={…} signOut={…} />` and `<ConsolePalette access={…} />`,
+where `access` is a promise of `{ only, user, viewAs }` — the hrefs this person may see, the signed-in person from
+their session, and a View as group if they have one; leave `viewAs` out and the menu has no such group
+(`ChromeAccess` from `@/lib/collection`, built by your own `chromeAccess()`). Both take an optional `nav` as well,
+for a product that draws other destinations than the `nav` in `src/app.config.ts`: it is drawn in its own groups and
+order, filtered by `access` the same way, and an empty list stays empty. Both pieces of chrome wait for that promise
+in their own `<Suspense>` boundary, so the frame is in the static shell and the person's own rail streams in the same
+response; pass the promise without awaiting it, and never draw the sample person while it is pending. `workspace` and `scopes` still arrive as plain props. A console
+with no sign-in passes no `access` at all, and the chrome then shows the full `nav` and the `app.user` it was given,
+so the rail never shows a sample person or a Sign out that goes nowhere.
+**Turn on Cache Components.** Meridian's pages prerender a shell and stream what each request reads, and the route
+policy check fails a page that is neither static nor partial. Set `cacheComponents: true` and
+`partialPrefetching: true` in their `next.config` (`cache.md`, "Turn Cache Components on"), and put each per-request read (their API, cookies, headers) behind a `<Suspense>` boundary, as the
+template's pages do. A detail route whose ids come from their API at request time has no `generateStaticParams` to
+list them, and the shell reads the address: wrap the shell in the layout in `<Suspense>` too, or the build stops
+with "usePathname outside Suspense". A route that must stay fully per-request goes in `requestDependentRoutes` in
+`scripts/verify.config.ts`, with its reason.
+**Catch the shell's own data in the layout.** A page's error boundary only catches what the page throws: if the
+layout awaits something the shell needs — the alert list, the signed-in person — one failed query takes the whole
+layout down, and the framework's bare error page shows instead of the designed one inside the shell. Read those
+defensively, as the template does (`const alerts = readAlerts().catch(() => null)`, handed to the shell unawaited, and
+`null` leaves the bell quiet), so the shell stands and the page's own
+`error.tsx` shows "This view did not load" with Retry.
+
+**Rebuild each page.** Rebuild each page on `PageFrame`, `Stack` and `Row` with Meridian components (imported as
+`@meridian/components/…`), keeping their data fetching and business logic untouched. Their old Tailwind utilities
+render nothing under Meridian's scales, and the gate names each one. Do the busiest page first, and render and score it
+(`standard.md`) before the rest: what it teaches you about their data carries to every other page.
+
+**Give them a fake API.** Before the browser sweeps, `test:t1` reads and never presses; `test:t2` builds the app and
+its browser sweeps press every control, Approve, Revoke, Archive and Delete included. If their pages call a
+live backend, those presses change it, so build and serve the app against a fake first. Write
+`example:scripts/fake-api.ts`: a server on `--port 0` that answers every route the pages call with typed fixtures
+(writes answer success and are forgotten), prints `listening on <url>`, and logs each request it answers (method,
+path and body), which is how the scoreboard shows every action still sends what it sent. Name it and the environment
+variable their app reads its API address from in `scripts/verify.config.ts` (`fakeApi: { script, env }`): the
+browser stage starts it before the app, so the app is built and served against it. Point the build at it, not only the server: an address read
+in `next.config` rewrites is baked in at build time. If their pages use web components, every browser suite (the
+audit, the presses, the keyboard walk, the assistant walk-through, the live-data walk-through and
+the vitals' taps) looks inside open shadow roots, and an element the audit cannot look inside is reported as
+`unmeasured:`; `validation.md` says what to do about it.
+**A direct database connection is the same hazard through another door.** If their pages read `DATABASE_URL` from
+`.env` (or any other data URL: name it in `dataUrls`), a `next build` and `next start` in their folder carry it, so
+Approve and Delete land on whatever it names. Point it at a local copy for the run. Restore the data afterwards — the walk-through
+flags rows and a press can delete, even on a run where every check passes.
+**Or say the pages touch nothing.** When they call no API and read no database — fixtures in the repository only — set
+`noLiveApi: true` in `scripts/verify.config.ts`: the same statement the browser stage reads, and without it an adopted
+project's sweeps are reported not run and the browser evidence is missing for every route.
+
+**Describe the routes the checks walk.** List their detail pages worth seeing (a normal record, a failed one) in `detailRoutes` in
+`scripts/verify.config.ts`, with ids from the fake API's fixtures, and a record that does not exist in
+`missingRoutes`: a detail route must render its page and a missing one the not-found screen, so a mistyped id fails
+instead of being measured as the not-found screen. A not-found screen of your own carries `data-missing-page` on its
+root, as `MissingPage` does, since inside a streamed shell a missing record has already answered 200. Map their main
+routes in `navigationChecks` (a ready selector and one harmless probe each) so the navigation suite covers data
+and interaction, not only the shell. Run `pnpm test:release` until it passes; its timed suites want a quiet machine.
 
 **The four layers, when the project already has a backend of its own.** Route A keeps their data layer, so the four
 layers are a destination rather than a condition. `data-layers.md` holds the ordered path from where their project is —
@@ -229,19 +238,19 @@ Meridian's sample serves fixtures; a product's collections read a database. What
 
 ## Route A2: a static HTML page (data fetched as JSON)
 
-The simplest case. Create a new Meridian project (SKILL.md steps 3 and 4) and point a module in
+The simplest case. Create a new Meridian project (the skill's create step and its brand-colour check) and point a module in
 `optional:src/data/` at the same JSON the page fetched today (read the file at build time, or fetch it in a server component).
 Rebuild each section of the page as a Meridian page or card; the old page can stay where it is until they switch.
 
 ## Route B: another React stack (Vite, Create React App, Remix, Astro islands)
 
-Create a new Meridian project next to theirs (SKILL.md steps 3 and 4), then port into it: their routes become pages,
+Create a new Meridian project next to theirs (the skill's create step and its brand-colour check), then port into it: their routes become pages,
 their data hooks or fetch calls move into `optional:src/data/` (as server functions or client hooks), their domain types come
 along unchanged. A read that ran in the browser carried the person's cookies and was allowed by the API's CORS; moved
 to the server it carries neither, so forward the session it needs explicitly, or keep it a client read with a
 `preload` (`customize.md`). Their old app stays exactly as it is: the new one is finished when it meets the standard (`standard.md`) with every
 route and action of the old one accounted for in the scoreboard, and switching over is the person's call. Route A's
-steps 5 and 6 hold for the new project: a `fakeApi` that answers what the old app asked for, and `scripts/verify.config.ts`
+fake-API step and its route-description step hold for the new project: a `fakeApi` that answers what the old app asked for, and `scripts/verify.config.ts`
 describing the new project's routes. Its `.env` is not copied: the new project reads the same variable name, set by
 whoever deploys it.
 
@@ -251,7 +260,7 @@ Meridian's components are React, so the honest options are:
 
 - **A new Meridian project** for the dashboard, talking to their existing backend (usually the best result), or
 - **Tokens only**: copy `src/styles/tokens.css` (plain CSS custom properties, framework-agnostic) and rebuild their
-  components against those roles by hand, following the card specifications in `src/components/*/*/README.md`. Tell
+  components against those roles by hand, following the card specifications in `src/components/*/*/README.md` of a created project (or of an adopted one: adopt copies them too). Tell
   them the test commands cannot validate a non-React app; run the contrast check on the tokens and audit their pages with
   `node scripts/audit.ts --base <their dev server URL> --routes <their routes>` from a Meridian checkout.
 

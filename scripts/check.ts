@@ -3,7 +3,8 @@
  *
  *   node scripts/check.ts
  *
- * - Every card folder has its README.md and preview.tsx, and every README follows the card anatomy.
+ * - Every card folder has its README.md, which opens with "# Name" and a one-sentence summary, states its
+ *   "Status: draft|beta|stable", and carries the card anatomy's "## Surfaces", "## Agents" and "## Accessibility".
  * - Every page specification exists and follows the page anatomy, and a page with a view tool says what the agent does
  *   there: its protagonist and at least three questions its prepared query answers.
  * - Every token a specification names in backticks, and every var(--x) or (--x) a component uses, exists.
@@ -31,7 +32,7 @@ import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { importTarget, projectAliases } from './lib/aliases.ts';
-import { checkBrief, scanReferences } from './lib/context-check.ts';
+import { checkBrief, scanReferences, SKILL_TREES, STALE_SURFACES, staleClaims } from './lib/context-check.ts';
 import { navTrailProblems, navUnderProblems } from './lib/nav-under.ts';
 import { blankedText, dayCutFiles, dayCutProblems, noDirectQuery, presentationDoesNotRead, resolveSpec as resolveProjectSpec, valueImports, walk as walkIn } from './lib/layer-rules.ts';
 import { APP_DIR, agentPageSpec, agentSection, specRoute, viewToolPages } from './lib/routes.ts';
@@ -90,15 +91,14 @@ const LOCAL = /^(i|w|m-len|bar-(h|at)|cols(-(xl|lg|md|sm))?|readout-(cursor|widt
 
 // ── Cards ────────────────────────────────────────────────────────────────────────────────────────────
 const CARD_SECTIONS = ['## Surfaces', '## Agents', '## Accessibility'];
-for (const c of cards()) {
-  if (!c.hasPreview) problems.push(`${c.dir}: no preview.tsx`);
+const contractCards = fs.existsSync(path.join(ROOT, 'src/system/registry.ts')) ? cards() : []; // Meridian's own contract: judged where the Atlas registry is; a project keeps the READMEs and no preview.
+for (const c of contractCards) {
   const md = read(`${c.dir}/README.md`);
   if (!/^# .+\n\n[^#\n].+/.test(md)) problems.push(`${c.dir}/README.md: must open with "# Name" and a one-sentence summary`);
   if (!/^Status: (draft|beta|stable)$/m.test(md)) problems.push(`${c.dir}/README.md: no "Status: draft|beta|stable" line`);
   for (const s of CARD_SECTIONS) if (!md.includes(s)) problems.push(`${c.dir}/README.md: missing ${s}`);
 }
-
-judged.push(['the card contract', cards().length]);
+if (contractCards.length) judged.push(['the card contract', contractCards.length]); else console.log('the card contract: not applicable here (it is judged where src/system/registry.ts is)');
 
 // ── Pages ────────────────────────────────────────────────────────────────────────────────────────────
 const PAGE_SPECS = walk(APP_DIR, /^README\.md$/);
@@ -681,7 +681,7 @@ for (const f of walk('src', /\.tsx?$/).filter((x) => SWEPT.test(x) && !TOOLKIT.t
   }
   if (has('docs/brief.md')) docs.push({ file: 'docs/brief.md', text: read('docs/brief.md') });
   const scripts = new Set(Object.keys(JSON.parse(read('package.json')).scripts ?? {}));
-  problems.push(...scanReferences(docs, has, scripts));
+  problems.push(...scanReferences(docs, has, scripts), ...staleClaims([...STALE_SURFACES, ...SKILL_TREES.flatMap((d) => walk(d, /\.md$/))].filter(has).map((f) => ({ file: f.split(path.sep).join('/'), text: read(f) }))));
 }
 
 judged.push(['a collection\'s rows read through it', collectionRows]);

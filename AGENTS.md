@@ -9,7 +9,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 <!-- END:nextjs-agent-rules -->
 
 <!-- BEGIN:zz-meridian-agent-rules -->
-# Built on ZZ Meridian 0.39.2
+# Built on ZZ Meridian 0.39.3
 
 Follow the zz-meridian skill in `.agents/skills/zz-meridian/SKILL.md`.
 Read `optional:docs/brief.md` for this team's product, users, data and decisions.
@@ -89,9 +89,10 @@ in hand at about 350 ms while the formatted first paragraph — the LCP element 
 chunk. The fix, when it is scheduled, is to render the body on the server: `Prose` has no
 `'use client'`, so the 141 KiB never ships.
 
-The 20-sample navigation protocol (`node scripts/perf.ts`, `--depth perf` in the browser suite)
-runs only where CI is true: the weekly job calls `pnpm test:t2` on a fresh clone, and a local run
-reports it not run rather than judging the machine.
+The 20-sample navigation protocol (`--depth perf` in the browser suite) is Tier 2 and runs only
+where CI is true: `pnpm test:release` asks for it, so the gate on every push runs it, and a local
+run reports it not run rather than judging the machine. Like every timed suite, it reports and
+never fails the run.
 
 **A release in this repository is an image tag deployed by zz-stack's release** (`node
 scripts/release.ts <version> --dashboard=<version>` in the zz-stack checkout). Pushing to

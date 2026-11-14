@@ -1,8 +1,10 @@
 /**
  * Tier 2 is measured and reported, never a gate (`docs/testing.md`): a suite records what it measured here, and the run
  * ends with one table of each value against the previous release's, flagging what moved beyond the line. The record is
- * `out/perf-record.json`; the committed history, `scripts/perf-history.json`, holds the last five releases and is what a
- * run compares against. Without it (a project, or this repository before its first release) the seed is today's budgets.
+ * `out/perf-record.json`; the history, `scripts/perf-history.json`, holds the last five releases and is what a run compares
+ * against. It is not committed or shipped: it travels as a release asset. The release workflow downloads the previous
+ * release's `perf-history.json` and uploads the next one, built with `nextHistory`. Without it (a project, or this
+ * repository before its first release) the seed is today's budgets.
  */
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -65,6 +67,11 @@ export function readHistory(root: string): History | null {
   const file = path.join(root, HISTORY_FILE);
   if (!fs.existsSync(file)) return null;
   return JSON.parse(fs.readFileSync(file, 'utf8')) as History;
+}
+
+/** The history after a release: this release's record first, then the earlier ones, at most five kept. */
+export function nextHistory(previous: History | null, record: ReleaseRecord): History {
+  return { releases: [record, ...(previous?.releases ?? [])].slice(0, 5) };
 }
 
 export function writeRecord(root: string, record: ReleaseRecord): void {

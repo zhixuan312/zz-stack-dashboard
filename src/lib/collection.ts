@@ -43,8 +43,8 @@ export type Need = ProtectedNeed | 'public';
 export type LiveEvent = { collection: string };
 
 /**
- * What the console's chrome shows about the current request: the destinations, the person and who the demo may be viewed
- * as. It lives here, beside the need vocabulary, and not in the project's own `src/data/access.ts`, because Meridian ships
+ * What the console's chrome shows about the current request: the destinations, the person and who the console may be
+ * viewed as. It lives here, beside the need vocabulary, and not in the project's own `src/data/access.ts`, because Meridian ships
  * the chrome that takes it: a file we manage may only import what we manage.
  */
 export type ChromeAccess = {
@@ -52,7 +52,7 @@ export type ChromeAccess = {
   only: string[];
   /** The signed-in person, as the rail's account card reads them: their name and `roleLabel`. */
   user: { name: string; role: string };
-  /** The View as group: the persona in view, the five personas in order, and the action that signs the demo in as one. A session with nobody to view as leaves it out, and the menu has no such group. */
+  /** The View as group: the id in view, the people or roles it may be changed to, in order, and the action that switches to one. A session with nothing to view as leaves it out, and the menu has no such group. */
   viewAs?: {
     current: string;
     options: { id: string; label: string; disabled?: boolean }[];

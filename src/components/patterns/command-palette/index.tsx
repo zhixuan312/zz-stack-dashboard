@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useLeave } from '../../base/shell/index';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ArrowRight, CornerDownLeft, Monitor, Moon, Search, Sun } from 'lucide-react';
-import type { NavGroup } from '../../../app.config';
+import type { NavGroup } from '../../../lib/app-contract';
 import { cn } from '../../../lib/cn';
 import { rank } from '../../../lib/rank';
 import { usePreferences } from '../../base/providers';
@@ -148,7 +148,9 @@ export function CommandPanel({
         />
         <Kbd className="keyboard-only">Esc</Kbd>
       </div>
-      <div ref={listRef} id="cmd-list" role="listbox" className="max-h-[min(420px,52vh)] overflow-y-auto p-2">
+      {/* A listbox with no option in it is not valid ARIA, and a search that matches nothing draws no list: the field
+          still points at this element, which then reads as the message it holds. */}
+      <div ref={listRef} id="cmd-list" role={commands.length ? 'listbox' : undefined} className="max-h-[min(420px,52vh)] overflow-y-auto p-2">
         {commands.length === 0 ? (
           <p className="px-3 py-10 text-center text-sm text-ink-3">Nothing matches “{query}”. Try a page’s name.</p>
         ) : (

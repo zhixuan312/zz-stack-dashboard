@@ -8,12 +8,16 @@ The test commands are the only test entry points, and none takes an argument. Th
 | `pnpm test:t2` | The affected Tier 2 tests too, and the affected Tier 1 tests with them. |
 | `pnpm test:release` | Every Tier 1 and Tier 2 test, once, plus lint, the type check, a production build and its size and route checks. |
 
-Tier 2 is the file convention `*.perf.test.ts(x)` and the broad browser sweeps; every other test under `tests/` is
-Tier 1. `tests/deep-*`, the browser-fixture tests of the checks, are Tier 1 and run as their own stage, kept out of the
-main run by their size. `test:t1` never runs a Tier 2 check. A command writes `out/last-green` after a passing run and
-reads it before the next; a missing marker falls back to the diff against master, and a checkout with neither runs the
-whole tier. Follow `optional:docs/testing.md`, which says when each command runs and the rules a red, a limit and a
-release follow, rather than deciding per change.
+Tier 2 is the file convention `*.perf.test.ts(x)` and the timed browser suites; every other test under `tests/` is
+Tier 1. The browser function sweeps are Tier 1 and fail the run; they need a build and Chrome, so they run in
+`test:t2` and `test:release`, never in `test:t1`. `tests/deep-*`, the browser-fixture tests of the checks, are Tier 1
+and run as their own stage, kept out of the main run by their size. `test:t1` never runs a Tier 2 check. A command
+writes `out/last-green` after a passing run and reads it before the next; a missing marker falls back to the diff
+against master, and a checkout with neither runs the whole tier. A run that ends red leaves `out/last-run.json` — the
+tree it proved and the test files that failed — and the next run starts from that tree: a fix runs its failures and the
+tests its change reaches, not everything since the last green run. The same bytes may be retried once, and that run
+never advances the marker, because a pass with no cause named is flaky. Follow "When a red is fixed, and when a limit
+may move" below for what a red and a limit mean, rather than deciding per change.
 
 `test:t2` runs the browser sweeps (`scripts/browser.ts --depth fn`); `test:release` adds the timed ones on a quiet
 machine (`--depth timed`). Each script also runs directly against a served build when a question needs it, with the
@@ -126,13 +130,33 @@ suite again with `--rate 1.6`, which slows the phone 1.6 times beyond this host'
 Each diagnostic prints its own report. Fix the cause; never weaken a check to make it pass. pnpm may first print a lockfile
 and supply-chain check before a script runs; that is pnpm, not an install, and not a failure.
 
+## When a red is fixed, and when a limit may move
+
+A red is fixed in the product or in the check, never by skipping, narrowing or deleting the check. A check is made
+more faithful, never looser.
+
+- **The cause is named, and the fix is proven.** A red is fixed when its cause is named and a test that failed on the
+  old code passes, at the lowest layer that can show it: a unit test before a browser sweep, a component test before
+  either.
+- **A measurement no test can reproduce** (a time, a dropped frame) is fixed after three consecutive passes on a quiet
+  machine. One pass of a measurement is not evidence.
+- **A red whose cause is not named**, after a run narrowed to its route or page with the render instrumented, goes to
+  the person with what was measured, before any limit is touched.
+- **A flaky Tier 1 check is a red**, fixed like any other; a retry that passes does not clear it.
+
+A limit is a value, changed by the person's decision, never what is measured. A Tier 2 value is judged against the
+release before and reported, never a failure: every run records each value (per tap, per sample) in
+`out/perf-record.json` and ends with one table sorted by change (check, page, baseline → now, change), and a flagged
+change is a report that blocks nothing. A functional bound is not a budget: a control that never answers, a page that
+never readies or a link that never responds is a red under a fixed, generous bound, never a timing budget.
+
 ## Gate failures
 
 | Message | Cause | Fix |
 |---|---|---|
 | `tokens.css is out of date` | A token file changed | `pnpm tokens` |
 | `registry.ts is out of date` / `no preview.tsx` | A card folder was added, renamed or has no preview | Add `preview.tsx`; `node scripts/registry.ts` |
-| `missing ## Structure` (page) or `## Surfaces` (card) | A specification is incomplete | Write the section; see a template page's `README.md` |
+| `missing ## Structure` (page) or `## Surfaces` (card) | A specification is incomplete | Write the section; see a template page's README |
 | `literal colour #...` | A hex or rgb in a component | Use a role (`bg-surface`, `text-ink-2`, `border-line`, `text-accent-ink`) or add a token |
 | `font-bold is outside Meridian's scale` | A Tailwind default utility | Use `font-semibold`, `rounded-xl`, `shadow-card`… |
 | `names \`x\`, which is not a token` | A spec names a token that does not exist | Correct the name or add the token |

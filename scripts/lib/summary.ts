@@ -11,6 +11,8 @@ export type RunSummary = {
   overBudget: string[];
   files?: number;
   tests?: number;
+  /** What this command's passing line may claim; a run that leaves Tier 2 out says so rather than claiming it. */
+  covers?: string;
 };
 
 export const summaryLine = (s: RunSummary): { line: string; exit: number } => {
@@ -22,5 +24,5 @@ export const summaryLine = (s: RunSummary): { line: string; exit: number } => {
   }
   if (s.notRun.length) return { line: `${s.command}: every check that ran passed; not run: ${s.notRun.join(', ')}${declaredText}${tier2}${counts}`, exit: 0 };
   if (s.declared.length) return { line: `${s.command}: every check that ran passed${declaredText}${tier2}${counts}`, exit: 0 };
-  return { line: `${s.command}: every Tier 1 and Tier 2 check passed${tier2}${counts}`, exit: 0 };
+  return { line: `${s.command}: ${s.covers ?? 'every Tier 1 and Tier 2 check'} passed${tier2}${counts}`, exit: 0 };
 };

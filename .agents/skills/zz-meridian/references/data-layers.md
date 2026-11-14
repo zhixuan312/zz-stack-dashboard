@@ -174,7 +174,7 @@ uptime at render, and a write to any other collection never re-stamps it.
 
 ## Where this sits among the content layers
 
-Meridian's `README.md` numbers six content layers: 0 Tokens, 1 Base, 2 Components, 3 Patterns, 4 Pages and 5 Product
+Meridian's `example:README.md` numbers six content layers: 0 Tokens, 1 Base, 2 Components, 3 Patterns, 4 Pages and 5 Product
 workspaces. They describe how a surface is composed — a value, a part, a pattern, a page, how a product assembles its
 pages.
 
@@ -270,11 +270,17 @@ four layers by moving a folder. It follows an order, and each step says what to 
 it touches. This is written for the coding agent working in that project: the project's own conventions govern its code,
 and Meridian's govern the files Meridian ships.
 
-**1. Replace what `optional:src/data/` reads with your own client.** Keep the read surface — `read`, `readAll`, `aggregate` and
-their scope-taking forms — and replace what is behind it: the collections' rows, the adapter, the clock. Your client
+**1. Replace what `optional:src/data/` reads with your own client.** Keep the read surface — `read`, `readAll`, `aggregate` and, where your own logic calls them, the scope-taking forms beside them — and replace what is behind it: the collections' rows, the adapter, the clock. Your client
 answers rows with a total, a marker and a moment, and refuses a read the scope may not make. *Run:* the project's own
 suite and `pnpm typecheck`. *Left alone:* your schema, your migrations, your ORM and your API's shape. None of them
 changes, and nothing in this path asks you to reshape a table.
+
+`node scripts/check.ts` refuses a **dormant export**: one no file you keep imports. So a scope-taking form your product
+never calls is un-exported, not kept for a later caller. The rule exempts Meridian's own modules — every path in
+`optional:.meridian/manifest.json`, and the toolkit `src/lib/format.ts`, `color.ts`, `collection.ts`, `explore.ts`, `live.ts` and
+`contrast-pairs.ts` — and it sweeps everything else under `optional:src/data/` and `optional:src/lib/`, the sample's own
+modules included. A sample module under `optional:src/lib/` that is not in the manifest (`totals.ts`, `ticket-steps.ts`)
+is swept too: a product that deletes what called it deletes it.
 
 **2. Declare a projection for every record that reaches a client.** A projection constructs the public object field by
 field, in the data layer, rather than erasing a field from a type: a type-level omission is erased before anything is

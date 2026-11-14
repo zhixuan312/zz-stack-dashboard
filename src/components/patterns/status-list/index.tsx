@@ -6,7 +6,7 @@ import { formatDuration, plural } from '../../../lib/format';
 import { StatusDot } from '../../ui/status-dot/index';
 import type { Tone } from '../../ui/badge/index';
 import { UptimeBars } from '../../charts/uptime-bars/index';
-import { summarise, SERVICE_NOUN, type Noun } from '../../../logic/summarise';
+import { summarise, NEUTRAL_NOUN, type Noun } from '../../../logic/summarise';
 
 const STATE: Record<ServiceStatus, { tone: Tone; word: string; ink: string }> = {
   operational: { tone: 'positive', word: 'Operational', ink: 'text-positive-ink' },
@@ -60,7 +60,7 @@ export function StatusList({
   end,
   summary = true,
   descriptions = true,
-  noun = SERVICE_NOUN,
+  noun = NEUTRAL_NOUN,
   measure,
   metric = (svc) => `p95 ${formatDuration(svc.latency)}`,
   run = false,
@@ -73,7 +73,7 @@ export function StatusList({
   summary?: boolean;
   /** Show each service's one-line description (off in an inline embed). */
   descriptions?: boolean;
-  /** What the rows are, for the summary and the count: services by default; sites, branches, warehouses. */
+  /** What the rows are, for the summary and the count: items by default; services, sites, branches, warehouses. */
   noun?: Noun;
   /** The word after each row's percentage; see Uptime bars. */
   measure?: string;

@@ -23,7 +23,7 @@ own; it never changes a floor, a required state, accessibility or the loop), the
 decisions are yours and which wait for the person. Read it before you build, whatever the request: a new dashboard, a
 redesign, one new page or a restyle all end at the same standard.
 
-The template lives at `https://github.com/zhixuan312/zz-meridian`. Its own `README.md`, `CONTRIBUTING.md`
+The template lives at `https://github.com/zhixuan312/zz-meridian`. Its own `example:README.md`, `example:CONTRIBUTING.md`
 and `optional:docs/` are the full specification; this skill is the route through them. If you are reading this file inside a
 clone of the template (for example `/tmp/meridian/skills/zz-meridian/SKILL.md`), that clone is the template: use it
 wherever a step fetches the template, and read the references next to this file. Once a project has its own copy of
@@ -57,7 +57,7 @@ These hold in every project, however it started, and nothing below overrides the
   failed and nothing unrun the project can run, and every view is rendered, scored and none is Weak
   (`references/standard.md`). Never against a live backend: the browser sweeps press every control, Delete
   included, so a project whose pages call a live API or read a database names a `fakeApi` (or says `noLiveApi`) in
-  `scripts/verify.config.ts` first (`references/existing-project.md`, step 5).
+  `scripts/verify.config.ts` first (`references/existing-project.md`, the step that gives them a fake API).
 - **Commit locally, never publish.** Commit each verified change on its own with the paths named. Pushing, a release, a
   deploy, production data and the feedback issue wait for the person's yes.
 
@@ -105,7 +105,7 @@ follow steps 1 to 8: the project is already built.
   an interruption or a change of mind). Read `references/ownership.md` for which files are Meridian's and which are the
   team's; an update changes only the first, and a team keeps one of its own on purpose through `optional:.meridian/keep.json`.
   An update across a release that changed an interface reports a migration for each; `references/update.md` says how
-  to resolve every one, and `references/cache.md` and `references/live.md` hold the starters and the shapes they move to.
+  to resolve every one, and `references/cache.md` and `references/live.md` say what the starters they name must do.
   When the project is already on the running version, `update` prints `already at <version>; nothing to update`:
   say so in a one-line hand-over and stop. After an update that changed files, it is finished when the project meets
   the standard again (`references/standard.md`): run the loop on what it changed.
@@ -172,9 +172,10 @@ workspaces in `src/app.config.ts` (`references/customize.md`, "Navigation").
 
 It copies the template, brands it, installs the dependencies, initialises git, installs this skill into the project
 (`optional:.agents/skills/`, `optional:.claude/skills/`) and records every file in `optional:.meridian/manifest.json`. The person gets their
-dashboard, not a copy of the design system: the Design Atlas, the card and page specifications, `optional:docs/`, `decisions/`
-and the changelog are left out, and the README and AGENTS.md are written for their product. To look a component up
-while building, read it in the template on GitHub (`src/components/<layer>/<card>/README.md`).
+dashboard, not a copy of the design system: the Design Atlas, the card previews, the page specifications, `optional:docs/`,
+`example:decisions/` and the changelog are left out, and the README and AGENTS.md are written for their product. Every card keeps
+its own README next to its component. To look a component up while building, read
+`src/components/<layer>/<card>/README.md` in the project, the specification of the version it has, not the one on GitHub.
 
 Every product name, sample address and MCP tool name follows `--name`, so nothing of the template's own name is left
 behind. A brand colour goes in as `--hex`: the OKLCH hue and chroma are derived (chroma capped at 0.18; the theme sets
@@ -243,11 +244,14 @@ Read `references/customize.md` and follow it. In short:
   says plainly why the sample is a single process and holds the Postgres and Redis adapters).
 - **Data first.** Write `src/data/<product>.ts` for the person's domain: real types from their schema or materials, and
   deterministic sample data until they wire their API. Pages import data from `optional:src/data/` and nowhere else. Delete the
-  sample pages you replace. `optional:src/data/collections.ts`, `optional:src/data/sample.ts` and `optional:src/data/sign-in.ts` import `optional:src/system/fixtures/` (and the bell's alerts, `readAlerts` in `optional:src/logic/alerts.ts`, are worked out
-  from the same collections), so the fixtures and `optional:src/system/sample-cells.tsx` stay until nothing imports them:
-  replace each collection's `rows` with the person's data first, then delete them. Prove the
-  numbers before building pages: a `example:tests/data.test.ts` asserting the counts your pages need (vitest resolves `@/`;
-  plain `node` does not).
+  sample pages you replace. A domain change rewrites the seam's own files together: `optional:src/data/collections.ts` (the
+  collections), `optional:src/data/access.ts` (the policy, which names about twenty of the sample's collections and its
+  `Member` type), `optional:src/data/roles.ts` and `optional:src/data/features.ts` (the sample's role and feature ids).
+  `collections.ts`, `optional:src/data/sample.ts` and `optional:src/data/sign-in.ts` import `optional:src/system/fixtures/`
+  (and the bell's alerts, `readAlerts` in `optional:src/logic/alerts.ts`, are worked out from the same collections), so the
+  fixtures and `optional:src/system/sample-cells.tsx` stay until nothing imports them: replace each collection's `rows` with
+  the person's data first, then delete them. Prove the numbers before building pages: a `example:tests/data.test.ts`
+  asserting the counts your pages need (vitest resolves `@/`; plain `node` does not).
 - **Navigation** in `src/app.config.ts`; one line per page. A created project starts with the sample's three workspaces:
   keep them (every new entry names a `workspace`) when the person asked for several places to look, and take them out
   when they did not say (`references/customize.md`, "Navigation" says how). An adopted project has none.
@@ -259,7 +263,8 @@ Read `references/customize.md` and follow it. In short:
   `example:src/system/content.ts` (if the Atlas stays), and the links that point at them. Settings is a sample page too:
   delete it unless asked (theme, accent and density stay in the rail's appearance menu and the command palette), but the
   assistant's on/off switch ("Show the assistant") lives in Settings: keep the page, or tell the person the switch goes
-  with it.
+  with it — the panel then has no off switch in the console, and is on wherever the layout's `assistantConfig(process.env)`
+  says a model is configured.
   `references/customize.md` has the checklist and the grep that finds what is left.
 - **The assistant** is built in and off until `ASSISTANT_PROVIDER`, `ASSISTANT_API_KEY` and `ASSISTANT_MODEL` are set
   (`ASSISTANT_BASE_URL` is required for `openai-compatible`). Point `optional:src/data/collections.ts` at the person's data, and
@@ -277,17 +282,11 @@ the floors, render and score the craft, fix every Weak and every failure, commit
 
 ```sh
 pnpm test:t1                   # the tests affected by the change since the last green run, static checks and types first
-pnpm test:t2                   # the affected Tier 2 checks too, the browser sweeps included
-pnpm test:release              # every Tier 1 and Tier 2 test, once, with the timed suites, lint and the type check
+pnpm test:t2                   # the affected Tier 2 checks too, and the browser function sweeps (Tier 1, needing a build)
+pnpm test:release              # every Tier 1 and Tier 2 test, once, with the browser sweeps and the timed suites, lint and the type check
 pnpm build                     # the renders read a built app: under `next dev` they are pictures of the loading state
 node_modules/.bin/next start --port 3100 & # then, for the renders (stop it with kill $!; with a fake API, set its address first: API_URL=<fake> node_modules/.bin/next start …):
 node scripts/shot.ts / <every other view> --width 1440,390 --theme dark,light --whole-page
-# the floors the tests cannot see, each against the served build:
-node scripts/audit.ts --base http://127.0.0.1:3100
-node scripts/interactions.ts --base http://127.0.0.1:3100
-node scripts/keyboard.ts --base http://127.0.0.1:3100
-node scripts/navigate.ts --base http://127.0.0.1:3100 --mode full --timing on
-node scripts/vitals.ts --base http://127.0.0.1:3100
 ```
 
 A render is evidence only from a built app (`references/standard.md`, "The craft"): under `next dev` a page's
@@ -300,9 +299,10 @@ timed ones several minutes more. The timed suites judge time, so run them alone 
 building, testing or rendering beside it. Each suite prints one line per case and a final line that says what it
 reached; nothing it could not measure is reported as passed. A full run refuses, listing every gap, until
 `scripts/verify.config.ts` describes the product you built (`references/standard.md`, "The floors"). When something
-fails, read `references/validation.md`, fix the cause, never the check, and run it again. A passing run is half the
-evidence: the other half is the renders, judged and scored, because the audit measures what can be measured and the eye
-judges the rest.
+fails, `references/validation.md` names the diagnostic that isolates it and what its line means: fix the cause,
+never the check, and run it again. Its "When a red is fixed, and when a limit may move" says when a red is fixed,
+when it goes to the person, and when a limit may move. A passing run is half the evidence: the other half is the
+renders, judged and scored, because the checks measure what can be measured and the eye judges the rest.
 
 ## 7. Hand over
 

@@ -46,7 +46,7 @@ type NavigationCheck = {
   budget?: Partial<{ [K in keyof ReadinessBudget]: Partial<DeviceBudget> }>;
 };
 
-/** One way `pnpm verify --as` signs the browser in: the cookie that names the person, and what that person is expected to see. */
+/** One way the browser suites sign the browser in as a persona: the cookie that names the person, and what that person is expected to see. */
 type Persona = {
   /** The cookie every browser suite carries, set before the first request; its value names one of the fake gateway's people. */
   cookie: { name: string; value: string };
@@ -106,20 +106,20 @@ export type VerifyConfig = {
     prefetchKb?: { desktop: number; phoneClosed: number };
   };
   /**
-   * One check for every route in the rail. `--full`, `--timed` and `--perf` fail on a rail route that has none; the
+   * One check for every route in the rail. The browser suites and the timed runs fail on a rail route that has none; the
    * default smoke reports its data and interaction as not configured. Probes never write.
    */
   navigationChecks?: NavigationCheck[];
   /**
-   * The product's own browser checks, beside Meridian's audit, presses and keyboard walk: scripts verify runs with
-   * `--base <url>` against the built app, failing when one exits non-zero. They run under `--full`, beside one another,
+   * The product's own browser checks, beside Meridian's audit, presses and keyboard walk: scripts the browser suites run with
+   * `--base <url>` against the built app, failing when one exits non-zero. They run under `pnpm test:t2`, beside one another,
    * so none of them judges a time.
    */
   browserChecks?: (string | { script: string; browsers: number })[];
   /**
    * The product's own browser checks that judge a time, run by `pnpm test:release` alone and one at a time, after the
    * live data and before Web Vitals, each with `--base <url>` like `browserChecks`. A check that judges a time under the
-   * load of `--full` judges the load; move it here, and keep in `browserChecks` the half that judges no time.
+   * load of the browser suites judges the load; move it here, and keep in `browserChecks` the half that judges no time.
    */
   timedChecks?: string[];
   /**
@@ -130,14 +130,14 @@ export type VerifyConfig = {
    */
   fakeModel?: { when: string; tool: string; input: Record<string, unknown> }[];
   /**
-   * Routes that cannot be prerendered, each with the reason. `node scripts/route-policy.ts`, which verify runs after its
+   * Routes that cannot be prerendered, each with the reason. `node scripts/route-policy.ts`, which `pnpm test:release` runs after its
    * production build, fails any non-API route that is neither static nor partial unless it is named here.
    */
   requestDependentRoutes?: { path: string; reason: string }[];
   /** The up to three rail routes the default smoke visits. Without it: the landing route and the next two rail routes. */
   smokeRoutes?: string[];
   /**
-   * The people `pnpm verify --as <persona>` can sign the browser in as, by name. Each carries the cookie a suite sets
+   * The people the browser suites can sign the browser in as, by name. Each carries the cookie a suite sets
    * before its first request, the routes that person is expected to see (written by hand), and, for the routes that
    * person may not open, one protected string that must not appear on the page.
    */
@@ -218,8 +218,8 @@ const config: VerifyConfig = {
     firstLoadGrowthPct: FIRST_LOAD_GROWTH_PCT,
   },
   /**
-   * One for every route of both rails, in the rails' order (the destinations table's), which is what `--full` and
-   * `--perf` require and the order scripts/primary-data.ts measures them in. Each page reads its primary data on the
+   * One for every route of both rails, in the rails' order (the destinations table's), which is what the browser suites and
+   * the timed runs require and the order scripts/primary-data.ts measures them in. Each page reads its primary data on the
    * console's server (reconciliation 65), and its selector is the one its page task read off the built app served
    * against the fake gateway: Home's paired figures, Record's lead figure, a list's own table, a page of figures its
    * tiles once their read answered (`data-figures="read"`), Access's tokens.
