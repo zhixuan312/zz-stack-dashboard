@@ -10,7 +10,7 @@
  * `<person>+<state>` (scripts/fake-gateway/states-partial.ts), so this runs beside the audit, the presses and the keyboard
  * walk, which read the normal state of the same fake gateway throughout (reconciliation 79): loading is `slow`, empty
  * `empty`, a transport error `error`, a failed aggregate and a partial success `partial`. Each page is opened at 1440px
- * in the dark theme, from a blank page, and read once nothing on it is still loading, or `SETTLE_MS` (eighteen seconds)
+ * in the dark theme, from a blank page, and read once nothing on it is still loading, or `SETTLE_MS` (sixty seconds)
  * after it opened.
  *
  * What each state must draw, with what the person is refused drawing the product's refusal or the record's not-found
@@ -88,12 +88,16 @@ const LEAKS = [
 ];
 
 /**
- * How long a page has to settle once opened: the window it is read in, which is no bound on any state. It holds a page
- * whose server read and then a browser read of its own each take the fake's slowest `slow` delay, and one such delay
- * more for a loaded machine: a document's Approve is busy for its browser read after the page drew (Harbormaster #3909
- * read one still busy at 12 s, 8 s by construction, under a full browser run's load).
+ * How long a page has to settle once opened: the window it is read in, which is no bound on any state. A settled page
+ * ends the wait at once, so the window costs time only on a page that never settles, and that page still fails.
+ *
+ * The browser suite starts the audit, the presses, the keyboard walk and every product check at once, and this check
+ * holds four browsers of its own, so a page here is read under the heaviest load the suite makes. Measured on
+ * 2026-11-14 (8 cores): the slowest page settled in 12.5 s with this check alone and in 25.4 s inside the full run,
+ * where an 18 s window failed four to six rows a run that all passed alone. Ten of the fake's slowest delays keeps
+ * the window more than twice above that worst case, so the load decides how long a run takes, never whether it passes.
  */
-export const SETTLE_MS = 3 * SLOW_MS;
+export const SETTLE_MS = 10 * SLOW_MS;
 
 /** The page's own words for its states, read in the page. COUPLED: the console's views' sentences. */
 export const LIB = String.raw`

@@ -42,8 +42,17 @@ const base = opt('--base', process.env.BASE ?? 'http://localhost:3100');
 const RENAMED_SLUG = 'dune';
 /** This check's own session value (scripts/fake-gateway/server.ts): the renames it asks for are seen by it alone. */
 const SESSION = { name: 'zz_console', value: 'superadmin+live' };
-/** How long a tab is given to show what it read again, well inside the 30 s safety poll: a pass here is a hint's doing. */
-const SHOW_MS = 8000;
+/**
+ * How long a tab is given to read or show something again after a hint: half the 30 s safety poll, so a pass here is
+ * still the hint's doing. Each wait ends the moment it holds; the ceiling is for a loaded machine, since the browser
+ * suite runs this beside every other sweep (8 s missed under that load on 2026-11-14 and passed alone).
+ */
+const SHOW_MS = 15_000;
+/**
+ * How long a page is given to open its stream and be greeted, or to follow a press in the rail. Nothing else opens a
+ * stream, so the ceiling can be long without letting another cause pass; each wait ends the moment it holds.
+ */
+const OPEN_MS = 30_000;
 /** How long the "nothing should happen" case watches for, for the same reason. */
 const QUIET_MS = 5000;
 
@@ -116,7 +125,7 @@ async function follows(address: string, renamedTo: string, unsolicitedTo: string
   // The stream is open, and it is following something: a page that registered nothing subscribes to nothing. The
   // provider opens it once `/me` answers, which is a round trip after the page itself.
   let open = 0;
-  for (let i = 0; i < 24; i++) {
+  for (const end = Date.now() + OPEN_MS; Date.now() < end; ) {
     open = await streams().then((s) => s.streams).catch(() => -1);
     if (open >= 1) break;
     await sleep(250);
@@ -190,7 +199,7 @@ async function asksSince(address: string, retry = true): Promise<void> {
   await page.open(base + address, { width: 1440, theme: 'dark', wait: 600, cookie: SESSION });
   if (page.errors.length) failures.push(`${address}: ${page.errors[0]}`);
   let first: Opened | undefined;
-  for (let i = 0; i < 32 && !first?.greeting; i++) {
+  for (const end = Date.now() + OPEN_MS; Date.now() < end && !first?.greeting; ) {
     first = kept(await page.eval<Opened[]>('window.__liveStreams ?? []'));
     if (!first?.greeting) await sleep(250);
   }
@@ -229,7 +238,7 @@ async function pressed(from: string, to: string, collection: string): Promise<vo
   const loaded = page.errors.length;
   if (loaded) failures.push(`${from}: ${page.errors[0]}`);
   let before: Opened[] = [];
-  for (let i = 0; i < 32 && !kept(before)?.greeting; i++) {
+  for (const end = Date.now() + OPEN_MS; Date.now() < end && !kept(before)?.greeting; ) {
     before = await opened();
     if (!kept(before)?.greeting) await sleep(250);
   }
@@ -241,7 +250,7 @@ async function pressed(from: string, to: string, collection: string): Promise<vo
   }
   let after: Opened[] = [];
   let at = '';
-  for (let i = 0; i < 40; i++) {
+  for (const end = Date.now() + OPEN_MS; Date.now() < end; ) {
     at = await page.eval<string>('location.pathname');
     after = (await opened()).slice(before.length);
     if (at === to && after.some((s) => new URL(s.url, base).searchParams.get('collections')?.split(',').includes(collection)) && after.every((s) => s.greeting || s.closed)) break;
@@ -287,7 +296,7 @@ if (!(await until((t) => t.includes('Sign-ins last week'), SHOW_MS))) failures.p
 const peopleBefore = (await counts()).people ?? 0;
 await hint('collection=people');
 let peopleRead = false;
-for (let i = 0; i < 24 && !peopleRead; i++) {
+for (const end = Date.now() + SHOW_MS; Date.now() < end && !peopleRead; ) {
   await sleep(250);
   peopleRead = ((await counts()).people ?? 0) > peopleBefore;
 }
@@ -308,7 +317,7 @@ if (!peopleRead) failures.push('/platform/people: a hint for people was never re
 const bellBefore = (await counts()).approvals ?? 0;
 await hint('collection=initiatives');
 let bellRead = false;
-for (let i = 0; i < 24 && !bellRead; i++) {
+for (const end = Date.now() + SHOW_MS; Date.now() < end && !bellRead; ) {
   await sleep(250);
   bellRead = ((await counts()).approvals ?? 0) > bellBefore;
 }

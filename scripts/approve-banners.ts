@@ -33,16 +33,23 @@ const page = await launch();
 const failures: string[] = [];
 const read = () => page.eval<State>(STATE);
 
+/**
+ * How long a page is given for its record to land: the record is a request of its own after the render, and the browser
+ * suite runs this beside every other sweep, so a ceiling rather than a bound. Each wait ends the moment it holds
+ * (8 s missed under that load on 2026-11-14 and passed alone).
+ */
+const RECORD_MS = 30_000;
+
 /** Approve once the record lands: polled, since the record is a request of its own after the render. */
 async function offered(): Promise<State> {
   let state = await read();
-  for (let i = 0; i < 16 && !state.approve; i++) { await sleep(500); state = await read(); }
+  for (const end = Date.now() + RECORD_MS; Date.now() < end && !state.approve; ) { await sleep(500); state = await read(); }
   return state;
 }
 
-/** How long after Approve is offered the changed banner may take: the next revision comes within one period, and its
- *  hint is read at once, so a period and five seconds for the read and the render. */
-const CHANGED_MS = DRIFT_MS + 5_000;
+/** How long after Approve is offered the changed banner may take: the next revision comes within one period and its
+ *  hint is read at once, so a period, and the read and the render given the same ceiling as a record under load. */
+const CHANGED_MS = DRIFT_MS + RECORD_MS;
 
 // Changed: recorded first (Approve pressable), then the hint of the document's next revision brings a newer snapshot.
 const drifting = '/initiatives/atlas/2026-10-03-ranking-weights/spec.md';
@@ -73,7 +80,7 @@ if (page.errors.length) failures.push(`${drifting}: ${page.errors[0]}`);
 const unrecordable = '/initiatives/atlas/2026-10-04-index-rebuild/spec.md';
 await page.open(base + unrecordable, { width: 1440, theme: 'dark' });
 let failed = await read();
-for (let i = 0; i < 16 && !failed.text.includes('Approve is unavailable'); i++) { await sleep(500); failed = await read(); }
+for (const end = Date.now() + RECORD_MS; Date.now() < end && !failed.text.includes('Approve is unavailable'); ) { await sleep(500); failed = await read(); }
 if (!failed.text.includes('Approve is unavailable')) failures.push(`${unrecordable}: a refused record drew no "Approve is unavailable" banner`);
 if (failed.approve) failures.push(`${unrecordable}: Approve is pressable although nothing was recorded`);
 if (page.errors.length) failures.push(`${unrecordable}: ${page.errors[0]}`);

@@ -42,9 +42,9 @@ const args = process.argv.slice(2);
 const opt = (k: string, d: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 const base = opt('--base', process.env.BASE ?? 'http://localhost:3100').replace(/\/$/, '');
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-/** How long a step waits for the page: past states-check's `SETTLE_MS`, eighteen seconds to settle, since the suites run
- *  side by side. */
-const STEP_MS = 30_000;
+/** How long a step waits for the page: a ceiling, not a bound, since the suites run side by side. It matches
+ *  states-check's `SETTLE_MS`, measured against the same load: a step that is done ends the wait at once. */
+const STEP_MS = 60_000;
 
 /** The guides' tasks, as tests/fixtures/guide-tasks.json keeps them. */
 type GuideTask = { id: string; guide: 'work' | 'platform'; source: string; task: string; words: string; definition?: string; phrase?: string };
