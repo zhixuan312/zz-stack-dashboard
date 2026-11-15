@@ -71,6 +71,13 @@ export type Page = {
    * browser that has stopped (it does not, so the sweep ends as one `not run` line rather than every page after it).
    */
   responsive: () => Promise<boolean>;
+  /**
+   * How many animation frames a fresh tab drew in `ms`. A page whose own main thread is wedged still gets a drawing tab,
+   * because that is another renderer; a browser whose compositing has stopped gets none, and every page in it stops
+   * drawing at once. Measured by reading a counter, never by awaiting a frame: a frame that never comes would make the
+   * probe time out, which is the very failure it exists to tell apart.
+   */
+  frames: (ms?: number) => Promise<number>;
   open: (url: string, opts: { width: number; height?: number; theme?: 'light' | 'dark'; reduced?: boolean; wait?: number; cookie?: { name: string; value: string } }) => Promise<void>;
   shot: (file: string, opts?: { full?: boolean; width?: number; height?: number }) => Promise<number>;
   close: () => void;
@@ -262,6 +269,25 @@ async function attach(proc: ChildProcess, dir: string, handle: Launched): Promis
         return answer?.result?.result?.value === 2;
       } catch {
         return false;
+      } finally {
+        if (target) await send('Target.closeTarget', { targetId: target }, health).catch(() => {});
+      }
+    },
+    async frames(ms = 800) {
+      // Same short guard as `responsive`, and the same fresh tab: it is a renderer of its own, so one wedged page cannot
+      // answer for the whole browser.
+      const health = 5000;
+      let target: string | undefined;
+      try {
+        target = (await send('Target.createTarget', { url: 'about:blank' }, health)).result.targetId as string;
+        const session = (await send('Target.attachToTarget', { targetId: target, flatten: true }, health)).result.sessionId as string;
+        await send('Runtime.evaluate', { expression: 'window.__f = 0; (function s(){ window.__f++; requestAnimationFrame(s); })()' }, health, session);
+        await sleep(ms);
+        const counted = await send('Runtime.evaluate', { expression: 'window.__f', returnByValue: true }, health, session);
+        return Number(counted?.result?.result?.value ?? 0);
+      } catch {
+        // A tab that cannot even be opened or read drew nothing.
+        return 0;
       } finally {
         if (target) await send('Target.closeTarget', { targetId: target }, health).catch(() => {});
       }

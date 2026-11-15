@@ -260,7 +260,7 @@ const affectsDeep = (files: string[]): boolean => files.some((f) => /^(scripts|j
  * The browser suites (scripts/browser.ts), at the depths asked for. Its own line per suite is passed through; the JSON
  * line says what ran and what did not, and its exit 2 is a run with something not run, not a failure.
  */
-function browser(depth: string, built = false, only?: string): Promise<{ ok: boolean; notRun: string[]; declared: string[]; ran: string[]; reported: string[]; findings: string[]; tier2: Value[] }> {
+function browser(depth: string, built = false, only?: string): Promise<{ ok: boolean; notRun: string[]; declared: string[]; ran: string[]; reported: string[]; findings: string[]; notes: string[]; tier2: Value[] }> {
   // Streamed as it arrives, not collected and printed when the child exits: a suite that stops making progress must be
   // visible in the log while it is stuck, never only after it finally returns or times out.
   return new Promise((resolve) => {
@@ -278,14 +278,14 @@ function browser(depth: string, built = false, only?: string): Promise<{ ok: boo
     child.on('close', (status) => {
       if (rest.trim()) console.log(rest);
       const json = /^browser: (.*)$/m.exec(out);
-      let state: { ran?: string[]; failed?: boolean; notRun?: string[]; declared?: string[]; reported?: string[]; findings?: string[]; tier2?: Value[] } | null = null;
+      let state: { ran?: string[]; failed?: boolean; notRun?: string[]; declared?: string[]; reported?: string[]; findings?: string[]; notes?: string[]; tier2?: Value[] } | null = null;
       try { state = json ? JSON.parse(json[1]) : null; } catch { state = null; }
       if (status === 1 || !state) {
         console.log(`test: browser suites FAIL (${out.split('\n').filter(Boolean).slice(-1)[0] ?? 'no output'})`);
-        resolve({ ok: false, notRun: [], declared: [], ran: [], reported: [], findings: [], tier2: [] });
+        resolve({ ok: false, notRun: [], declared: [], ran: [], reported: [], findings: [], notes: [], tier2: [] });
         return;
       }
-      resolve({ ok: true, notRun: state.notRun ?? [], declared: state.declared ?? [], ran: state.ran ?? [], reported: state.reported ?? [], findings: state.findings ?? [], tier2: state.tier2 ?? [] });
+      resolve({ ok: true, notRun: state.notRun ?? [], declared: state.declared ?? [], ran: state.ran ?? [], reported: state.reported ?? [], findings: state.findings ?? [], notes: state.notes ?? [], tier2: state.tier2 ?? [] });
     });
   });
 }
@@ -514,6 +514,8 @@ async function affected(tier: 't1' | 't2'): Promise<number> {
     browserTier2 = r.tier2;
     browserReported = r.reported.map((s) => `browser suites (${s})`);
     reported.push(...r.findings.map((s) => `audit (${s})`));
+    // A page measured again on a fresh browser because the one before it stopped painting: reported, never silent.
+    reported.push(...r.notes.map((s) => `browser suites (${s})`));
     if (!r.ok) failed.push('a browser suite');
     notRun.push(...r.notRun.map((s) => `browser suites (${s})`));
     declared.push(...r.declared.map((s) => `browser suites (${s})`));
