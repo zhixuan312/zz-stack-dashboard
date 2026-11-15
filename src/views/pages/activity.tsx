@@ -74,7 +74,10 @@ const LOG_COLUMNS: Column<ActivityRow>[] = aligned([
   // A person by their whole email, as every other page names one (`Email`). A phone card says who acted beside the kind, and nothing where nobody
   // did: a dash in a line of facts says nothing. A tool call is an agent's, and the platform records no person for one
   // by design, so it says so rather than a dash on every row.
-  { key: 'actor', header: 'Actor', hideBelow: 'md', cell: (e) => (e.actor ? <Email address={e.actor} /> : e.kind === 'tool_call' ? <span className="whitespace-nowrap text-ink-3" title={AGENT_CALL}>An agent</span> : dash) },
+  // DELIBERATE: from `lg`, not `md`. At 768 the frame is 729px and When (112) and Tool's 256px floor leave 361 for
+  // Kind, Actor, Result and their padding; a page holding an email, a Refused badge and a long kind ran the log to 776
+  // (0.103.0's release audit). Which rows a page holds moves with the clock, so the overflow came and went.
+  { key: 'actor', header: 'Actor', hideBelow: 'lg', cell: (e) => (e.actor ? <Email address={e.actor} /> : e.kind === 'tool_call' ? <span className="whitespace-nowrap text-ink-3" title={AGENT_CALL}>An agent</span> : dash) },
   // A refusal is the row worth finding, so it alone carries colour; ok is the normal case and stays neutral.
   { key: 'result', header: 'Result', mobile: 'status', cell: (e) => (e.ok === false ? <Badge tone="critical" dot>Refused</Badge> : e.ok === true ? <Badge tone="neutral">OK</Badge> : dash) },
   { key: 'owner', header: 'Why', hideBelow: 'lg', cell: (e) => <span className="whitespace-nowrap">{e.ok === false ? OWNER_LABEL[e.owner ?? 'other'] : ''}</span> },
