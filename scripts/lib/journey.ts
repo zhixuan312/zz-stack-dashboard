@@ -9,6 +9,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { DEEP_SOURCE } from './deep.ts';
 import { measurePhone } from './phone.ts';
+import { painting } from './unresponsive.ts';
 import type { BudgetsConfig, NavigationCheck } from './budgets.ts';
 import type { Page } from './chrome.ts';
 
@@ -32,7 +33,7 @@ export type NavConfig = BudgetsConfig & { navigationChecks?: NavigationCheck[]; 
 
 // ---- what a journey can end in ----
 
-type Kind = 'never-ready' | 'wrong-result' | 'control-dead' | 'prefetched';
+type Kind = 'never-ready' | 'wrong-result' | 'control-dead' | 'prefetched' | 'compositor-stalled';
 /** A failure that is the answer, not a measurement to repeat. */
 export class Fail extends Error {
   kind: Kind;
@@ -524,6 +525,10 @@ export async function journey(page: Page, device: Device, start: string, route: 
       : now.p === start ? `still on ${now.p} ${cap} ms after pressing ${route}`
       : `pressing ${route} led to ${now.p}, which is neither ${route} nor a page under it`;
     const note = await pressNote(page, shellTrace);
+    // Frames stopped: a fresh tab says whether this page's renderer is wedged (that page fails, as it always did) or the
+    // whole browser has stopped painting (the caller relaunches it once, and a second stall is a check that could not
+    // run). Awaiting a frame would time out, which is the failure this separates from.
+    if (stalled && !painting(await page.frames())) throw new Fail('compositor-stalled', why + note);
     return {
       shell: { fail: new Fail(wrong ? 'wrong-result' : 'never-ready', why + note) },
       data: check ? { fail: new Fail('never-ready', 'the shell was never reached') } : null,

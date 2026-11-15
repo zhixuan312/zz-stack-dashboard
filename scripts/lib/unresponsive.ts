@@ -46,3 +46,12 @@ export function watchForStoppedBrowser(probe: () => Promise<boolean>, limit = ST
     return `the browser stopped answering: ${consecutive} pages in a row could not be measured (${firstLine(e)}), and a fresh tab did not answer either`;
   };
 }
+
+/**
+ * Whether a fresh tab drew enough frames to say the browser is still painting. Not `> 0`: a tab whose browser has stopped
+ * painting still counts one frame as it is created — measured, 1 against 49-50 healthy in the same 800 ms — so `> 0`
+ * would call every stalled browser a slow page. Six frames a second is the floor a throttled but drawing tab clears.
+ */
+export const PAINTING = 5;
+
+export const painting = (frames: number): boolean => frames >= PAINTING;

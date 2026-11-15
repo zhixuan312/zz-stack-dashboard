@@ -49,7 +49,7 @@ import { answers, bin, freePort, spawnNext } from './lib/bin.ts';
 import { CHROME, launch } from './lib/chrome.ts';
 import { fakeModelArgs, fakeModelProblems, type FakeModelStep } from './lib/config-hooks.ts';
 import { declaredNotRun, selectSmokeRoutes } from './lib/coverage.ts';
-import { FN_SWEEPS, navigationPlan, sweepsFor, timedOutcome, type FnSweep } from './lib/browser-plan.ts';
+import { afterSetupStep, FN_SWEEPS, navigationPlan, sweepsFor, timedOutcome, type FnSweep } from './lib/browser-plan.ts';
 import { auditFindings } from './lib/audit-findings.ts';
 import { capacityFrom, pool } from './lib/pool.ts';
 import { clearParts, readParts } from './lib/tier2.ts';
@@ -112,6 +112,7 @@ let failed = false;
 const ran: string[] = [];
 /** The timed and perf suites that printed FAIL: Tier 2, reported and never failing the run. */
 const reported: string[] = [];
+const notes: string[] = [];
 /** What a Tier 2 check ran and found — the audit's small targets, low contrast, heading holes and nested scrollers —
  *  counted so the run's closing line names them, and nothing exits on them. */
 const findings: string[] = [];
@@ -205,16 +206,16 @@ function step(name: string, cmd: string, a: string[], env: NodeJS.ProcessEnv = p
   return { status, out: (r.stdout ?? '').trim(), err: (r.stderr ?? '').trim(), took: secs(t) };
 }
 
-async function start(env: NodeJS.ProcessEnv): Promise<{ port: number; server: ChildProcess }> {
+async function start(env: NodeJS.ProcessEnv): Promise<{ port: number; server: ChildProcess; ok: boolean }> {
   const port = await freePort();
   const server = spawnNext(port, env);
   children.push(server);
   if (!(await answers(port))) {
     phase('FAIL', 'the built app did not start', null);
     failed = true;
-    return { port, server };
+    return { port, server, ok: false };
   }
-  return { port, server };
+  return { port, server, ok: true };
 }
 
 /** What a suite's exit code says: 0 passed, 2 left a case unrun (neither pass nor failure), anything else failed. */
@@ -241,6 +242,7 @@ function report(name: string, r: Ran): void {
   // A suite can pass and still have found something: the audit sorts its own findings, and what it reports is counted for
   // the closing line rather than read as an issue of this run's exit.
   findings.push(...auditFindings(r.out));
+  notes.push(...relaunchNotes(r.out));
 }
 
 /** A timed or perf suite: its verdict goes through `timedOutcome`, so a FAIL is reported with its output and the run stays green. */
@@ -249,6 +251,22 @@ function reportTimed(name: string, r: Ran): void {
   phase('FAIL', name, r.took);
   reported.push(name);
   beneath(`${r.out}\n${r.err}`);
+}
+
+/**
+ * The pages a suite measured again on a fresh browser because the one before it stopped painting, as one line. A retry
+ * that passes must stay visible: a stall that recurs on every run has to reach the closing line, not sit in the log as a
+ * `warn` nobody counts.
+ */
+function relaunchNotes(out: string): string[] {
+  const line = /^navigate: (\{.*\})$/m.exec(out)?.[1];
+  if (!line) return [];
+  try {
+    const list = (JSON.parse(line) as { relaunched?: { route: string; device: string }[] }).relaunched ?? [];
+    if (!list.length) return [];
+    const where = list.map((r) => `${r.route} ${r.device}`).join(', ');
+    return [`the browser stopped drawing frames ${list.length} ${list.length === 1 ? 'time' : 'times'}; relaunched (${where})`];
+  } catch { return []; }
 }
 
 /** The `notRun` list a suite's own summary printed (`navigate: {...}`, `perf: {...}`), or nothing when it printed none. */
@@ -263,7 +281,7 @@ function finish(): never {
   // The Tier 2 values this run's suites recorded, gathered once: the run's table and record (test-run) read them.
   const tier2 = readParts(ROOT).flatMap((p) => p.values);
   clearParts(ROOT);
-  const state = { ran, failed, notRun, declared, reported, findings, tier2, seconds: Number(secs(started).toFixed(1)) };
+  const state = { ran, failed, notRun, declared, reported, findings, notes, tier2, seconds: Number(secs(started).toFixed(1)) };
   log(`browser: ${JSON.stringify(state)}`);
   process.exit(failed ? 1 : notRun.length ? 2 : 0);
 }
@@ -292,8 +310,9 @@ if (want('perf') && process.env.CI !== 'true') {
 if (!depth.size) finish();
 
 if (!built) {
-  step('build: next build', bin('next'), ['build'], { ...process.env, MERIDIAN_TYPES_CHECKED: '1' });
-  if (failed) finish();
+  const build = step('build: next build', bin('next'), ['build'], { ...process.env, MERIDIAN_TYPES_CHECKED: '1' });
+  const onwards = afterSetupStep(build.status === 0, 'the build', 'the app cannot open, so nothing else can run');
+  if (!onwards.carryOn) { notRun.push(...onwards.notRun); finish(); }
 }
 
 // The assistant is off unless configured: blanked, not deleted, because `next start` loads `.env.local` itself and does
@@ -324,7 +343,8 @@ const refusal = config.refusal === 'absent'
   : { absent: false, selector: '[data-no-access]', page: 'NoAccess' };
 
 let server = await start(app);
-if (failed) finish();
+const up = afterSetupStep(server.ok, 'the app server', 'it did not start');
+if (!up.carryOn) { notRun.push(...up.notRun); finish(); }
 
 // The size checks, against the app this run started: first-load bytes from the build's own stats, then every page's
 // gzipped HTML through the served response. One call, once, so neither figure is measured twice. Each verdict is its own
@@ -469,8 +489,10 @@ if (want('fn')) {
       const key = `browser-${randomBytes(16).toString('hex')}`;
       stop(server.server);
       server = await start({ ...app, ASSISTANT_PROVIDER: 'openai-compatible', ASSISTANT_BASE_URL: llmUrl, ASSISTANT_API_KEY: key, ASSISTANT_MODEL: 'fake' });
-      // The server the remaining sweeps run against did not come back: that is the one thing nothing below can work around.
-      if (failed) finish();
+      // The server the remaining sweeps run against did not come back: that is the one thing nothing below can work
+      // around. Its own result decides — an earlier FAIL says nothing about whether this restart worked.
+      const restarted = afterSetupStep(server.ok, 'the assistant restart', 'the assistant server did not come back');
+      if (!restarted.carryOn) { notRun.push(...restarted.notRun); finish(); }
       here = `http://127.0.0.1:${server.port}`;
       log(`server: assistant on (fake LLM at ${llmUrl}, ASSISTANT_* set) at ${here}`);
       if (sweep('rest')) {
@@ -526,7 +548,6 @@ if (want('timed')) {
   }
   for (const script of ownTimed) reportTimed(`the product's timed check ${script}`, await run(script, ['--base', here]));
   reportTimed('LCP, INP, CLS and dropped frames on a mid-range phone', await run('scripts/vitals.ts', ['--base', here]));
-  if (failed) finish();
 }
 
 if (want('perf')) {

@@ -1,0 +1,88 @@
+tokens: up to date
+ok       tokens are fresh (0.1s)
+the card contract: not applicable here (it is judged where src/system/registry.ts is)
+check: ok
+judged nothing: a collection's rows read through it
+escape  src/lib/assistant/tools.ts:135: no-direct-query — the proposal path reads the rows a write would change, uncached, to show the person the difference before anything is written
+0 problems · 79 cards · 30 page specs · 414 source files
+ok       specifications are consistent (0.6s)
+check.local: ok
+0 problems · 414 source files
+ok       the product's own rules hold (0.4s)
+contrast: 440 pairs across every theme and accent, 0 failures
+ok       contrast holds in every theme and accent (0.2s)
+Generating route types...
+✓ Types generated successfully
+ok       types: route types (0.7s)
+ok       types: tsc --noEmit (9.2s)
+
+/Users/xuan/Documents/code/zz-parent/zz-stack-dashboard/scripts/lib/chrome.ts
+  1:1  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')
+
+✖ 1 problem (0 errors, 1 warning)
+  0 errors and 1 warning potentially fixable with the `--fix` option.
+
+ok       lint: eslint on 15 changed files (2.1s)
+
+ RUN  v5.0.5 /Users/xuan/Documents/code/zz-parent/zz-stack-dashboard
+
+ ✓ tests/testing-guideline.test.ts (10 tests) 79ms
+ ✓ tests/states-check.test.ts (16 tests) 12ms
+ ✓ tests/states-timed.test.ts (4 tests) 11ms
+ ✓ tests/journey-search.test.ts (2 tests) 437ms
+ ✓ tests/journeys-plan.test.ts (5 tests) 17ms
+ ✓ tests/old-addresses.test.ts (12 tests) 53ms
+ ✓ tests/chart-rule.test.ts (6 tests) 1710ms
+   ✓ the chart rule (6)
+     ✓ fails a chart component that no managed path holds, naming the file and the card 326ms
+     ✓ fails an import of a chart from anywhere but the managed cards, dynamic or static, named by its file 319ms
+ ✓ tests/shell-first.test.tsx (146 tests) 826ms
+ ✓ tests/ceilings.test.tsx (39 tests) 2603ms
+   ✓ a table the gateway pages, drawn above its ceiling (8)
+     ✓ /record: ten a page under its total, a second page of other rows, the same each time 400ms
+
+ Test Files  9 passed (9)
+   Affected  9 of 185 test files (related to 19 files)
+      Tests  240 passed (240)
+   Start at  13:56:47
+   Duration  3.99s (tests 53%, environment 17%, import 16%, setup 13%, transform 1%, worker 1%)
+
+JSON report written to /Users/xuan/Documents/code/zz-parent/zz-stack-dashboard/out/test-run.json
+ok       tier 1 tests related to the change (5.0s)
+test:t1: the marker is not advanced, because a Tier 2 check did not run; pnpm test:t2 covers it
+test:t1: every Tier 1 check passed (9 test files, 240 tests)
+(node:18947) TimeoutNaNWarning: NaN is not a number.
+Timeout duration was set to 1.
+(Use `node --trace-warnings ...` to show where the warning was created)
+stderr | tests/ceilings.test.tsx > a detail page's table, drawn above ten rows, pages at ten > an initiative: its documents and its sources
+A suspended resource finished loading inside a test, but the event was not wrapped in act(...).
+
+When testing, code that resolves suspended data should be wrapped into act(...):
+
+act(() => {
+  /* finish loading suspended data */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+A suspended resource finished loading inside a test, but the event was not wrapped in act(...).
+
+When testing, code that resolves suspended data should be wrapped into act(...):
+
+act(() => {
+  /* finish loading suspended data */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+A suspended resource finished loading inside a test, but the event was not wrapped in act(...).
+
+When testing, code that resolves suspended data should be wrapped into act(...):
+
+act(() => {
+  /* finish loading suspended data */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+

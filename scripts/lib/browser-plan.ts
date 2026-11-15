@@ -48,3 +48,16 @@ export const STAGE_DEPTHS = { tier2: 'timed', perf: 'perf' } as const;
 
 /** What `test:release` asks for: the function sweeps and the timed runs, never the protocol. */
 export const GATE_DEPTHS = 'fn,timed';
+
+/**
+ * What a run does after a step everything below depends on: the app server, or the assistant restart.
+ *
+ * The step's OWN result decides — never the run's failure flag. Reading the flag here ended a run at the first failure and
+ * dropped the rest of the suite without saying so: on one product the assistant walk-through, the audit, the presses, the
+ * keyboard walk, all six product checks and the whole timed set never ran and were never listed as not run, and the
+ * closing line read as one failure among the checks that did run. A check that cannot run is reported, never left out —
+ * so the signature is the fix: an earlier failure is not an argument, and cannot stop the run here.
+ */
+export function afterSetupStep(stepOk: boolean, what: string, why: string): { carryOn: boolean; notRun: string[] } {
+  return stepOk ? { carryOn: true, notRun: [] } : { carryOn: false, notRun: [`every check after ${what} (${why})`] };
+}
