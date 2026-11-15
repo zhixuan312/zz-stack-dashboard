@@ -206,13 +206,20 @@ function step(name: string, cmd: string, a: string[], env: NodeJS.ProcessEnv = p
   return { status, out: (r.stdout ?? '').trim(), err: (r.stderr ?? '').trim(), took: secs(t) };
 }
 
-async function start(env: NodeJS.ProcessEnv): Promise<{ port: number; server: ChildProcess; ok: boolean }> {
+/**
+ * The built app started on its own port, and whether it answered. `fatal` says whether not starting is the run's
+ * failure or the caller's to weigh: the app the sweeps measure is fatal, a second server one check needed is not — and
+ * the caller judges that one by `ok`, so a failure already recorded stays recorded.
+ */
+async function start(env: NodeJS.ProcessEnv, fatal = true): Promise<{ port: number; server: ChildProcess; ok: boolean }> {
   const port = await freePort();
   const server = spawnNext(port, env);
   children.push(server);
   if (!(await answers(port))) {
-    phase('FAIL', 'the built app did not start', null);
-    failed = true;
+    if (fatal) {
+      phase('FAIL', 'the built app did not start', null);
+      failed = true;
+    }
     return { port, server, ok: false };
   }
   return { port, server, ok: true };
@@ -532,10 +539,10 @@ if (want('timed')) {
     reportTimed(`navigation: ${navPlan.label}, its budgets judged`, await run('scripts/navigate.ts', navPlan.args(navigationPlan('timed').judged ? 'on' : 'off'), app));
   }
   if (hasLiveSample) {
-    // A drop server that does not start leaves the live checks unrun: Tier 2, so not run, never a failure of the run.
-    const dropped = await start({ ...app, LIVE_DROP_HINTS: '1' });
-    if (failed) {
-      failed = false;
+    // A drop server that does not start leaves the live checks unrun: Tier 2, so not run, never a failure of the run —
+    // and never a reason to forget a failure another suite already recorded.
+    const dropped = await start({ ...app, LIVE_DROP_HINTS: '1' }, false);
+    if (!dropped.ok) {
       stop(dropped.server);
       notRun.push('live data (the server for the dropped-hint case did not start)');
     } else {

@@ -26,10 +26,23 @@ export function rgbToOklab([r, g, b]: number[]): [number, number, number] {
   return [0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s, 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s, 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s];
 }
 
-/** Parse #rrggbb, rgba(r,g,b,a) or oklch(L C H) with plain numbers (variables already substituted). */
+/**
+ * Parse `#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa`, `rgba(r,g,b,a)` or `oklch(L C H)` with plain numbers (variables already
+ * substituted). Every hex form CSS allows is read, because the short ones are ordinary in authored CSS; a length that is
+ * not a colour throws rather than returning a colour no one wrote — the first draft read only six digits, and `#fff` came
+ * back as red 1, green 15/255 and a NaN blue, which made a contrast ratio NaN and every `NaN < 4.5` comparison false:
+ * a failing pair would have passed the gate.
+ */
 export function parse(v: string): RGBA {
   v = v.trim();
-  if (v.startsWith('#')) return [1, 3, 5].map((i) => parseInt(v.slice(i, i + 2), 16) / 255).concat(1) as RGBA;
+  if (v.startsWith('#')) {
+    const d = v.slice(1);
+    if (![3, 4, 6, 8].includes(d.length) || !/^[0-9a-f]+$/i.test(d)) throw new Error(`cannot parse colour: ${v}`);
+    // Three and four digits are the same pairs, each digit doubled: `#f00` is `#ff0000`, `#0000` is `#00000000`.
+    const pairs = d.length <= 4 ? [...d].map((c) => c + c) : (d.match(/../g) as string[]);
+    const channel = (i: number) => parseInt(pairs[i]!, 16) / 255;
+    return [channel(0), channel(1), channel(2), pairs.length === 4 ? channel(3) : 1];
+  }
   let m = v.match(/^rgba?\(([^)]+)\)$/);
   if (m) {
     const p = m[1].split(/[\s,/]+/).filter(Boolean).map(Number);

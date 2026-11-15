@@ -1,0 +1,18 @@
+[
+  {
+    "id": "migration:script:test:t2",
+    "status": "resolved",
+    "reason": "Kept the project's script: the ZZ_GATEWAY prefix makes the build-time /api/console rewrite and the fake gateway agree on one address; otherwise it runs the same command.",
+    "files": {
+      "package.json": "sha256-f518043fedf213fb5efdf113316eeb1d5d86a807cc6a05ccb9ffd53bf611e45c"
+    }
+  },
+  {
+    "id": "migration:script:test:release",
+    "status": "resolved",
+    "reason": "Kept the project's script: the ZZ_GATEWAY prefix makes the build-time /api/console rewrite and the fake gateway agree on one address; otherwise it runs the same command.",
+    "files": {
+      "package.json": "sha256-f518043fedf213fb5efdf113316eeb1d5d86a807cc6a05ccb9ffd53bf611e45c"
+    }
+  }
+]

@@ -47,9 +47,14 @@
  * 1.0 s, when a delayed read shows no loading at once or no explicit state within five seconds, when a route shows
  * neither its content nor a refusal within twenty seconds, when a rail route's refusal disagrees with the persona's
  * expected routes, when a detail route the persona is denied opens, or when a detail route has no selector declared.
+ *
+ * A row that fails because the browser stopped drawing frames is not the page's: a fresh tab is asked whether the browser
+ * still paints, and when it does not, the browser is relaunched once and the row measured again (`StallGuard`). A second
+ * stall of the same row ends the run as not run (exit 2), and every relaunch is counted on the closing lines.
  */
 import { launch, type Page } from './lib/chrome.ts';
 import { measurePhone } from './lib/phone.ts';
+import { StallGuard, type Work } from './lib/stall.ts';
 import { named } from './named.ts';
 import config, { DETAIL } from './verify.config.ts';
 
@@ -150,10 +155,19 @@ async function answered(page: Page): Promise<Seen> {
 
 const s = (ms: number) => `${(ms / 1000).toFixed(2)} s`;
 const failures: string[] = [];
-const page = await launch();
-// The host's index, measured on a blank page before the first one timed: every later page reads the same rate.
+let page = await launch();
+// The host's index, measured on a blank page before the first one timed: every later page reads the same rate. A relaunched
+// browser is measured the same way before its first page.
 await measurePhone(page);
+const stalls = new StallGuard(launch, async (fresh) => { await measurePhone(fresh); });
 let n = 0;
+
+/** True when the failed row is the browser's: it stopped painting, so it was relaunched and the row is measured again. */
+async function stalled(work: Work, why: string): Promise<boolean> {
+  if (!(await stalls.stopped(page))) return false;
+  page = await stalls.restart(page, work, why);
+  return true;
+}
 
 if (undeclared.length) failures.push(`no primary-data selector declared for ${undeclared.join(', ')}`);
 console.log(`primary data: ${targets.length} routes as ${personas.map(([p]) => p).join(', ')}, in the order printed; one browser, cache off, no warm-up load`);
@@ -161,13 +175,25 @@ console.log(`primary data: ${targets.length} routes as ${personas.map(([p]) => p
 for (const [who, persona] of personas) {
   for (const t of targets) {
     n++;
-    let seen: Seen;
-    try {
-      await visit(page, t, persona.cookie, 0, 7000);
-      seen = await answered(page);
-    } catch (e) {
-      failures.push(`${t.path} as ${who}: ${(e as Error).message}`);
-      console.log(`FAIL #${String(n).padEnd(3)} ${who.padEnd(10)} ${t.path}: ${(e as Error).message}`);
+    const work = { route: t.path, device: `as ${who}` };
+    let seen: Seen | undefined;
+    let error = '';
+    for (;;) {
+      seen = undefined;
+      try {
+        await visit(page, t, persona.cookie, 0, 7000);
+        seen = await answered(page);
+        if (seen.data !== null || seen.refused !== null) break;
+        if (!(await stalled(work, `neither its content nor a refusal within ${s(CAP_MS)}`))) break;
+      } catch (e) {
+        error = (e as Error).message;
+        if (!(await stalled(work, error))) break;
+        error = '';
+      }
+    }
+    if (seen === undefined) {
+      failures.push(`${t.path} as ${who}: ${error}`);
+      console.log(`FAIL #${String(n).padEnd(3)} ${who.padEnd(10)} ${t.path}: ${error}`);
       continue;
     }
     // Both in milliseconds, so the two can be read against each other and against the 2,500 ms bar without rounding.
@@ -200,26 +226,33 @@ if (first) {
   for (const t of targets.filter((x) => x.rail && persona.expectedRoutes.includes(x.path))) {
     delayed++;
     n++;
-    try {
-      // The bound runs from the first held read, the origin Status's own bound has (READ_BOUND_MS), or from navigation
-      // on a page that sent none from the browser. The page is read as soon as it has passed: no seven-second wait.
-      await visit(page, t, persona.cookie, HOLD_MS, 0);
-      const read = () => page.eval<Seen & { now: number }>('({ ...window.__pd, now: performance.now() })');
-      let p = await read();
-      while (p.now < (p.held ?? 0) + BOUND_MS + 100) { await sleep(100); p = await read(); }
-      const from = p.held ?? 0;
-      const atOnce = p.main !== null && (p.loadingAtMain || p.contentAtMain);
-      const bounded = p.explicit !== null && p.explicit <= from + BOUND_MS;
-      const origin = p.held === null ? 'no read held, from navigation' : `first read sent at ${Math.round(p.held)} ms`;
-      const when = p.explicit === null ? 'still loading'
-        : p.explicit < from ? `at ${Math.round(p.explicit)} ms, before the read was sent`
-        : `at ${Math.round(p.explicit)} ms, ${Math.round(p.explicit - from)} ms after ${p.held === null ? 'navigation' : 'the read'}`;
-      const said = `${origin} · loading at once: ${p.main === null ? 'main never painted' : p.loadingAtMain ? 'yes' : p.contentAtMain ? 'content at once' : 'no'} · explicit state on screen within ${s(BOUND_MS)}: ${bounded ? 'yes' : 'no'}, ${when}`;
-      if (!atOnce || !bounded) failures.push(`delayed read on ${t.path}: ${said}`);
-      console.log(`${atOnce && bounded ? 'ok  ' : 'FAIL'} #${String(n).padEnd(3)} ${who.padEnd(10)} ${t.path.padEnd(64)} reads held ${s(HOLD_MS)} · ${said}`);
-    } catch (e) {
-      failures.push(`delayed read on ${t.path}: ${(e as Error).message}`);
-      console.log(`FAIL #${String(n).padEnd(3)} ${who.padEnd(10)} ${t.path}: ${(e as Error).message}`);
+    const work = { route: t.path, device: `as ${who}, reads held` };
+    // Measured again only when the browser stopped painting; a second stall of the same row ends the run (StallGuard).
+    for (;;) {
+      try {
+        // The bound runs from the first held read, the origin Status's own bound has (READ_BOUND_MS), or from navigation
+        // on a page that sent none from the browser. The page is read as soon as it has passed: no seven-second wait.
+        await visit(page, t, persona.cookie, HOLD_MS, 0);
+        const read = () => page.eval<Seen & { now: number }>('({ ...window.__pd, now: performance.now() })');
+        let p = await read();
+        while (p.now < (p.held ?? 0) + BOUND_MS + 100) { await sleep(100); p = await read(); }
+        if (p.explicit === null && await stalled(work, 'no explicit state within the bound')) continue;
+        const from = p.held ?? 0;
+        const atOnce = p.main !== null && (p.loadingAtMain || p.contentAtMain);
+        const bounded = p.explicit !== null && p.explicit <= from + BOUND_MS;
+        const origin = p.held === null ? 'no read held, from navigation' : `first read sent at ${Math.round(p.held)} ms`;
+        const when = p.explicit === null ? 'still loading'
+          : p.explicit < from ? `at ${Math.round(p.explicit)} ms, before the read was sent`
+          : `at ${Math.round(p.explicit)} ms, ${Math.round(p.explicit - from)} ms after ${p.held === null ? 'navigation' : 'the read'}`;
+        const said = `${origin} · loading at once: ${p.main === null ? 'main never painted' : p.loadingAtMain ? 'yes' : p.contentAtMain ? 'content at once' : 'no'} · explicit state on screen within ${s(BOUND_MS)}: ${bounded ? 'yes' : 'no'}, ${when}`;
+        if (!atOnce || !bounded) failures.push(`delayed read on ${t.path}: ${said}`);
+        console.log(`${atOnce && bounded ? 'ok  ' : 'FAIL'} #${String(n).padEnd(3)} ${who.padEnd(10)} ${t.path.padEnd(64)} reads held ${s(HOLD_MS)} · ${said}`);
+      } catch (e) {
+        if (await stalled(work, (e as Error).message)) continue;
+        failures.push(`delayed read on ${t.path}: ${(e as Error).message}`);
+        console.log(`FAIL #${String(n).padEnd(3)} ${who.padEnd(10)} ${t.path}: ${(e as Error).message}`);
+      }
+      break;
     }
   }
 }
@@ -227,5 +260,6 @@ if (first) {
 await page.send('Emulation.setCPUThrottlingRate', { rate: 1 });
 page.close();
 for (const f of failures) console.log(`FAIL  ${f}`);
+stalls.report();
 console.log(`\nprimary data: ${targets.length * personas.length} route and persona rows, ${delayed} delayed reads; ${failures.length} failed`);
 process.exit(failures.length || !targets.length ? 1 : 0);

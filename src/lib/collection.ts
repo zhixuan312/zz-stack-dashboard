@@ -166,7 +166,10 @@ export function normalizeQuery(c: AnyCollection, q: Query = {}): Required<Pick<Q
   };
   const where = (q.where ?? []).map((w) => {
     if (!OPS.includes(w.op)) throw new Error(`Unsupported operator ${JSON.stringify(w.op)}`);
-    return { field: field(w.field), op: w.op, value: w.value };
+    // `calendar` is carried through, not rebuilt away: it is what makes a date filter compare calendar days rather than
+    // raw strings (issue #144), and the prepared query an agent asks sets it. Dropped here, the rule in `matches` was
+    // unreachable through read() and aggregate().
+    return { field: field(w.field), op: w.op, value: w.value, ...(w.calendar ? { calendar: true as const } : {}) };
   });
   const sort = q.sort ? { field: field(q.sort.field), dir: q.sort.dir === 'desc' ? 'desc' as const : 'asc' as const } : { field: c.key as string, dir: 'asc' as const };
   const limit = q.limit ?? DEFAULT_LIMIT;
@@ -257,11 +260,12 @@ export function normalizeAggregate(c: AnyCollection, q: AggregateQuery): Aggrega
     if (!allowed.has(f.split('.')[0])) throw new Error(`${c.name} has no field ${JSON.stringify(f)}`);
     return f;
   };
-  // A condition names a field of the row itself, as a query's does: `matches` reads no path.
+  // A condition names a field of the row itself, as a query's does: `matches` reads no path. `calendar` is carried
+  // through for the reason `normalizeQuery` gives: without it a date filter compares raw strings.
   const where = (ws: Condition[]) => ws.map((w) => {
     if (!OPS.includes(w.op)) throw new Error(`Unsupported operator ${JSON.stringify(w.op)}`);
     if (!allowed.has(w.field)) throw new Error(`${c.name} has no field ${JSON.stringify(w.field)}`);
-    return { field: w.field, op: w.op, value: w.value };
+    return { field: w.field, op: w.op, value: w.value, ...(w.calendar ? { calendar: true as const } : {}) };
   });
   const top = q.top ?? DEFAULT_TOP;
   if (!Number.isInteger(top) || top < 1) throw new Error('top must be a whole number of at least 1');

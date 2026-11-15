@@ -43,6 +43,7 @@ import { bin } from './lib/bin.ts';
 import { GATE_DEPTHS, STAGE_DEPTHS } from './lib/browser-plan.ts';
 import { consumerSmokeKind } from './lib/consumer-smoke.ts';
 import { deepFiles, deepPart, deepPlan, deepReach } from './lib/deep-inputs.ts';
+import { recordMarker } from './lib/marker.ts';
 import { clearLastRun, failedFilesOf, readLastRun, retryBaseline, retryNumber, writeLastRun } from './lib/last-run.ts';
 import { lintTargets } from './lib/lint.ts';
 import { deepBrowserNotRun } from './lib/report-lines.ts';
@@ -64,14 +65,19 @@ export const isTier2 = (file: string): boolean => TIER2.some((rule) => rule.test
 const DEEP = /^tests\/deep-[^/]*\.test\.tsx?$/;
 export const isDeep = (file: string): boolean => DEEP.test(file);
 
-/** The paths whose change means any test may be affected: a docs-only change is not one of them. */
-const CODE = /^(app|src|scripts|cli|tests|tokens|journeys|next\.config\.|package\.json$|pnpm-lock\.yaml$|tsconfig|vitest\.config|eslint\.config)/;
+/**
+ * The paths whose change means any test may be affected: a docs-only change is not one of them. `proxy.ts` is Next's
+ * request guard — it decides what every page and every API route answers — and `postcss.config.mjs` is the style
+ * pipeline. Neither matched here, so a change to either printed "no test is affected", ran nothing, and advanced the
+ * last-green marker over it.
+ */
+const CODE = /^(app|src|scripts|cli|tests|tokens|journeys|proxy\.ts$|postcss\.config\.|next\.config\.|package\.json$|pnpm-lock\.yaml$|tsconfig|vitest\.config|eslint\.config)/;
 
 /** A path that changes what runs: a test is selected for it, or the whole tier falls back to running. */
 export const isCode = (file: string): boolean => CODE.test(file);
 
 /** The paths the browser suites walk: a change to what a page draws or a control does needs them. */
-const BROWSER = /^(app|src|tokens|journeys|scripts|next\.config\.|package\.json$|pnpm-lock\.yaml$)/;
+const BROWSER = /^(app|src|tokens|journeys|scripts|proxy\.ts$|postcss\.config\.|next\.config\.|package\.json$|pnpm-lock\.yaml$)/;
 export const touchesBrowser = (file: string): boolean => BROWSER.test(file);
 
 const isTestFile = (file: string): boolean => /\.test\.tsx?$/.test(file);
@@ -139,11 +145,10 @@ export function testsNaming(file: string): string[] {
   return r.ok ? r.out.split('\n').filter((f) => isTestFile(f) && fs.existsSync(path.join(ROOT, f))) : [];
 }
 
-/** A passing run records the commit it proved, so the next run reads a smaller diff instead of the branch's whole history. */
-function recordGreen(): void {
-  fs.mkdirSync(path.dirname(MARKER), { recursive: true });
-  fs.writeFileSync(MARKER, `${git(['rev-parse', 'HEAD']).out}\n`);
-}
+/** The commit this run read when it started: the one a passing run records, and the one it proves. */
+const HEAD_AT_START = git(['rev-parse', 'HEAD']).out;
+/** A passing run records the commit it proved, not whichever is current now (`scripts/lib/marker.ts`). */
+const recordGreen = () => recordMarker(MARKER, HEAD_AT_START, git(['rev-parse', 'HEAD']).out);
 
 /** Vitest's arguments for a run: `related` limits it to the import graph of `filters`, `run` takes every collected file. */
 function vitestArgs(mode: 'related' | 'run', filters: string[], withTier2: boolean): string[] {

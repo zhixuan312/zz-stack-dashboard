@@ -51,12 +51,13 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { budgetsOf, limitsFor, type NavigationCheck } from './lib/budgets.ts';
 import { launch, type Page } from './lib/chrome.ts';
-import { NOT_RUN_EXIT, prefetchJudged, resolveCoverage, selectSmokeRoutes } from './lib/coverage.ts';
+import { prefetchJudged, resolveCoverage, selectSmokeRoutes } from './lib/coverage.ts';
 import { railRoutes } from './lib/routes.ts';
 import { DEVICES, Fail, METRICS, PREFETCH_WAIT, drawerRoutes, journey, journeyStart, loadShell, openStart, prepare, sleep, workspaceHomes, type Device, type Measured, type Metric, type NavConfig } from './lib/journey.ts';
 import { isPrefetch, prefetchProblems } from './lib/sizes.ts';
 import { headroom, judge, thin } from './lib/timing.ts';
 import { holdArgs } from './lib/args.ts';
+import { StallGuard } from './lib/stall.ts';
 import { recordPart } from './lib/tier2.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -291,9 +292,9 @@ async function main(): Promise<number> {
   }
 
   const lines: Line[] = [];
-  /** Routes and devices measured again on a fresh browser because the one before it stopped painting: reported, never
-   *  silent. A retry that passes has to stay visible, or a recurring stall hides inside a green run. */
-  const relaunches: { route: string; device: string }[] = [];
+  /** A browser that stopped drawing frames is relaunched once per route and device, and the relaunches are counted in the
+   *  closing line: see `scripts/lib/stall.ts` for what the guard decides and why. */
+  const stalls = new StallGuard(launch, prepare);
   /** The timed values this run measured, recorded for the run's Tier 2 table. */
   const values: { check: string; page: string; unit: 'ms'; value: number; samples?: number[] }[] = [];
   /** What this run reported as not configured: routes without a navigation check, and a prefetch budget that is not the project's promise. */
@@ -333,7 +334,6 @@ async function main(): Promise<number> {
         }
         const limits = limitsFor(budgets, 'warm', device, check);
         let line: Line;
-        let retried = false;
         for (;;) {
           try {
             // A route with no other route to start from has no navigation to time: it is a problem, never a 0 ms pass.
@@ -342,26 +342,12 @@ async function main(): Promise<number> {
             break;
           } catch (e) {
             // A page whose own renderer stopped drawing is that page's failure, and stays one. The whole browser having
-            // stopped painting is not: relaunch it once, say so, and measure this route again — a product that can wedge
-            // the page will do it on a fresh browser too, so nothing real is hidden. A second one is a check that could
-            // not run, reported once with its reason rather than as this route's verdict.
+            // stopped painting is not: the guard relaunches it once, says so, and this route is measured again on the fresh
+            // one — a product that can wedge the page will do it on a fresh browser too, so nothing real is hidden. A second
+            // one is a check that could not run, reported once with its reason rather than as this route's verdict.
             if (e instanceof Fail && e.kind === 'compositor-stalled') {
-              if (!retried) {
-                retried = true;
-                relaunches.push({ route, device });
-                console.log(`warn    the browser stopped drawing frames; relaunching it once and measuring ${route} ${device} again`);
-                page.close();
-                page = await launch();
-                // A fresh browser has no instrumentation: the journey's own arms and helpers are installed per page.
-                try { await prepare(page); }
-                catch (err) { console.log(`not run: the relaunched browser could not be prepared (${(err as Error).message})`); process.exit(NOT_RUN_EXIT); }
-                continue;
-              }
-              {
-                console.log(`not run: the browser stopped drawing frames (${e.message})`);
-                page.close();
-                process.exit(NOT_RUN_EXIT);
-              }
+              page = await stalls.restart(page, { route, device }, e.message);
+              continue;
             }
             // The starting page never loading is a failure of this route and device, not of the run.
             const reason = e instanceof Fail ? `${e.kind}: ${e.message}` : (e as Error).message;
@@ -405,10 +391,7 @@ async function main(): Promise<number> {
   // The least headroom of the run, so a reader sees how near the budgets a green run was, not only that it was green.
   const least = lines.flatMap((l) => METRICS.flatMap((name) => { const r = l[name]; return judged(r) ? [{ l, name, r }] : []; })).sort((a, b) => headroom(a.r.ms, a.r.limit) - headroom(b.r.ms, b.r.limit))[0];
   if (least) console.log(`headroom: the least was ${percent(least.r)}, ${least.l.route} ${least.l.device} ${least.name} ${Math.round(least.r.ms)} of ${least.r.limit} ms; under 20% warns`);
-  if (relaunches.length) {
-    const where = relaunches.map((r) => `${r.route} ${r.device}`).join(', ');
-    console.log(`reported: the browser stopped drawing frames ${relaunches.length} ${relaunches.length === 1 ? 'time' : 'times'}; relaunched (${where})`);
-  }
+  stalls.report();
   const failed = lines.some((l) => l.status === 'FAIL') || problems.length > 0;
   const status = failed ? 'FAIL' : lines.some((l) => l.status === 'warn') ? 'warn' : 'ok';
   summary({
@@ -419,7 +402,7 @@ async function main(): Promise<number> {
     lines: lines.map(({ route, device, status: s, shell, data, interactive, drawerMs, prefetchCapped, noisy, thin: t, problems: p, via, workspace, prefetched, landed, empty }) => ({ route, device, status: s, via, workspace, prefetched, landed, empty, shell, data, interactive, drawerMs, prefetchCapped, noisy, thin: t, problems: p })),
     prefetch: prefetch && { ...prefetch, problems },
     notRun: unrun,
-    relaunched: relaunches,
+    relaunched: stalls.relaunched,
   });
   // Exit 2 is "left a case unrun": the suite's not-configured cases are never counted as a pass, and the last-green
   // marker is not advanced by a run that has them.

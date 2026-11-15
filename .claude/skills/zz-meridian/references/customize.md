@@ -303,7 +303,7 @@ orders is the sample's, not the product's.
   band, and the days outside it by date), is its own, in `optional:src/logic/service-facts.ts`. A rule returns its fact
   with the one line it wrote, or nothing, and nothing weaker stands in for a fact that stopped holding. Meridian's `optional:tests/facts.test.ts` and `optional:tests/facts-engineering.test.ts` hold the rules in its
   repository; hold yours with a test of your own.
-- **No word of praise**, in a title or in a fact: the figure is what is said. The rules' test refuses twelve words.
+- **No word of praise**, in a title or in a fact: the figure is what is said. No test refuses these words; it is review's rule, and it applies word for word.
 - **The title is shared.** The page's context leads its insights with the sentence the page is headed by, word for
   word, and each fact follows as the rule's own line (`factInsight` and `headInsights` in
   `optional:src/logic/fact-insight.ts`). The history a record, a first, a total or the days inside the band are
