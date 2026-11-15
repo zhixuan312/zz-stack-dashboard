@@ -61,7 +61,9 @@ docs/brief.md     the decisions behind the move to Meridian.
   a Tailwind default utility; both render nothing or the wrong thing in one of the two themes.
 - **No flow's stage names in a map key.** A component keyed on one flow's stages silently
   shows nothing for the next flow. The gate checks this too.
-- **Branches are `master` or `release/<version>`.** Nothing else.
+- **Branches are `master` and `release`.** Work lands on master; `release` names the commit
+  production runs and is moved only by zz-stack's `/release`, fast-forward, after verification.
+  Nothing else.
 - **No backward-compatibility scaffolding** — change it and say what broke.
 - The version and its compose literal move together; the platform's release script bumps both.
 
