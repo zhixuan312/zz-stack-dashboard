@@ -2,8 +2,9 @@
 #
 # Tier 2 is the `*.perf.test.*` convention, the timed browser suite and the affected Tier 1 tests. There is no
 # `*.perf.test.*` file here yet, so on a clean master the run selects the whole Tier 1 set (no last-green marker and no
-# diff) and runs the timed browser suite. The 20-sample navigation protocol is not run here: `test:release` asks for it
-# where CI is true, so `gate.yml` runs it on every push, as Tier 2 that reports and never fails.
+# diff) and runs the browser sweeps and the 20-sample navigation protocol: `test:t2` adds the protocol where CI is true
+# and the whole tier ran. It is Tier 2, so it reports and never fails. It is not in `gate.yml`: it took that run from
+# 1 h 47 m to 2 h 37 m.
 #
 # The release standard is not run here: `gate.yml` runs `test:release` on every push, and evidence on a commit stands
 # for it. A dispatch names the jobs it runs: `gh workflow run weekly.yml -f jobs=t2`.
@@ -54,9 +55,9 @@ jobs:
     needs: named
     if: contains(format(',{0},', inputs.jobs || 't2'), ',t2,')
     runs-on: ubuntu-24.04
-    # The whole Tier 1 set plus the timed browser suite: navigation budgets, live data, the product's timed checks and
-    # Web Vitals. The old timed job allowed 90 minutes.
-    timeout-minutes: 90
+    # The whole Tier 1 set, the browser sweeps and the 20-sample protocol. The protocol alone added about 50 minutes to
+    # the push run, so this job gets the push run's limit.
+    timeout-minutes: 180
     env:
       CHROME: /usr/bin/google-chrome
     steps:

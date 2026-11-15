@@ -128,8 +128,8 @@ left by a process that is no longer running, after it has read the journal.
 3. The installed dependencies must match the plan: each entry the update added or raised, and `next`, `react` and
    `react-dom`, must be installed at a version that satisfies the planned specification; the framework must be
    exactly the planned version.
-4. It runs `node scripts/test-run.ts t1` (the Tier 1 tests affected by the change, the static checks and the type
-   check), then one `next build`, in place. `node scripts/route-policy.ts` follows when the project's Next config sets
+4. It runs `node scripts/test-run.ts t1` (the Tier 1 tests affected by the change and the static checks; lint and the
+   type check run beside them, report, and fail nothing), then one `next build`, in place. `node scripts/route-policy.ts` follows when the project's Next config sets
    `cacheComponents` and `partialPrefetching`; `node scripts/sizes.ts` follows when `optional:scripts/verify.baseline.json` is
    one that the team recorded (it carries `recordedBy: "sizes.ts"`) and differs from the release's. A check that does not run
    is reported `not run` with the reason, never as passed. The output goes to `evidence/`. Before and after each
@@ -152,7 +152,8 @@ project, overlaps a managed or kept file or is a folder holding tracked files is
 conflict. A protected file a check rewrites, such as a `tsconfig.json` that Next updates, also fails: review and
 commit the change, then finalize again.
 
-**What "complete" means.** The Tier 1 tests affected by the change, the static checks and the type check passed, one
+**What "complete" means.** The Tier 1 tests affected by the change and the static checks passed, lint and the type
+check ran and reported (neither fails a run: Tier 3), one
 production build passed on the live project, the route policy and the size checks passed where the project supplies
 what they read (and were reported `not run` with the reason where it does not), the files are the target release's
 (plus the team's resolutions), and

@@ -63,8 +63,14 @@ export type Page = {
    */
   status: () => number;
   /** `timeoutMs` overrides the transport guard for one command whose page deliberately waits; it defaults to `COMMAND_TIMEOUT_MS`. */
-  send: (method: string, params?: Record<string, unknown>, timeoutMs?: number) => Promise<any>;
+  send: (method: string, params?: Record<string, unknown>, timeoutMs?: number, sessionId?: string) => Promise<any>;
   eval: <T = unknown>(expression: string, timeoutMs?: number) => Promise<T>;
+  /**
+   * Whether the browser still answers: a fresh tab, its own renderer, evaluated at `1 + 1` under a short guard. A suite
+   * asks this when its pages stop answering, to tell a busy machine (the new tab answers, so the sweep goes on) from a
+   * browser that has stopped (it does not, so the sweep ends as one `not run` line rather than every page after it).
+   */
+  responsive: () => Promise<boolean>;
   open: (url: string, opts: { width: number; height?: number; theme?: 'light' | 'dark'; reduced?: boolean; wait?: number; cookie?: { name: string; value: string } }) => Promise<void>;
   shot: (file: string, opts?: { full?: boolean; width?: number; height?: number }) => Promise<number>;
   close: () => void;
@@ -137,13 +143,25 @@ export async function launch(): Promise<Page> {
   }
 }
 
+/**
+ * The browser did not get as far as answering: it never opened a page, or a command during the handshake timed out. That
+ * is not a verdict about the product — a machine carrying too much work makes it happen — so a suite reports it as a
+ * check that could not run, with the reason, rather than as a page that failed or as a stack trace.
+ */
+export class ChromeStartError extends Error {}
+
 async function attach(proc: ChildProcess, dir: string, handle: Launched): Promise<Page> {
+  // A path that names no browser emits `error` on the child rather than exiting it, and an unhandled one ends the whole
+  // run with a stack trace: it is the first kind of "did not start", so it is captured here and reported as one.
+  let spawnError: ChromeStartError | undefined;
+  proc.on('error', (e) => { spawnError = new ChromeStartError(`Chrome could not be started (${(e as Error).message})`); });
   let target: { webSocketDebuggerUrl: string } | undefined;
   // A cold Chrome on a busy machine or runner can take well over ten seconds to open its debugging port; wait up to 30 s,
   // and stop at once if it exited instead. The port can answer before the first page target exists, with an empty list,
   // so the wait lasts until a page is listed.
   const deadline = Date.now() + 30_000;
   while (!target && Date.now() < deadline && proc.exitCode === null && proc.signalCode === null) {
+    if (spawnError) throw spawnError;
     try {
       const port = fs.readFileSync(path.join(dir, 'DevToolsActivePort'), 'utf8').split('\n')[0];
       const list: { type: string; webSocketDebuggerUrl: string }[] = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
@@ -151,13 +169,14 @@ async function attach(proc: ChildProcess, dir: string, handle: Launched): Promis
     } catch { /* the port is not open yet */ }
     if (!target) await sleep(150);
   }
-  if (!target) throw new Error(proc.exitCode !== null || proc.signalCode !== null ? `Chrome exited before it started (${proc.exitCode ?? proc.signalCode})` : 'Chrome did not start a page within 30 s');
+  if (spawnError) throw spawnError;
+  if (!target) throw new ChromeStartError(proc.exitCode !== null || proc.signalCode !== null ? `Chrome exited before it started (${proc.exitCode ?? proc.signalCode})` : 'Chrome did not start a page within 30 s');
   const ws = new WebSocket(target.webSocketDebuggerUrl);
   // A socket that never opens or is refused says so, within the same 30 s, instead of leaving the caller waiting.
   await new Promise<void>((resolve, reject) => {
-    const t = setTimeout(() => reject(new Error('Chrome did not open its page connection within 30 s')), 30_000);
+    const t = setTimeout(() => reject(new ChromeStartError('Chrome did not open its page connection within 30 s')), 30_000);
     ws.addEventListener('open', () => { clearTimeout(t); resolve(); });
-    ws.addEventListener('error', () => { clearTimeout(t); reject(new Error('Chrome refused the page connection')); });
+    ws.addEventListener('error', () => { clearTimeout(t); reject(new ChromeStartError('Chrome refused the page connection')); });
   });
   let id = 0;
   const pending = new Map<number, (m: any) => void>();
@@ -194,25 +213,31 @@ async function attach(proc: ChildProcess, dir: string, handle: Launched): Promis
   // A Chrome that crashed fails every command waiting on it, and every later one, at once and by name, not each after its own 30 s.
   const GONE = { error: { message: 'Chrome closed the connection' } };
   ws.addEventListener('close', () => { for (const answer of [...pending.values()]) answer(GONE); pending.clear(); });
-  const send = (method: string, params: Record<string, unknown> = {}, timeoutMs = COMMAND_TIMEOUT_MS) =>
+  const send = (method: string, params: Record<string, unknown> = {}, timeoutMs = COMMAND_TIMEOUT_MS, sessionId?: string) =>
     new Promise<any>((r, reject) => {
       if (ws.readyState >= WebSocket.CLOSING) return reject(new Error(`${method}: ${GONE.error.message}`));
       const i = ++id;
       const t = setTimeout(() => { pending.delete(i); reject(new Error(`${method} timed out`)); }, timeoutMs);
       // A protocol error rejects: a silently refused command (a bad parameter) would leave the page in the wrong state.
       pending.set(i, (m) => { clearTimeout(t); if (m.error) reject(new Error(`${method}: ${m.error.message}`)); else r(m); });
-      ws.send(JSON.stringify({ id: i, method, params }));
+      ws.send(JSON.stringify({ id: i, method, params, ...(sessionId ? { sessionId } : {}) }));
     });
-  await send('Page.enable');
-  await send('Runtime.enable');
-  await send('Network.enable');
-  // Exports stay inside this browser's disposable profile, never the person's Downloads folder. The protocol policy
-  // also enables downloads in headless-shell, where profile preferences alone did not save them.
-  const downloadPath = path.join(dir, 'Downloads');
-  fs.mkdirSync(downloadPath, { recursive: true });
-  await send('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath });
-  top = (await send('Page.getFrameTree')).result.frameTree.frame.id;
-  await send('Page.setInterceptFileChooserDialog', { enabled: true });
+  // The handshake itself is startup, not a page: a browser that cannot answer `Runtime.enable` in 30 s is a browser that
+  // did not start, and a suite reports that as a check that could not run rather than a stack trace of the run.
+  try {
+    await send('Page.enable');
+    await send('Runtime.enable');
+    await send('Network.enable');
+    // Exports stay inside this browser's disposable profile, never the person's Downloads folder. The protocol policy
+    // also enables downloads in headless-shell, where profile preferences alone did not save them.
+    const downloadPath = path.join(dir, 'Downloads');
+    fs.mkdirSync(downloadPath, { recursive: true });
+    await send('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath });
+    top = (await send('Page.getFrameTree')).result.frameTree.frame.id;
+    await send('Page.setInterceptFileChooserDialog', { enabled: true });
+  } catch (e) {
+    throw new ChromeStartError(`Chrome did not answer while it was starting (${(e as Error).message})`);
+  }
   const page: Page = {
     errors,
     tolerated,
@@ -223,6 +248,23 @@ async function attach(proc: ChildProcess, dir: string, handle: Launched): Promis
       const r = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true }, timeoutMs);
       if (r.result?.exceptionDetails) throw new Error(r.result.exceptionDetails.exception?.description ?? 'evaluation failed');
       return r.result?.result?.value;
+    },
+    async responsive() {
+      // A new tab is a new renderer: on a busy machine it starts and answers while the measured page is slow, and on a
+      // browser that has stopped it does not start at all. Every command carries the same short guard, so the question
+      // costs at most a few seconds and never the transport's own wait.
+      const health = 5000;
+      let target: string | undefined;
+      try {
+        target = (await send('Target.createTarget', { url: 'about:blank' }, health)).result.targetId as string;
+        const session = (await send('Target.attachToTarget', { targetId: target, flatten: true }, health)).result.sessionId as string;
+        const answer = await send('Runtime.evaluate', { expression: '1 + 1', returnByValue: true }, health, session);
+        return answer?.result?.result?.value === 2;
+      } catch {
+        return false;
+      } finally {
+        if (target) await send('Target.closeTarget', { targetId: target }, health).catch(() => {});
+      }
     },
     async open(url, { width, height = 900, theme, reduced = true, wait = 2600, cookie }) {
       const features = [{ name: 'prefers-reduced-motion', value: reduced ? 'reduce' : 'no-preference' }];

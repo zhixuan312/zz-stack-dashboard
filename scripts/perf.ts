@@ -18,7 +18,9 @@
  *   the two differ in the destination alone.
  * - after-live: the tab triggers its live provider's resync (an `online` event) and waits until `refreshCollections`
  *   answered `{ ok: true }` and the router read that followed has finished, then presses at once. Nothing is written, so
- *   there is nothing to reset. The starting page is a rail route that registers live data.
+ *   there is nothing to reset. The starting page is a rail route that registers live data. A product whose live layer is
+ *   its own answers no rail route: after-live is then not a condition of that product, so the run reports it `n/a` once
+ *   with the reason and prints `judged nothing: perf: afterLive (…)`, and warm and cold measure as they always do.
  * A sample that never gets ready, shows a wrong result or leaves a dead control fails its combination outright.
  *
  * One line per route, device and condition, and a JSON summary on the last line:
@@ -36,12 +38,13 @@
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { budgetsOf, limitsFor } from './lib/budgets.ts';
-import { launch, type Page } from './lib/chrome.ts';
+import { ChromeStartError, launch, type Page } from './lib/chrome.ts';
 import { declaredNotRun, resolveCoverage, unconfiguredRoutes } from './lib/coverage.ts';
 import { recordPart } from './lib/tier2.ts';
 import { railRoutes } from './lib/routes.ts';
 import { summary } from './lib/timing.ts';
 import { DEVICES, Fail, drawerRoutes, journey, journeyStart, liveRefresh, METRICS, prepare, type Condition, type Device, type Metric, type NavConfig, workspaceHomes } from './lib/journey.ts';
+import { conditionsToRun, type Conditions } from './lib/live-start.ts';
 import { holdArgs } from './lib/args.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -79,11 +82,10 @@ const text = (r: Result): string =>
 
 const out = (o: Record<string, unknown>) => console.log(`perf: ${JSON.stringify(o)}`);
 
-/** Chrome itself did not start, as opposed to a page or the app failing once it had. */
-class ChromeStartError extends Error {}
-
 async function openTab(refuse?: string): Promise<Page> {
   let page: Page;
+  // `launch` already answers this way for a browser that did not start (scripts/lib/chrome.ts), so the protocol reports it
+  // as a browser that could not start rather than as a page that failed.
   try { page = await launch(); } catch (e) { throw new ChromeStartError((e as Error).message); }
   try {
     await prepare(page, refuse);
@@ -183,6 +185,7 @@ async function main(): Promise<number> {
   let live: string[];
   let starts: string[];
   let drawn: Record<string, string[]>;
+  let notApplicable: Conditions['notApplicable'] = [];
   const results: Result[] = [];
   const shared: Partial<Record<Device, Page>> = {};
   try {
@@ -206,8 +209,15 @@ async function main(): Promise<number> {
     /** The tab the warm and after-live samples of a device share: the cache and router state are reset by every journey. */
     const tab = async (device: Device) => (shared[device] ??= await openTab());
 
+    // After-live starts from a rail route that registers live data. A product whose live layer is its own has none, so the
+    // condition cannot measure it at all: it is reported once, by name, and warm and cold measure as they always did
+    // (scripts/lib/live-start.ts says why that is a report and not 36 failures).
+    const { run: conditions, notApplicable: absent } = conditionsToRun(CONDITIONS, live);
+    notApplicable = absent;
+    for (const a of notApplicable) console.log(`n/a  perf: ${a.condition} (${a.why})`);
+
     for (const device of DEVICES) {
-      for (const condition of CONDITIONS) {
+      for (const condition of conditions) {
         for (const route of routes) {
           const check = checks.find((c) => c.path === route);
           const limits = limitsFor(budgets, condition, device, check);
@@ -277,8 +287,11 @@ async function main(): Promise<number> {
   const over = results.filter((r) => r.status === 'warn').length;
   const status = failed ? 'FAIL' : partial || over || unrun.length ? 'warn' : 'ok';
   if (partial) console.log(`warn    a narrowed run (${samples} samples, ${routes.length} of ${rail.routes.length} routes) is not the protocol`);
-  console.log(`${failed ? 'FAIL   ' : over ? 'warn   ' : 'ok     '} perf ${results.length} combinations · ${results.filter((r) => r.status === 'FAIL').length} failed · ${over} over a p95 budget (reported) · ${took.toFixed(0)} s`);
-  out({ status, samples, routes, live, took, partial, results, notRun: unrun });
+  console.log(`${failed ? 'FAIL   ' : over ? 'warn   ' : 'ok     '} perf ${results.length} combinations · ${results.filter((r) => r.status === 'FAIL').length} failed · ${over} over a p95 budget (reported)${notApplicable.map((a) => ` · ${a.condition} n/a`).join('')} · ${took.toFixed(0)} s`);
+  out({ status, samples, routes, live, took, partial, results, notRun: unrun, notApplicable });
+  // A condition the product has no surface for judged nothing, and says so in the line every check says it in
+  // (scripts/lib/coverage.ts), so a protocol that measured two conditions does not read as one that measured three.
+  if (notApplicable.length) console.log(`judged nothing: ${notApplicable.map((a) => `perf: ${a.condition} (${a.why})`).join(', ')}`);
   return failed ? 1 : unrun.length ? 2 : 0;
 }
 

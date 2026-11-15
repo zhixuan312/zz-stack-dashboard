@@ -2,7 +2,7 @@
  * The three test commands, and the only test commands. Each takes no arguments from the person or the agent; it is the
  * tool that picks the tests.
  *
- *   pnpm test:t1        the Tier 1 tests affected by the changes since the last green run, with the type check
+ *   pnpm test:t1        the Tier 1 tests affected by the changes since the last green run, with the type check and lint
  *   pnpm test:t2        the same plus the Tier 2 checks those changes affect (the affected Tier 1 tests included)
  *   pnpm test:release   every Tier 1 and Tier 2 test, once, with lint and the type check
  *
@@ -25,23 +25,30 @@
  *   and the sizes) are Tier 1 and fail the run. They run where a build and Chrome exist: test:t2, test:release and the
  *   release sweep jobs. test:t1 does not run them. `--only <audit|interactions|keyboard|rest>` runs one sweep by hand.
  * - Tier 2 is the performance convention `*.perf.test.ts(x)` and the timed browser suites: on a quiet machine, the timed
- *   runs (--depth timed), and the 20-sample protocol (--depth perf) where CI is true: the release workflow's `tier2`
- *   job and the weekly `release` job. They report and never fail: a timed or perf suite that prints FAIL is counted in the closing line's
- *   "Tier 2 over budget (reported, not failed)".
+ *   runs (--depth timed). They report and never fail: a timed or perf suite that prints FAIL is counted in the closing
+ *   line's "Tier 2 over budget (reported, not failed)".
+ * - The 20-sample protocol (--depth perf) is measured by its own stage, `stage perf`, in its own non-blocking job, and
+ *   never inside a gate: 20 samples across three conditions and two devices outruns the job limit a gate can carry. Its
+ *   values join the same record the timed runs write, so the release-to-release comparison keeps them.
+ * - Only Tier 1 turns a run red. Lint and the type check are Tier 3 and the contrast pairs are Tier 2, so they run, what
+ *   they find is named in the closing line as "reported, not failed", and nothing exits on it: `record` in
+ *   `scripts/lib/summary.ts` decides, once. The audit's own findings are sorted the same way
+ *   (`scripts/lib/audit-findings.ts`). Compilation is still Tier 1: `next build` fails on anything that cannot compile,
+ *   and that is the build below, never the type check beside it.
  */
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { bin } from './lib/bin.ts';
-import { FIRST_LOAD_CAP_KB, budgetsOf, type BudgetsConfig } from './lib/budgets.ts';
+import { GATE_DEPTHS, STAGE_DEPTHS } from './lib/browser-plan.ts';
 import { consumerSmokeKind } from './lib/consumer-smoke.ts';
 import { deepFiles, deepPart, deepPlan, deepReach } from './lib/deep-inputs.ts';
 import { clearLastRun, failedFilesOf, readLastRun, retryBaseline, retryNumber, writeLastRun } from './lib/last-run.ts';
 import { lintTargets } from './lib/lint.ts';
 import { deepBrowserNotRun } from './lib/report-lines.ts';
-import { clearParts, reportOrWarn, type Seed, type Value } from './lib/tier2.ts';
-import { summaryLine } from './lib/summary.ts';
+import { clearParts, reportOrWarn, type Value } from './lib/tier2.ts';
+import { seedValues } from './lib/tier2-seed.ts';
+import { record, summaryLine } from './lib/summary.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const MARKER = path.join(ROOT, 'out', 'last-green');
@@ -152,11 +159,15 @@ function vitestArgs(mode: 'related' | 'run', filters: string[], withTier2: boole
   return args;
 }
 
-function run(label: string, cmd: string, args: string[], env: NodeJS.ProcessEnv = process.env): number {
+/**
+ * Runs one check, prints its line, and returns its status. A Tier 2 or Tier 3 check that fails prints `reported`, never
+ * `FAIL`: the word says what the run does with it, and `record` is what decides that (`scripts/lib/summary.ts`).
+ */
+function run(label: string, cmd: string, args: string[], env: NodeJS.ProcessEnv = process.env, tier: 1 | 2 | 3 = 1): number {
   const t = Date.now();
   const r = spawnSync(cmd, args, { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'inherit', 'inherit'], env });
   const status = r.status ?? 1;
-  console.log(`${status === 0 ? 'ok  ' : 'FAIL'} ${label} (${((Date.now() - t) / 1000).toFixed(1)}s)`);
+  console.log(`${status === 0 ? 'ok      ' : tier === 1 ? 'FAIL    ' : 'reported'} ${label} (${((Date.now() - t) / 1000).toFixed(1)}s)`);
   return status;
 }
 
@@ -179,56 +190,27 @@ function vitest(mode: 'related' | 'run', filters: string[], withTier2: boolean, 
 /**
  * The static checks that read the whole tree: cheap enough to run on every tier, and the contract they hold (the tokens,
  * the registry, the card and page specifications, contrast) is affected by almost any change. They take no selection:
- * there is no import graph to narrow them with.
+ * there is no import graph to narrow them with. Each carries its own tier: a token, registry or specification that is
+ * out of date is a contract broken (Tier 1), and contrast is a pair that is hard to read (Tier 2).
  */
-function staticChecks(): number {
-  const steps: [string, string[]][] = [
-    ['tokens are fresh', ['scripts/tokens.ts', '--check']],
-    ...(fs.existsSync(path.join(ROOT, 'src', 'system', 'registry.ts')) ? [['the registry is fresh', ['scripts/registry.ts', '--check']] as [string, string[]]] : []),
-    ['specifications are consistent', ['scripts/check.ts']],
-    ...(fs.existsSync(path.join(ROOT, 'scripts', 'check.local.ts')) ? [["the product's own rules hold", ['scripts/check.local.ts']] as [string, string[]]] : []),
-    ['contrast holds in every theme and accent', ['scripts/contrast.ts']],
+function staticChecks(into: { failed: string[]; reported: string[] }): void {
+  const steps: [string, string[], 1 | 2][] = [
+    ['tokens are fresh', ['scripts/tokens.ts', '--check'], 1],
+    ...(fs.existsSync(path.join(ROOT, 'src', 'system', 'registry.ts')) ? [['the registry is fresh', ['scripts/registry.ts', '--check'], 1] as [string, string[], 1 | 2]] : []),
+    ['specifications are consistent', ['scripts/check.ts'], 1],
+    ...(fs.existsSync(path.join(ROOT, 'scripts', 'check.local.ts')) ? [["the product's own rules hold", ['scripts/check.local.ts'], 1] as [string, string[], 1 | 2]] : []),
+    ['contrast holds in every theme and accent', ['scripts/contrast.ts'], 2],
   ];
   // Every step runs: a red in the first must not hide the second (no fail-fast anywhere in these commands).
-  let failed = 0;
-  for (const [label, [script, ...args]] of steps) if (run(label, process.execPath, [script, ...args]) !== 0) failed++;
-  return failed;
+  for (const [label, [script, ...args], tier] of steps) record(run(label, process.execPath, [script, ...args], process.env, tier), label, tier, into);
 }
 
-/** The type check every tier runs: the routes are generated, then TypeScript compiles the tree. */
-function typecheck(): number {
-  if (run('types: route types', bin('next'), ['typegen']) !== 0) return 1;
-  return run('types: tsc --noEmit', bin('tsc'), ['--noEmit']);
-}
-
-/** This repository's budgets as the values a Tier 2 table uses until a release has recorded its own. */
-async function seedValues(): Promise<Seed> {
-  const config = ((await import(pathToFileURL(path.join(ROOT, 'scripts', 'verify.config.ts')).href)) as { default?: BudgetsConfig }).default;
-  const budgets = budgetsOf(config as BudgetsConfig);
-  const warm = budgets.navigation.warm;
-  return {
-    'vitals.lcp': 2.5,
-    'vitals.inp': 200,
-    'vitals.cls': 0.1,
-    'vitals.frames': 50,
-    'sizes.first-load': budgets.firstLoadKb ?? FIRST_LOAD_CAP_KB,
-    'nav.shell': warm.shellMs.desktop,
-    'nav.data': warm.dataMs.desktop,
-    'nav.interactive': warm.interactiveMs.desktop,
-    'perf.shell': warm.shellMs.desktop,
-    'perf.data': warm.dataMs.desktop,
-    'perf.interactive': warm.interactiveMs.desktop,
-    // The live cases' arrival (`scripts/live.ts`): a change a hint carries, and one only the safety refresh repairs.
-    'live.two-tabs': 2000,
-    'live.burst': 2000,
-    'live.burst-send': 2000,
-    'live.restart-before': 2000,
-    'live.visibility': 5000,
-    'live.offline': 5000,
-    'live.suppressed': 5000,
-    'live.restart-gone': 5000,
-    'live.restart-after': 5000,
-  };
+/** The type check every tier runs: the routes are generated, then TypeScript compiles the tree. Tier 3, so it reports. */
+function typecheck(into: { failed: string[]; reported: string[] }): void {
+  for (const [label, cmd, args] of [
+    ['types: route types', bin('next'), ['typegen']],
+    ['types: tsc --noEmit', bin('tsc'), ['--noEmit']],
+  ] as [string, string, string[]][]) record(run(label, cmd, args, process.env, 3), label, 3, into);
 }
 
 /**
@@ -237,7 +219,7 @@ async function seedValues(): Promise<Seed> {
  * branch of it fails the run — and it writes `out/perf-record.json` for the next release's baseline.
  */
 async function reportTier2(values: Value[]): Promise<string[]> {
-  const seed = await seedValues();
+  const seed = await seedValues(ROOT);
   // Reporting is not a check: the values and the table are printed, and nothing it meets can fail the run (no project has
   // `cli/`, not every project is a git repository).
   const { lines, flagged } = await reportOrWarn({ root: ROOT, values, seed, previousTag: process.env.PREVIOUS_TAG });
@@ -278,7 +260,7 @@ const affectsDeep = (files: string[]): boolean => files.some((f) => /^(scripts|j
  * The browser suites (scripts/browser.ts), at the depths asked for. Its own line per suite is passed through; the JSON
  * line says what ran and what did not, and its exit 2 is a run with something not run, not a failure.
  */
-function browser(depth: string, built = false, only?: string): Promise<{ ok: boolean; notRun: string[]; declared: string[]; ran: string[]; reported: string[]; tier2: Value[] }> {
+function browser(depth: string, built = false, only?: string): Promise<{ ok: boolean; notRun: string[]; declared: string[]; ran: string[]; reported: string[]; findings: string[]; tier2: Value[] }> {
   // Streamed as it arrives, not collected and printed when the child exits: a suite that stops making progress must be
   // visible in the log while it is stuck, never only after it finally returns or times out.
   return new Promise((resolve) => {
@@ -296,23 +278,27 @@ function browser(depth: string, built = false, only?: string): Promise<{ ok: boo
     child.on('close', (status) => {
       if (rest.trim()) console.log(rest);
       const json = /^browser: (.*)$/m.exec(out);
-      let state: { ran?: string[]; failed?: boolean; notRun?: string[]; declared?: string[]; reported?: string[]; tier2?: Value[] } | null = null;
+      let state: { ran?: string[]; failed?: boolean; notRun?: string[]; declared?: string[]; reported?: string[]; findings?: string[]; tier2?: Value[] } | null = null;
       try { state = json ? JSON.parse(json[1]) : null; } catch { state = null; }
       if (status === 1 || !state) {
         console.log(`test: browser suites FAIL (${out.split('\n').filter(Boolean).slice(-1)[0] ?? 'no output'})`);
-        resolve({ ok: false, notRun: [], declared: [], ran: [], reported: [], tier2: [] });
+        resolve({ ok: false, notRun: [], declared: [], ran: [], reported: [], findings: [], tier2: [] });
         return;
       }
-      resolve({ ok: true, notRun: state.notRun ?? [], declared: state.declared ?? [], ran: state.ran ?? [], reported: state.reported ?? [], tier2: state.tier2 ?? [] });
+      resolve({ ok: true, notRun: state.notRun ?? [], declared: state.declared ?? [], ran: state.ran ?? [], reported: state.reported ?? [], findings: state.findings ?? [], tier2: state.tier2 ?? [] });
     });
   });
 }
 
-/** The steps `test:release` and the stages share, so a stage cannot drift from the release it is a part of. */
-const typeSteps = (): [string, () => number][] => [
-  ['types: route types', () => run('types: route types', bin('next'), ['typegen'])],
-  ['types: tsc --noEmit', () => run('types: tsc --noEmit', bin('tsc'), ['--noEmit'])],
-  ['lint: eslint .', () => run('lint: eslint .', bin('eslint'), ['.', '--ignore-pattern', '.meridian/'])],
+/**
+ * The steps `test:release` and the stages share, so a stage cannot drift from the release it is a part of. All three are
+ * Tier 3 and every one of them reports: a build that does not compile is not a lint finding — the app cannot open, so it
+ * fails Tier 1 through `build: next build` instead.
+ */
+const typeSteps = (): [string, () => number, 1 | 2 | 3][] => [
+  ['types: route types', () => run('types: route types', bin('next'), ['typegen'], process.env, 3), 3],
+  ['types: tsc --noEmit', () => run('types: tsc --noEmit', bin('tsc'), ['--noEmit'], process.env, 3), 3],
+  ['lint: eslint .', () => run('lint: eslint .', bin('eslint'), ['.', '--ignore-pattern', '.meridian/'], process.env, 3), 3],
 ];
 
 /** A production build; the size checks need the built app served, so they run inside the browser suites. */
@@ -337,10 +323,13 @@ async function release(): Promise<number> {
   const declared: string[] = [];
   /** Every Tier 1 failure this run met, printed together at the end: a red in one stage must not hide the next. */
   const failed: string[] = [];
+  /** What a Tier 2 or Tier 3 check ran and found: named in the closing line, and nothing exits on it. */
+  const reported: string[] = [];
+  const into = { failed, reported };
   clearParts(ROOT);
   for (const gap of ciGaps(Number(process.versions.node.split('.')[0]))) console.log(`warn test:release: ${gap}`);
-  if (staticChecks() !== 0) failed.push('static checks');
-  for (const [label, step] of typeSteps()) if (step() !== 0) failed.push(label);
+  staticChecks(into);
+  for (const [label, step, tier] of typeSteps()) record(step(), label, tier, into);
 
   // Every test file: Tier 1, the performance convention, and this repository's browser fixtures on their own below.
   const t1 = everyTestFile();
@@ -357,12 +346,17 @@ async function release(): Promise<number> {
   // The browser suites against that build: the sweeps first, then the timed runs alone on the quiet machine. The parts
   // dir is cleared first, so values the browser-fixture tests recorded into the same out/ are not this run's.
   clearParts(ROOT);
-  // The 20-sample protocol runs where `CI` is true, as it always has: the weekly run is the one with a quiet runner for
-  // it, and the release workflow asks for it in its own `tier2` job. A local `test:release` judges times without it.
-  const browserRun = await browser(process.env.CI === 'true' ? 'fn,timed,perf' : 'fn,timed', true);
+  // The 20-sample protocol is NOT here. It is measured by its own stage, in its own non-blocking job (`stage perf`),
+  // because it outruns any job limit a gate can carry: measured, it took a product's push gate from 1 h 47 m to 2 h 37 m
+  // against a 180-minute timeout, and a gate that waits on a measurement fails for the wrong reason. A release without it
+  // is a release with fewer numbers, never a release with a red.
+  const browserRun = await browser(GATE_DEPTHS, true);
   if (!browserRun.ok) failed.push('a browser suite');
   notRun.push(...browserRun.notRun.map((s) => `browser suites (${s})`));
   declared.push(...browserRun.declared.map((s) => `browser suites (${s})`));
+  // Said out loud rather than left as silence: the protocol is not skipped, it is measured elsewhere, and whoever reads
+  // this summary should know which stage holds those numbers.
+  declared.push('the 20-sample protocol: measured by its own stage (node scripts/test-run.ts stage perf), never inside the gate');
   // The Postgres code the skill's references hand a team lives outside tests/ and needs services: run it only where the
   // owner supplied them, and say it did not run otherwise, never that it passed.
   const missing = ['MERIDIAN_POSTGRES_URL', 'MERIDIAN_POOLER_URL', 'MERIDIAN_PG'].filter((k) => !process.env[k]);
@@ -375,10 +369,11 @@ async function release(): Promise<number> {
     else if (run('Postgres tests', bin('vitest'), ['run', '--config', postgresConfig]) !== 0) failed.push('the Postgres tests');
   }
   const overBudget = [...(await reportTier2(browserRun.tier2)), ...browserRun.reported.map((s) => `browser suites (${s})`)];
+  reported.push(...browserRun.findings.map((s) => `audit (${s})`));
   for (const d of declared) console.log(`not run (declared by the project's configuration): ${d}`);
   if (!failed.length && !notRun.length) recordGreen();
   else if (notRun.length) console.log(`test:release: the marker is not advanced, because ${notRun.length} check${notRun.length === 1 ? '' : 's'} did not run`);
-  const { line, exit } = summaryLine({ command: 'test:release', failed, notRun, declared, overBudget, files: t1.files, tests: t1.tests });
+  const { line, exit } = summaryLine({ command: 'test:release', failed, notRun, declared, overBudget, reported, files: t1.files, tests: t1.tests });
   console.log(line);
   return exit;
 }
@@ -418,6 +413,9 @@ async function affected(tier: 't1' | 't2'): Promise<number> {
 
   /** Every Tier 1 failure this run met, printed together at the end: a red in one stage must not hide the next. */
   const failed: string[] = [];
+  /** What a Tier 2 or Tier 3 check ran and found: named in the closing line, and nothing exits on it. */
+  const reported: string[] = [];
+  const into = { failed, reported };
   /** The test files that failed, so a red run can hand the next one its smallest starting set. */
   const failedTests = new Set<string>();
   // A retry of unchanged bytes re-runs what could have been transient and nothing else. When the red run named no test
@@ -428,13 +426,14 @@ async function affected(tier: 't1' | 't2'): Promise<number> {
   // The checks that read the whole tree cannot say anything new about bytes they have already read: a retry of an
   // unchanged tree runs its failures, and nothing else (docs/testing.md, "Once per commit").
   if (!sameTree) {
-    if (staticChecks() !== 0) failed.push('static checks');
-    if (typecheck() !== 0) failed.push('the type check');
+    staticChecks(into);
+    typecheck(into);
   }
-  // The same lint test:release runs, over the files this change touches: a lint error must not reach master through a
-  // run that checked types but never linted (one did: the drawer's `react-hooks/refs`, b54c5d7b).
+  // The same lint test:release runs, over the files this change touches. Tier 3, so it reports: a lint error once reached
+  // master through a run that checked types but never linted (the drawer's `react-hooks/refs`, b54c5d7b), and the fix for
+  // that was to run it here, not to make it a gate on a change nobody has finished.
   const lintFiles = lintTargets(present);
-  if (lintFiles.length && run(`lint: eslint on ${lintFiles.length} changed file${lintFiles.length === 1 ? '' : 's'}`, bin('eslint'), [...lintFiles, '--ignore-pattern', '.meridian/']) !== 0) failed.push('the lint check');
+  if (lintFiles.length) record(run(`lint: eslint on ${lintFiles.length} changed file${lintFiles.length === 1 ? '' : 's'}`, bin('eslint'), [...lintFiles, '--ignore-pattern', '.meridian/'], process.env, 3), 'lint: the changed files', 3, into);
 
   // The selection: every changed test and source file is a filter, and so is every test whose source names the path.
   // A document has no import edge; neither does a script a test execs or a config it reads — `vitest related`'s import
@@ -514,6 +513,7 @@ async function affected(tier: 't1' | 't2'): Promise<number> {
     const r = await browser(perf ? 'fn,perf' : 'fn');
     browserTier2 = r.tier2;
     browserReported = r.reported.map((s) => `browser suites (${s})`);
+    reported.push(...r.findings.map((s) => `audit (${s})`));
     if (!r.ok) failed.push('a browser suite');
     notRun.push(...r.notRun.map((s) => `browser suites (${s})`));
     declared.push(...r.declared.map((s) => `browser suites (${s})`));
@@ -554,7 +554,7 @@ async function affected(tier: 't1' | 't2'): Promise<number> {
     else clearLastRun(ROOT);
   }
   if (!first.files) console.log(`test:${tier}: no test is affected (${where})`);
-  const { line, exit } = summaryLine({ command: `test:${tier}`, failed, notRun, declared, overBudget, covers: tier === 't1' ? 'every Tier 1 check' : 'every Tier 1 check and the Tier 2 files this run covers', ...(first.files ? { files: first.files, tests: first.tests } : {}) });
+  const { line, exit } = summaryLine({ command: `test:${tier}`, failed, notRun, declared, overBudget, reported, covers: tier === 't1' ? 'every Tier 1 check' : 'every Tier 1 check and the Tier 2 files this run covers', ...(first.files ? { files: first.files, tests: first.tests } : {}) });
   console.log(line);
   return exit;
 }
@@ -570,25 +570,25 @@ function touchesBrowserAll(changed: string[]): boolean {
 }
 
 /** The stages of `test:release`, one CI job each. */
-const STAGES = ['static', 'sweep', 'deep', 'tier2'] as const;
+const STAGES = ['static', 'sweep', 'deep', 'tier2', 'perf'] as const;
 const SWEEPS = ['audit', 'interactions', 'keyboard', 'rest'] as const;
 
 /** A stage's last line and exit: 1 for a failed check, 2 for a check the environment could not run, else 0. */
-function stageExit(name: string, failed: string[], notRun: string[], declared: string[], overBudget: string[], counts?: { files: number; tests: number }): number {
+function stageExit(name: string, failed: string[], notRun: string[], declared: string[], overBudget: string[], reported: string[] = [], counts?: { files: number; tests: number }): number {
   for (const d of declared) console.log(`not run (declared by the project's configuration): ${d}`);
-  const { line, exit } = summaryLine({ command: `test:${name}`, failed, notRun, declared, overBudget, covers: 'every check the stage runs', ...(counts ?? {}) });
+  const { line, exit } = summaryLine({ command: `test:${name}`, failed, notRun, declared, overBudget, reported, covers: 'every check the stage runs', ...(counts ?? {}) });
   console.log(line);
   return exit === 0 && notRun.length ? 2 : exit;
 }
 
-/** The static checks, the type check, lint and every Vitest file but the deep tests. */
+/** The static checks, the type check, lint and every Vitest file but the deep tests. The first two report, the rest block. */
 function stageStatic(): number {
-  const failed: string[] = [];
-  if (staticChecks() !== 0) failed.push('static checks');
-  for (const [label, step] of typeSteps()) if (step() !== 0) failed.push(label);
+  const into = { failed: [] as string[], reported: [] as string[] };
+  staticChecks(into);
+  for (const [label, step, tier] of typeSteps()) record(step(), label, tier, into);
   const t1 = everyTestFile();
-  if (t1.status !== 0) failed.push('the test suite');
-  return stageExit('stage static', failed, [], [], [], { files: t1.files, tests: t1.tests });
+  if (t1.status !== 0) into.failed.push('the test suite');
+  return stageExit('stage static', into.failed, [], [], [], into.reported, { files: t1.files, tests: t1.tests });
 }
 
 /** A production build, then one function sweep against it; `rest` also runs the route policy after the build. */
@@ -622,15 +622,28 @@ function stageDeep(since: string, part: { i: number; n: number } | null): number
   return stageExit('stage deep', deep.status !== 0 ? ['the browser-fixture tests'] : [], deep.ran ? [] : ['browser-fixture tests (tests/deep-*) (no Chrome)'], [], []);
 }
 
-/** A build, then the timed and perf suites against it and the size values, recorded. Reports; always exits 0. */
+/** A build, then the timed suites against it and the size values, recorded. Reports; always exits 0. */
 async function stageTier2(): Promise<number> {
   if (productionBuild() !== 0) console.log('warn test:stage tier2: the production build failed, so no value was measured');
   clearParts(ROOT);
-  const r = await browser('timed,perf', true);
+  const r = await browser(STAGE_DEPTHS.tier2, true);
   const overBudget = [...(await reportTier2(r.tier2)), ...r.reported.map((s) => `browser suites (${s})`)];
   // A browser run that could not finish is a red of this stage and never "every check the stage runs passed": the run
   // measured nothing, and the release's whole Tier 2 table would go missing behind a green job.
   return stageExit('stage tier2', r.ok ? [] : ['the browser suites'], r.notRun.map((s) => `browser suites (${s})`), [], overBudget);
+}
+
+/**
+ * The 20-sample protocol, alone: a build, the protocol against it, its values recorded. It never gates anything, so this
+ * stage reports and exits 0 — a protocol that could not run is `not run` in its own line, never a red of the job holding
+ * it. It writes the same record `stage tier2` does, one part beside the other, which is how its values reach the release
+ * comparison without the gate ever waiting for them.
+ */
+async function stagePerf(): Promise<number> {
+  if (productionBuild() !== 0) console.log('warn test:stage perf: the production build failed, so no value was measured');
+  const r = await browser(STAGE_DEPTHS.perf, true);
+  const overBudget = [...(await reportTier2(r.tier2)), ...r.reported.map((s) => `browser suites (${s})`)];
+  return stageExit('stage perf', [], r.notRun.map((s) => `browser suites (${s})`), [], overBudget);
 }
 
 function stageMain(argv: string[]): Promise<number> | number {
@@ -639,9 +652,9 @@ function stageMain(argv: string[]): Promise<number> | number {
     console.error(`test-run: unknown stage "${name ?? ''}"; the stages are ${STAGES.join(', ')}`);
     return 1;
   }
-  if (name === 'static' || name === 'tier2') {
+  if (name === 'static' || name === 'tier2' || name === 'perf') {
     if (rest.length) { console.error(`test-run: stage ${name} takes no arguments`); return 1; }
-    return name === 'static' ? stageStatic() : stageTier2();
+    return name === 'static' ? stageStatic() : name === 'tier2' ? stageTier2() : stagePerf();
   }
   if (name === 'sweep') {
     if (rest.length !== 1 || !SWEEPS.includes(rest[0] as (typeof SWEEPS)[number])) {

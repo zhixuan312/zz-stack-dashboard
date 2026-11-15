@@ -27,11 +27,13 @@
  * not one key for everything.
  */
 import { answerProblem, DRAWS_NOT_FOUND, missingRoutes } from './lib/answered.ts';
-import { launch } from './lib/chrome.ts';
+import { launch, type Page } from './lib/chrome.ts';
+import { NOT_RUN_EXIT } from './lib/coverage.ts';
 import { DEEP_SOURCE } from './lib/deep.ts';
 import { discover, NOT_FOUND_PROBE } from './lib/routes.ts';
 import { settle } from './lib/settle.ts';
 import { detailRoutes, personaCookie } from './lib/team-config.ts';
+import { watchForStoppedBrowser } from './lib/unresponsive.ts';
 import { holdArgs } from './lib/args.ts';
 
 const args = process.argv.slice(2);
@@ -128,7 +130,15 @@ const press = async (modifiers: number) => {
   })`);
 };
 
-const page = await launch();
+// A browser that did not start is not a verdict about a page and not a stack trace of the run: it is a check that could
+// not run, said once, and the run is not green because it did not run.
+let page: Page;
+try {
+  page = await launch();
+} catch (e) {
+  console.log(`not run: the browser could not start (${(e as Error).message})`);
+  process.exit(NOT_RUN_EXIT);
+}
 
 let failures = 0;
 
@@ -218,10 +228,15 @@ const walk = async (route: string) => {
   else console.log(`ok   ${route} (${reached.size} stops, every one drawn, ringed and on top${order.length ? ', and the same in reverse' : '; no stop to walk'})`);
 };
 
+/** Pages that stop answering altogether are not this product's pages: the sweep ends as one `not run` line with its reason. */
+const stoppedBrowser = watchForStoppedBrowser(() => page.responsive());
+
 for (const route of ROUTES) {
   try {
     await walk(route);
   } catch (e) {
+    const stopped = await stoppedBrowser(e);
+    if (stopped) { console.log(`not run: ${stopped}`); page.close(); process.exit(NOT_RUN_EXIT); }
     failures += 1;
     console.log(`FAIL ${route}\n  could not be walked: ${(e as Error).message.replace(/\s+/g, ' ').trim()}`);
     await page.open('about:blank', { width: 1440, height: 900, theme: 'dark', wait: 0, cookie }).catch(() => {});

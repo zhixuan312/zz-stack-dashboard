@@ -20,11 +20,13 @@
  */
 import { answerProblem, DRAWS_NOT_FOUND, missingRoutes } from './lib/answered.ts';
 import { launch, type Page } from './lib/chrome.ts';
+import { NOT_RUN_EXIT } from './lib/coverage.ts';
 import { DEEP_SOURCE } from './lib/deep.ts';
 import { linkPath } from './lib/links.ts';
 import { discover } from './lib/routes.ts';
 import { settle } from './lib/settle.ts';
 import { detailRoutes, personaCookie } from './lib/team-config.ts';
+import { watchForStoppedBrowser } from './lib/unresponsive.ts';
 import { holdArgs } from './lib/args.ts';
 
 const args = process.argv.slice(2);
@@ -136,7 +138,15 @@ async function press(page: Page, x: number, y: number, touch: boolean) {
   }
 }
 
-const page = await launch();
+// A browser that did not start is not a verdict about a page and not a stack trace of the run: it is a check that could
+// not run, said once, and the run is not green because it did not run.
+let page: Page;
+try {
+  page = await launch();
+} catch (e) {
+  console.log(`not run: the browser could not start (${(e as Error).message})`);
+  process.exit(NOT_RUN_EXIT);
+}
 
 /** One implementation of the walk: the helper is injected, never copied. A page it cannot be injected into fails the suite. */
 async function inject(route: string) {
@@ -253,11 +263,16 @@ const walk = async (route: string, width: number) => {
   if (thrown.length) failures.push(`${route} @${width}: ${thrown[0]}`);
 };
 
+/** Pages that stop answering altogether are not this product's pages: the sweep ends as one `not run` line with its reason. */
+const stoppedBrowser = watchForStoppedBrowser(() => page.responsive());
+
 for (const width of WIDTHS) {
   for (const route of ROUTES) {
     try {
       await walk(route, width);
     } catch (e) {
+      const stopped = await stoppedBrowser(e);
+      if (stopped) { console.log(`not run: ${stopped}`); page.close(); process.exit(NOT_RUN_EXIT); }
       failures.push(`${route} @${width}: could not be walked: ${(e as Error).message.replace(/\s+/g, ' ').trim()}`);
       await page.open('about:blank', { width, height: 900, theme: 'dark', cookie }).catch(() => {});
     }

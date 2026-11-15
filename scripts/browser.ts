@@ -50,6 +50,7 @@ import { CHROME, launch } from './lib/chrome.ts';
 import { fakeModelArgs, fakeModelProblems, type FakeModelStep } from './lib/config-hooks.ts';
 import { declaredNotRun, selectSmokeRoutes } from './lib/coverage.ts';
 import { FN_SWEEPS, navigationPlan, sweepsFor, timedOutcome, type FnSweep } from './lib/browser-plan.ts';
+import { auditFindings } from './lib/audit-findings.ts';
 import { capacityFrom, pool } from './lib/pool.ts';
 import { clearParts, readParts } from './lib/tier2.ts';
 import { unsafeDataUrls } from './lib/data-url.ts';
@@ -111,6 +112,9 @@ let failed = false;
 const ran: string[] = [];
 /** The timed and perf suites that printed FAIL: Tier 2, reported and never failing the run. */
 const reported: string[] = [];
+/** What a Tier 2 check ran and found — the audit's small targets, low contrast, heading holes and nested scrollers —
+ *  counted so the run's closing line names them, and nothing exits on them. */
+const findings: string[] = [];
 
 function phase(status: Status, name: string, took: number | null, detail = ''): void {
   log(`${status.padEnd(7)} ${name}${took === null ? '' : ` (${took.toFixed(1)}s)`}${detail ? ` ${detail}` : ''}`);
@@ -222,14 +226,21 @@ function report(name: string, r: Ran): void {
   if (status === 'ok') ran.push(name);
   else if (status === 'FAIL') { failed = true; beneath(`${r.out}\n${r.err}`); }
   else {
+    // A suite that stopped because the browser did says why in its own one line, and the closing line carries that reason
+    // rather than the suite's name alone: "it did not run" is the verdict, and the reason is what someone acts on.
+    const stopped = /^not run: (.+)$/m.exec(r.out)?.[1];
     // A suite left unrun only by the project's own configuration — a rail route with no navigation check, a rail not in
     // a drawer on a phone — is not waiting on evidence a rerun could bring. It is reported as not run with its reason and
     // does not hold the last-green marker; anything else not run is evidence missing, and does.
     const entries = notRunEntries(r.out);
-    if (entries.length && entries.every(declaredNotRun)) declared.push(`${name}: ${entries.join('; ')}`);
+    if (stopped) notRun.push(`${name} (${stopped})`);
+    else if (entries.length && entries.every(declaredNotRun)) declared.push(`${name}: ${entries.join('; ')}`);
     else notRun.push(name);
   }
   if (status === 'ok' && r.out) beneath(r.out, 6);
+  // A suite can pass and still have found something: the audit sorts its own findings, and what it reports is counted for
+  // the closing line rather than read as an issue of this run's exit.
+  findings.push(...auditFindings(r.out));
 }
 
 /** A timed or perf suite: its verdict goes through `timedOutcome`, so a FAIL is reported with its output and the run stays green. */
@@ -252,7 +263,7 @@ function finish(): never {
   // The Tier 2 values this run's suites recorded, gathered once: the run's table and record (test-run) read them.
   const tier2 = readParts(ROOT).flatMap((p) => p.values);
   clearParts(ROOT);
-  const state = { ran, failed, notRun, declared, reported, tier2, seconds: Number(secs(started).toFixed(1)) };
+  const state = { ran, failed, notRun, declared, reported, findings, tier2, seconds: Number(secs(started).toFixed(1)) };
   log(`browser: ${JSON.stringify(state)}`);
   process.exit(failed ? 1 : notRun.length ? 2 : 0);
 }

@@ -36,3 +36,15 @@ export type BrowserDepth = 'fn' | 'timed' | 'perf';
 export function navigationPlan(depth: BrowserDepth): { judged: boolean; runs: number } {
   return { judged: depth !== 'fn', runs: 1 };
 }
+
+/**
+ * The depths each release stage asks the browser for, and the one the push gate asks for. The 20-sample protocol is
+ * never among them: it is measured on its own stage, in its own job, because 20 samples across three conditions and two
+ * devices outruns any job limit a gate can carry — measured, it took a product's push gate from 1 h 47 m to 2 h 37 m
+ * against a 180-minute timeout — and a gate that waits on a measurement fails for the wrong reason. Its values still
+ * reach the Tier 2 record and the release-to-release comparison, through `stage perf`.
+ */
+export const STAGE_DEPTHS = { tier2: 'timed', perf: 'perf' } as const;
+
+/** What `test:release` asks for: the function sweeps and the timed runs, never the protocol. */
+export const GATE_DEPTHS = 'fn,timed';

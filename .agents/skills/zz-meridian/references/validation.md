@@ -4,12 +4,14 @@ The test commands are the only test entry points, and none takes an argument. Th
 
 | Command | Runs |
 |---|---|
-| `pnpm test:t1` | The static checks, then the Tier 1 tests affected by the changes since the last green run. |
+| `pnpm test:t1` | The static checks, then the Tier 1 tests affected by the changes since the last green run. Lint and the type check report. |
 | `pnpm test:t2` | The affected Tier 2 tests too, and the affected Tier 1 tests with them. |
-| `pnpm test:release` | Every Tier 1 and Tier 2 test, once, plus lint, the type check, a production build and its size and route checks. |
+| `pnpm test:release` | Every Tier 1 and Tier 2 test, once, plus lint, the type check, a production build and its size and route checks. Lint and the type check report. |
 
 Tier 2 is the file convention `*.perf.test.ts(x)` and the timed browser suites; every other test under `tests/` is
-Tier 1. The browser function sweeps are Tier 1 and fail the run; they need a build and Chrome, so they run in
+Tier 1. The browser function sweeps are Tier 1 and fail the run — a page that answered an error, content nobody can see
+or reach at all, a control that does nothing, an element a person cannot use — and what the audit finds that is only
+awkward is Tier 2 and is reported; they need a build and Chrome, so they run in
 `test:t2` and `test:release`, never in `test:t1`. `tests/deep-*`, the browser-fixture tests of the checks, are Tier 1
 and run as their own stage, kept out of the main run by their size. `test:t1` never runs a Tier 2 check. A command
 writes `out/last-green` after a passing run and reads it before the next; a missing marker falls back to the diff
@@ -18,6 +20,10 @@ tree it proved and the test files that failed — and the next run starts from t
 tests its change reaches, not everything since the last green run. The same bytes may be retried once, and that run
 never advances the marker, because a pass with no cause named is flaky. Follow "When a red is fixed, and when a limit
 may move" below for what a red and a limit mean, rather than deciding per change.
+
+**Only Tier 1 turns a run red.** Lint and the type check are Tier 3 and contrast is Tier 2: the run prints what they
+found as `reported, not failed` in its last line and exits 0. Read those lines — they are the work to do next, not a red
+to chase — and remember that a build which does not compile still fails Tier 1 through `next build`.
 
 `test:t2` runs the browser sweeps (`scripts/browser.ts --depth fn`); `test:release` adds the timed ones on a quiet
 machine (`--depth timed`). Each script also runs directly against a served build when a question needs it, with the
@@ -35,10 +41,15 @@ flags at the top of the script:
 | `node scripts/sizes.ts` | First-load JS and served HTML of a production build. |
 
 A run that judges a time needs a quiet machine; nothing else does. Nothing that did not run is reported as passed: a
-diagnostic says `not run` with the reason (no Chrome, no backend, no service) and never `ok`.
+diagnostic says `not run` with the reason (no Chrome, no backend, no service) and never `ok`. A browser that stops
+answering partway through a sweep is that case too, and it says so once: three pages in a row whose DevTools commands
+timed out, plus a fresh tab that does not answer, end the sweep as one `not run` line with the count and the last error,
+so a starved machine does not read as a page that failed. It is not a pass — the check did not run — and it does not
+advance the marker.
 
-A failing static check stops a test command there. `test:release` stops on lint, the type check, or the first failing
-test; a Tier 2 Postgres suite with no `MERIDIAN_POSTGRES_URL` is reported `not run`, never passed.
+A failing static check is reported and the run carries on: lint, the type check and contrast never fail a run, and a red
+in one test never hides the next. `test:release` runs every stage whatever it meets, and names them all at the end; a
+Tier 2 Postgres suite with no `MERIDIAN_POSTGRES_URL` is reported `not run`, never passed.
 
 Steps in order:
 
@@ -61,8 +72,8 @@ Steps in order:
    page specification follows the anatomy; the product's own rules in `optional:scripts/check.local.ts`, when the file exists
    (a rule there that asks whether a path is Meridian's reads `effectiveManifest()` from `scripts/lib/effective-manifest.ts`,
    which during an update answers with the files the update brings, where `optional:.meridian/manifest.json` is still the old release's);
-   contrast holds for every pair in every theme and accent, and the chart palette passes the colour-vision checks;
-   eslint-config-next; TypeScript; the tests.
+   contrast holds for every pair in every theme and accent, and the chart palette passes the colour-vision checks
+   (reported, never failing: contrast is Tier 2); eslint-config-next and TypeScript (both reported, Tier 3); the tests.
 2. **A production build** (`pnpm test:release` builds; a diagnostic reads a build you made). Then the route
    policy and the size checks: first-load JS per route, and every page's gzipped HTML, each against its own figure in `optional:scripts/verify.baseline.json` (and any absolute cap in `budgets.htmlKb`). Navigation readiness
    (`scripts/navigate.ts`) follows each rail route's shell, data and interaction from a press — on a desktop and through
@@ -150,6 +161,11 @@ release before and reported, never a failure: every run records each value (per 
 change is a report that blocks nothing. A functional bound is not a budget: a control that never answers, a page that
 never readies or a link that never responds is a red under a fixed, generous bound, never a timing budget.
 
+A condition the product has no surface for is neither a measurement nor a failure. The 20-sample protocol's `afterLive`
+starts from a rail route that registers live data through the sample `LiveProvider`; a product whose live layer is its own
+answers no route, so the run prints `n/a  perf: afterLive (<why>)` once, measures warm and cold, and ends with
+`judged nothing: perf: afterLive (<why>)`. A run that reads that way measured two conditions and had no third to measure.
+
 ## Gate failures
 
 | Message | Cause | Fix |
@@ -165,29 +181,41 @@ never readies or a link that never responds is a red under a fixed, generous bou
 
 ## Audit failures
 
+These fail the run: content nobody can see or reach at all, or an element a person cannot use. Each is printed under
+`FAIL`.
+
 | Message | Cause | Fix |
 |---|---|---|
-| `sideways: scroll region 1042 > 768` | Something wider than the window | A table with too many columns: `hideBelow` on low-value ones; a long id: `truncate` with a `title`; a fixed width: use `min-w-0` and fractions |
-| `clipped: … "text"` | Text cut without an ellipsis | Give the element `truncate`, or let it wrap; never shrink the type |
-| `truncated: … "text" is cut with an ellipsis and no title holds the whole of it` | Text is cut on purpose and the whole value is kept nowhere a pointer can reach | A `title` with the whole text on the element or what holds it (a `DataTable` column's `title`, a `TableCell` whose cell is a value sets its own, a `CardHeader` without `wrap` whose title is plain text sets its own); or let it wrap |
 | `overlap: … and … are drawn in the same place` | Two pieces of text share a third of a line or more: a negative margin, an absolute label, a row that did not wrap | Give each its own place: a gap, a wrap, or a narrower label at that width |
 | `overlap: a line (…) is drawn through … "text"` | A stroked shape (a sparkline, a rule, an axis) crosses the middle of a line of text | Move the caption out of the plot, or end the line before it; a filled shape under text is a ground and is read by the contrast check instead |
-| `… "text" spills its box by 6px` | Text drawn past the edge of the box that holds it while nothing clips it: a fixed width, a label that may not wrap, a figure wider than its cell | Let it wrap, `truncate` it with a `title`, or give the box room (`min-w-0` on a flex child) |
-| `heading skips a level: h2 then h4` | A heading level skips one, so a screen reader's outline of the page has a hole | Use the next level down, and make a heading look smaller with its type, never by choosing a deeper level; a card's specimen in the Atlas is exempt |
-| `touch target under 44px: Close 24×24` | On a phone (a coarse pointer) a control answers less than 44px: its own box, its field's frame and its label together | Tag a small control `hit`, which answers a 44px square around it under a finger without growing, or put it in a field's `control-frame`; a link inside running text is exempt |
 | `the page holds 0 characters of text — it rendered nothing, or only its loading state` | The page drew under 24 characters: it threw before it drew, or never left its `loading.tsx` | Open the route and read the console or the server log; a read that never answers holds the loading state |
 | `the audit measured /sign-in while asking for /keys`, or `the address dropped period — …` | The route redirected, or rewrote its query, so what was measured is another page or view | Audit the address the page keeps (a redirect's target, the query it accepts), or fix the redirect that should not happen |
 | `unnamed: button…` | An icon-only control (a web component's button counts the text slotted into its host as its name) | `aria-label` on it (Icon button requires one) |
-| `scrollers: …` | A card scrolls on its own | Page the list (`DataTable` pages at 20) or cap it ("top 5"); only the page scrolls |
-| `contrast: 3.1:1 … "text"` | Text below 4.5:1 (3:1 for large text). An SVG's `<text>` counts: its colour is its `fill`, its ground is what the SVG painted under it | Use `ink`, `ink-2` or `ink-3` on surfaces; status text uses `*-ink`, never the fill colour; in a chart, `fill-ink-2` or `fill-ink-3` for labels |
 | `no focus ring: …` | A control with `outline-none` and no ring, or one whose outline, shadow or border is the same with and without focus | Remove `outline-none`, or add `focus-visible:outline-2 focus-visible:outline-accent`. A ring painted permanently is not a focus ring; a specimen that depicts the focus state is drawn inert (`State` with `still`) |
 | `unmeasured: x-card (no open shadow root)` | A custom element shows a box but exposes no open root and no content in the page, so nothing inside it was measured | Attach its root open (`attachShadow({ mode: 'open' })`), or render its content as light DOM in a slot; the audit fails until it can look |
 | `unmeasured: x-card (not defined)` | A custom element was still not registered after the settle wait | Register it (`customElements.define`) before the page settles, or remove the tag from the page |
 | `"Export" does nothing when pressed` | A control with no action, or one that only works on hover | Wire it, or remove it; an info button uses `Tooltip toggle` so a tap opens it |
-| `table … > its frame` | A table wider than its card, its last columns clipped | `hideBelow` one more column, or `truncate` a long column. Every column is as wide as its content, the spare sits in the gaps between columns, an equal share in each, and a cut column shrinks only when the table lacks room; a fixed `width` keeps its width, and the `grow` floor is 160px |
+| `table … > its frame` | A table wider than its card, its last columns clipped with no scroller to reach them | `hideBelow` one more column, or `truncate` a long column. Every column is as wide as its content, the spare sits in the gaps between columns, an equal share in each, and a cut column shrinks only when the table lacks room; a fixed `width` keeps its width, and the `grow` floor is 160px |
 | `<route> answered 404, so what was measured is its error page and not the route`, or `<route> draws the not-found screen ([data-missing-page])` | The route answered an error status or drew the not-found screen, so the audit, the presses, the keyboard walk, the vitals and a shot read that screen in its place: a mistyped id in `detailRoutes`, a record the fake API does not hold, an address given by hand | Fix the id, or give the fake API the record. A record meant not to exist goes in `missingRoutes` |
 | `<route> is in missingRoutes, and it answered 200 and draws no not-found screen` | A route declared missing renders a page, or the product's own not-found screen is not marked | The record came to exist: move it to `detailRoutes`, or name an id nothing holds. A not-found screen of your own carries `data-missing-page` on its root |
 | `exception:` / `console.error:` | A runtime error or a hydration mismatch | Hydration: no `Date.now()`, `Math.random()` or locale-dependent formatting in render; use the demo clock and `src/lib/format*` |
+
+## Audit findings, reported
+
+These are Tier 2: they are printed under `reported:`, counted in the run's closing line, and fail nothing. They are
+still worth fixing — the run says what it found every time, and a page that keeps one reads as a page nobody looked at.
+
+| Message | Cause | Fix |
+|---|---|---|
+| `sideways: scroll region 1042 > 768` | Something wider than the window, so the page or a region scrolls sideways | A table with too many columns: `hideBelow` on low-value ones; a long id: `truncate` with a `title`; a fixed width: use `min-w-0` and fractions |
+| `clipped: … "text"` | Text cut without an ellipsis: cut but still visible | Give the element `truncate`, or let it wrap; never shrink the type |
+| `truncated: … "text" is cut with an ellipsis and no title holds the whole of it` | Text is cut on purpose and the whole value is kept nowhere a pointer can reach | A `title` with the whole text on the element or what holds it (a `DataTable` column's `title`, a `TableCell` whose cell is a value sets its own, a `CardHeader` without `wrap` whose title is plain text sets its own); or let it wrap |
+| `… "text" spills its box by 6px` | Text drawn past the edge of the box that holds it while nothing clips it: a fixed width, a label that may not wrap, a figure wider than its cell | Let it wrap, `truncate` it with a `title`, or give the box room (`min-w-0` on a flex child) |
+| `heading skips a level: h2 then h4` | A heading level skips one, so a screen reader's outline of the page has a hole | Use the next level down, and make a heading look smaller with its type, never by choosing a deeper level; a card's specimen in the Atlas is exempt |
+| `touch target under 44px: Close 24×24` | On a phone (a coarse pointer) a control answers less than 44px: its own box, its field's frame and its label together | Tag a small control `hit`, which answers a 44px square around it under a finger without growing, or put it in a field's `control-frame`; a link inside running text is exempt |
+| `scrollers: …` | A card scrolls on its own | Page the list (`DataTable` pages at 20) or cap it ("top 5"); only the page scrolls |
+| `contrast: 3.1:1 … "text"` | Text below 4.5:1 (3:1 for large text). An SVG's `<text>` counts: its colour is its `fill`, its ground is what the SVG painted under it | Use `ink`, `ink-2` or `ink-3` on surfaces; status text uses `*-ink`, never the fill colour; in a chart, `fill-ink-2` or `fill-ink-3` for labels |
+| `a table head draws 32px on a phone: …` | A table's header row shows on a phone as stray words above the cards, instead of being visually hidden | Nothing to do in the page: the head must stay `sr-only` at that width, and a column that must show carries its own label |
 
 ## Keyboard walk failures
 

@@ -9,7 +9,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 <!-- END:nextjs-agent-rules -->
 
 <!-- BEGIN:zz-meridian-agent-rules -->
-# Built on ZZ Meridian 0.39.4
+# Built on ZZ Meridian 0.39.5
 
 Follow the zz-meridian skill in `.agents/skills/zz-meridian/SKILL.md`.
 Read `optional:docs/brief.md` for this team's product, users, data and decisions.
@@ -23,8 +23,10 @@ When it is absent, use the skill's brief template with the person's answers; do 
   upgrade: resolve the report and run the pinned finalization command.
 - Test runs, and the only test commands: `pnpm test:t1` (the Tier 1 tests affected since the last green run),
   `pnpm test:t2` (the affected Tier 2 tests too) and `pnpm test:release` (every Tier 1 and Tier 2 test, lint and the
-  type check). The tool picks the tests; never name one. Label every plan phase Tier 1, 2 or 3: Tier 1 phases use
-  `test:t1`, Tier 2 and Tier 3 phases use `test:t2`. `test:release` passes before a release.
+  type check). The tool picks the tests; never name one. Label every plan phase by its tier — 1 make it work, 2 make it
+  work well, 3 build to last: Tier 1 phases use `test:t1`, Tier 2 and Tier 3 phases use `test:t2`. Only Tier 1 fails a
+  run: lint, the type check and the contrast pairs run, are reported on the last line as "reported, not failed", and hold
+  nothing. `test:release` passes before a release.
 - Agents in the product read through authorized collections and write only through an approved Proposal.
 <!-- END:zz-meridian-agent-rules -->
 
@@ -89,10 +91,9 @@ in hand at about 350 ms while the formatted first paragraph — the LCP element 
 chunk. The fix, when it is scheduled, is to render the body on the server: `Prose` has no
 `'use client'`, so the 141 KiB never ships.
 
-The 20-sample navigation protocol (`--depth perf` in the browser suite) is Tier 2 and runs only
-where CI is true: `pnpm test:release` asks for it, so the gate on every push runs it, and a local
-run reports it not run rather than judging the machine. Like every timed suite, it reports and
-never fails the run.
+The 20-sample navigation protocol is Tier 2 and runs in the weekly `pnpm test:t2`, never in the
+push run: it took that run from 1 h 47 m to 2 h 37 m. Like every timed suite, it reports and never
+fails the run. Lint, the type check and the contrast pairs are reported too and block nothing.
 
 **A release in this repository is an image tag deployed by zz-stack's release** (`node
 scripts/release.ts <version> --dashboard=<version>` in the zz-stack checkout). Pushing to
